@@ -1,0 +1,22 @@
+TITLE: Quantum Computing and Quantum Machine Learning
+AUTHOR: Morten Hjorth-Jensen {copyright, 1999-present|CC BY-NC} at Department of Physics, University of Oslo
+DATE: April 16
+
+# Note to self, use notebook in pub/week12
+
+
+!split
+===== Plans for the week of April 14-18, 2026 =====
+
+!bblock 
+* Reminder from last week about the QPE algorithm
+* Discussion of the HHL algorithms, basic math and codes with examples on how to solve differential equations
+* If we get time, start discussions of the QAOA algorithm
+* The HHL and QAOA algorithms and links with quantum machine learning
+* _Note 1_: The PDF file for this week's lectures is at URL:"https://github.com/CompPhysics/QuantumComputingMachineLearning/tree/gh-pages/doc/pub/week12/pdf/week12slides.pdf"
+* _Note 2_: The jupyter-notebook file for this week's lectures is at URL:"https://github.com/CompPhysics/QuantumComputingMachineLearning/tree/gh-pages/doc/pub/week12/ipynb/week12.ipynb"
+
+The PDF file contains most of the mathematical derivations while the jupyter-notebook discusses the implementations of the HHL algorithm applied to the solution of Poisson's equation.
+
+!eblock
+
