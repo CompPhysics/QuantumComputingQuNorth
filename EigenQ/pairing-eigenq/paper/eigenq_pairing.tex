@@ -70,7 +70,12 @@ For four particles refined up to four levels ($k=4$, eight qubits) the refined i
 two cycles, while an unrefined prolonged guess ($p\simeq0.87$) still reaches
 $\sim10^{-4}$ in a handful of cycles.  All gate-level building blocks (UCCSD state
 preparation, the prolongation embedding, and the ancilla-based rodeo cycle) are
-implemented explicitly and validated against exact diagonalisation.  The
+implemented explicitly and validated against exact diagonalisation.  A
+gate-count analysis quantifies the depth advantage of the hybrid: a single
+UCCSD--VQE preparation at $k=4$ already costs $1312$ CNOTs and must be
+re-executed throughout a classical optimisation loop, whereas one rodeo cycle
+costs a few hundred CNOTs per Trotter step, carries no variational parameters,
+and converges exponentially.  The
 construction is the pairing-model realisation of the EIGEN-Q proposal and a concrete
 template for hardware demonstrations on mid-circuit-measurement platforms such as the
 Magne neutral-atom quantum computer.
@@ -278,12 +283,13 @@ grows from $k=2$ to $k=8$.  The gate-level UCCSD circuit reproduces the operator
 (statevector) UCCSD to machine precision and stays variational ($E_{\rm UCCSD}\ge
 E_{\rm FCI}$), tracking FCI to $\sim10^{-3}$--$10^{-2}$, whereas CCD over-binds.
 Figure~\ref{fig:methods} compares all solvers (exact, CCD, statevector and gate-level
-UCCSD, and a hardware-efficient ansatz) as a function of $k$.  The hardware-efficient
+UCCSD, and a hardware-efficient ansatz~\cite{Kandala2017}) as a function of $k$.  The hardware-efficient
 ansatz is exact at $k=2$ and reaches FCI at $k=3$ only after a multi-start
 optimisation, and struggles at $k=4$ --- the symmetry-blind landscape that motivates
 the physically structured UCCSD circuit.  Figure~\ref{fig:scaling} shows that the same
 UCCSD solver remains a tight variational bound all the way to $k=8$ (sixteen qubits),
-at the cost of a CNOT count that grows steeply ($1312$ CNOTs already at $k=4$).
+at the cost of a CNOT count that grows steeply ($1312$ CNOTs already at $k=4$); the
+compiled circuits and their depths are analysed in Sec.~\ref{sec:circuits}.
 
 \begin{table}[t]
 \caption{\label{tab:uccsd}Ground-state energies at $g=1$, $N=4$, for the
@@ -405,6 +411,148 @@ converges to the input overlap $p$.}
 \end{figure*}
 
 % ===========================================================================
+\section{Quantum circuits and depth comparison}
+\label{sec:circuits}
+% ===========================================================================
+All quantum operations in this work are compiled to a common gate set of
+single-qubit rotations and CNOTs, so the resource costs of the two routes to the
+high-resolution ground state --- a traditional full-space UCCSD--VQE versus the
+rodeo-terminated pipeline --- can be compared gate by gate.  Every number quoted
+below is produced (and verified against exact matrix exponentials) in the
+accompanying notebook.
+
+\subsection{Circuit building blocks}
+\label{sec:blocks}
+The elementary primitive is the Pauli rotation $e^{-i\frac{\phi}{2}P}$ for a
+Pauli string $P=\bigotimes_q\sigma_q$: each active qubit is rotated into the $Z$
+eigenbasis ($H$ for $X$, $HS^\dagger$ for $Y$), a CNOT ladder accumulates the
+parity onto the last active qubit, a single $R_z(\phi)$ is applied, and the
+ladder and basis changes are uncomputed.  A string of weight $w$ therefore costs
+$2(w-1)$ CNOTs and one parametrised rotation; the circuit reproduces the exact
+exponential to $3\times10^{-16}$.
+
+\paragraph{UCCSD preparation circuit.}
+Through the Jordan--Wigner map a single excitation compiles into $2$ Pauli
+rotations whose weight grows with the distance between the spin orbitals
+($8$ CNOTs for adjacent levels, $16$ for the $0\!\to\!4$ single at $k=3$), and a
+generic double excitation into $8$ rotations ($48$--$64$ CNOTs).  The doubles
+that dominate the pairing problem are special: for a time-reversed pair moving
+between levels $p$ and $q$ the operators act on the adjacent qubits
+$(2p,2p{+}1)$ and $(2q,2q{+}1)$, so the internal Jordan--Wigner $Z$ strings
+cancel and all $8$ Pauli strings have weight $4$ --- $48$ CNOTs per pair-hopping
+term \emph{independent of the level separation}.  The full state preparation at
+$N=4$, $g=1$ then costs $8$ excitation operators, $40$ rotations and $272$ CNOTs
+at $k=3$, and $26$ operators, $160$ rotations and $1312$ CNOTs at $k=4$
+(Table~\ref{tab:uccsd}); at $k=2$ the ansatz is empty (the sector is a single
+determinant) and the preparation is gate-free.
+
+\paragraph{Hardware-efficient ansatz.}
+The HEA~\cite{Kandala2017} used for contrast consists of $L$ layers of
+$R_y$ rotations on all $2k$ qubits interleaved with a CNOT entangler
+(nearest-neighbour pairs plus a wrap-around bond), i.e.\ $2k(L{+}1)$ variational
+angles and only $O(2kL)$ CNOTs: $12$ angles at $k=2$ ($L=2$) and $30$ at $k=3$
+($L=4$).  Its depth is far smaller than UCCSD, but the circuit carries no
+particle-number or seniority structure; a number-penalty term and multi-start
+optimisation are needed at $k=3$, and at $k=4$ the optimiser fails to reach the
+ground state (Fig.~\ref{fig:methods}).  Depth is not the only currency:
+trainability of the symmetry-blind landscape becomes the bottleneck first.
+
+\paragraph{Rodeo cycle.}
+One rodeo cycle adds a Hadamard on the ancilla, the controlled evolution
+$e^{-iHt_k}$, the ancilla phase $P(Et_k)$, a second Hadamard, and a mid-circuit
+measurement; the ancilla is reused across cycles.  The controlled evolution is
+compiled from the same Pauli-rotation primitive: in each rotation sub-circuit
+only the central $R_z$ needs to be controlled (if the rotation is absent the
+basis changes and CNOT ladder cancel), and a controlled $R_z$ costs $2$ extra
+CNOTs.  For the pairing Hamiltonian~\eqref{eq:H} a first-order Trotter step
+contains the $k(k{-}1)/2$ pair-hopping terms ($8$ weight-$4$ rotations, $48$
+CNOTs each), $k$ diagonal $ZZ$ rotations ($2$ CNOTs each) and $2k$ single-qubit
+phases, i.e.
+\begin{equation}
+  N_{\rm CNOT}^{\rm step}(k)=24\,k(k-1)+2k
+  \label{eq:trottercost}
+\end{equation}
+CNOTs uncontrolled --- $296$ at $k=4$ --- and $\approx 4.2\times10^{2}$ CNOTs per
+step once the controls are added.  A rodeo cycle with $n_T$ Trotter steps
+therefore costs $\approx 4.2\times10^{2}\,n_T$ CNOTs at $k=4$.
+
+\subsection{Depth budget: UCCSD--VQE versus the rodeo-terminated pipeline}
+\label{sec:depth}
+Table~\ref{tab:depth} summarises the comparison.  The traditional route prepares
+the $k=4$ ground state directly with the gate-level UCCSD--VQE: every energy or
+gradient evaluation inside the classical loop executes the full $1312$-CNOT,
+$26$-parameter circuit, each evaluation averaged over many shots, and the
+attainable accuracy saturates at the ansatz error,
+$E-E_{\rm FCI}=1.4\times10^{-3}$ at $k=4$ (Table~\ref{tab:uccsd}).  The cost
+also grows steeply with resolution --- $272\to1312$ CNOTs from $k=3$ to $k=4$ ---
+because the operator pool grows with both $k$ and $N$.
+
+The pipeline never runs a variational circuit at full resolution.  Its only
+full-resolution circuits are (i) the parameter-free Trotter steps of the
+adiabatic refinement, $296$ CNOTs each by Eq.~\eqref{eq:trottercost}, executed
+once per repetition with no optimiser attached, and (ii) $M=1$--$2$ rodeo
+cycles of $\approx4.2\times10^{2}\,n_T$ CNOTs each.  Even for several Trotter
+steps per cycle, a rodeo cycle remains a fraction of the depth of a single
+$k=4$ UCCSD preparation --- and it is executed a handful of times rather than
+throughout an optimisation loop, with the post-selection acceptance held at
+$p\simeq0.998$ by the refinement.  The pay-off in accuracy runs in the same
+direction: two rodeo cycles reach an infidelity of $5\times10^{-6}$
+(Fig.~\ref{fig:convergence}), three orders of magnitude below the variational
+floor of the deeper UCCSD circuit.  The coherent depth of a single pipeline run
+is dominated by the refinement stage ($n_s$ Trotter steps along the path); this
+cost is fixed and parameter-free, its length is set by the physical gap through
+$T\sim1/\Delta E$, and the rodeo filter is self-correcting with respect to the
+residual Trotter error~\cite{Qian2024}, so both $n_s$ and $n_T$ can be kept
+modest.
+
+\begin{table}[t]
+\caption{\label{tab:depth}Circuit-depth budget at $k=4$ ($N=4$, $g=1$,
+eight system qubits).  Top: the traditional route, a full-space gate-level
+UCCSD--VQE.  Bottom: the stages of the hybrid pipeline (one repetition; the
+acceptance of the rodeo post-selection is $\approx p=0.998$).  $n_s$ and $n_T$
+denote the number of Trotter steps in the refinement and in one controlled
+evolution, respectively; CNOT counts follow Table~\ref{tab:uccsd} and
+Eq.~\eqref{eq:trottercost}.}
+\begin{ruledtabular}
+\begin{tabular}{lccc}
+circuit & params & CNOTs & executions\\
+\colrule
+UCCSD--VQE prep.\ ($k{=}4$) & 26 & 1312 & per eval.\ $\times$ shots\\
+\colrule
+coarse UCCSD ($k{=}2$) & 0 & 0 & 1\\
+prolongation $k{=}2\!\to\!4$ & 0 & 0 & ---\\
+refinement step ($k{=}4$) & 0 & 296 & $n_s$\\
+rodeo cycle ($k{=}4$) & 0 & $\approx420\,n_T$ & $M=1$--$2$\\
+\end{tabular}
+\end{ruledtabular}
+\end{table}
+
+\subsection{Remarks on adaptive and improved VQE}
+\label{sec:adapt}
+The steep UCCSD gate count is not irreducible, and much recent work aims
+precisely at shallower variational circuits (see Ref.~\cite{Tilly2022} for a
+review).  ADAPT-VQE~\cite{Grimsley2019} grows the ansatz one operator at a
+time, at each step appending the pool operator with the largest energy gradient
+and re-optimising all amplitudes; it typically reaches a target accuracy with a
+small fraction of the full UCCSD operator count and correspondingly shallower
+circuits.  The pairing model makes the mechanism transparent: because the
+Hamiltonian conserves seniority and the reference is seniority-zero, the
+gradients of all singles and of all pair-breaking doubles vanish identically,
+so an adaptive selection would retain only the $\frac{N}{2}(k-\frac{N}{2})$
+pair-hopping doubles --- four operators at $k=4$, $N=4$, i.e.\
+$4\times48=192$ CNOTs in place of the $1312$ of the full $26$-operator ansatz,
+a sevenfold compression, with the discarded amplitudes expected to vanish at
+the optimum just as the singles do.  Qubit-ADAPT-VQE~\cite{Tang2021} pushes
+further by drawing the pool from individual Pauli strings, removing the
+eightfold string overhead per fermionic double.  These developments are
+complementary to the present pipeline rather than competing with it: the
+pipeline is agnostic to how the coarse state is produced, so an ADAPT-style
+coarse solver slots in directly, reducing the (already modest) low-resolution
+cost and potentially raising the prolonged overlap; conversely, no variational
+compression by itself supplies the exponential, optimiser-free convergence that
+the rodeo filter provides once the overlap is large.
+
+% ===========================================================================
 \section{Discussion and outlook}
 \label{sec:discussion}
 % ===========================================================================
@@ -497,6 +645,33 @@ Eur.\ Phys.\ J.\ A \textbf{59}, 275 (2023).
 J.~Lee, W.~J.~Huggins, M.~Head-Gordon, K.~B.~Whaley,
 \textit{Generalized unitary coupled cluster wavefunctions for quantum computation},
 J.\ Chem.\ Theory Comput.\ \textbf{15}, 311 (2019).
+
+\bibitem{Kandala2017}
+A.~Kandala, A.~Mezzacapo, K.~Temme, M.~Takita, M.~Brink, J.~M.~Chow,
+J.~M.~Gambetta,
+\textit{Hardware-efficient variational quantum eigensolver for small molecules
+and quantum magnets},
+Nature \textbf{549}, 242 (2017).
+
+\bibitem{Grimsley2019}
+H.~R.~Grimsley, S.~E.~Economou, E.~Barnes, N.~J.~Mayhall,
+\textit{An adaptive variational algorithm for exact molecular simulations on a
+quantum computer},
+Nat.\ Commun.\ \textbf{10}, 3007 (2019).
+
+\bibitem{Tang2021}
+H.~L.~Tang, V.~O.~Shkolnikov, G.~S.~Barron, H.~R.~Grimsley, N.~J.~Mayhall,
+E.~Barnes, S.~E.~Economou,
+\textit{Qubit-ADAPT-VQE: an adaptive algorithm for constructing
+hardware-efficient ans\"atze on a quantum processor},
+PRX Quantum \textbf{2}, 020310 (2021).
+
+\bibitem{Tilly2022}
+J.~Tilly, H.~Chen, S.~Cao, D.~Picozzi, K.~Setia, Y.~Li, E.~Grant, L.~Wossnig,
+I.~Rungger, G.~H.~Booth, J.~Tennyson,
+\textit{The variational quantum eigensolver: a review of methods and best
+practices},
+Phys.\ Rep.\ \textbf{986}, 1 (2022).
 
 \bibitem{Trotter1959}
 H.~F.~Trotter,
