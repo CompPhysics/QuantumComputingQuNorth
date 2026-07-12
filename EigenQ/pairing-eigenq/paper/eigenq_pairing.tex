@@ -17,6 +17,7 @@
 \usepackage{amsmath,amssymb}
 \usepackage{physics}
 \usepackage{graphicx}
+\usepackage{quantikz}   % circuit diagrams (Figs. \ref{fig:circ-vqe}, \ref{fig:circ-rodeo})
 \usepackage{hyperref}
 
 \newcommand{\Hlow}{H_{\mathrm{low}}}
@@ -172,7 +173,8 @@ acting on the HF reference,
 Through the Jordan--Wigner map each anti-Hermitian generator becomes a sum of
 commuting Pauli strings, so every factor compiles into a basis change, a CNOT ladder,
 a single $R_z(\theta)$ rotation, and the uncompute; a single excitation yields two
-Pauli-rotation sub-circuits and a double excitation yields eight.  We optimise with
+Pauli-rotation sub-circuits and a double excitation yields eight (the circuits are
+shown in Fig.~\ref{fig:circ-vqe}).  We optimise with
 the exact analytic gradient of the product ansatz (the naive two-term parameter shift
 is incorrect beyond the first factor, because later factors acquire frequency-one
 cross terms).  Because the pairing force does not couple to seniority-changing
@@ -215,7 +217,8 @@ overlap $p=\abs{\braket{\Psi_{\rm high}}{\Phi(T)}}^2$ rises toward unity.
 \label{sec:rodeo}
 The rodeo algorithm~\cite{Choi2021,Qian2024} removes the residual error left by the
 adiabatic tail.  One cycle acts on the system register plus a single ancilla
-(reused across cycles by mid-circuit measurement): a Hadamard on the ancilla, the
+(reused across cycles by mid-circuit measurement; the circuit is shown in
+Fig.~\ref{fig:circ-rodeo}): a Hadamard on the ancilla, the
 controlled evolution $e^{-iH t_k}$ of the system, a phase gate $P(E\,t_k)$ on the
 ancilla (which effectively shifts $H\to H-E$), a second Hadamard, and an ancilla
 measurement.  Post-selecting the ancilla in $\ket{0}$ applies the non-unitary filter
@@ -446,6 +449,50 @@ at $k=3$, and $26$ operators, $160$ rotations and $1312$ CNOTs at $k=4$
 (Table~\ref{tab:uccsd}); at $k=2$ the ansatz is empty (the sector is a single
 determinant) and the preparation is gate-free.
 
+Figure~\ref{fig:circ-vqe} shows both levels of this hierarchy.  Panel (a) is
+the VQE at the ansatz level: the product of excitation unitaries acts on the HF
+register, the energy is estimated from repeated measurements, and a classical
+optimiser updates the $P$ amplitudes $\boldsymbol\theta$ before the circuit is
+run again --- it is this feedback loop, wrapped around the full-depth state
+preparation, that multiplies the $1312$-CNOT cost into the total gate budget of
+the traditional route.  Panel (b) is the compiled interior of a single
+weight-$4$ Pauli rotation, the sub-block that occurs eight times in every
+pair-hopping double and $160$ times in the $k=4$ preparation; its only
+parametrised element is the central $R_z(\phi)$, with $\phi$ fixed by the
+amplitude of the parent excitation operator.
+
+\begin{figure*}[t]
+\centering
+\mbox{\textbf{(a)}\hspace{0.6em}%
+\begin{quantikz}[row sep=0.7em, column sep=1.0em]
+\lstick{$\ket{\mathrm{HF}}$} & \qwbundle{2k} &
+\gate{e^{\theta_1(\hat\tau_1-\hat\tau_1^{\dagger})}} & \push{\;\cdots\;} &
+\gate{e^{\theta_P(\hat\tau_P-\hat\tau_P^{\dagger})}} & \meter{$\langle \hat H\rangle$}
+\end{quantikz}}%
+\hfill
+\mbox{\textbf{(b)}\hspace{0.6em}%
+\begin{quantikz}[row sep=0.5em, column sep=0.4em]
+\lstick{$2p$}     & \gate{H} & \ctrl{1} &          &          &                  &          &          & \ctrl{1} & \gate{H} & \\
+\lstick{$2p{+}1$} & \gate{H} & \targ{}  & \ctrl{1} &          &                  &          & \ctrl{1} & \targ{}  & \gate{H} & \\
+\lstick{$2q$}     & \gate{H} &          & \targ{}  & \ctrl{1} &                  & \ctrl{1} & \targ{}  &          & \gate{H} & \\
+\lstick{$2q{+}1$} & \gate{HS^{\dagger}} &  &       & \targ{}  & \gate{R_z(\phi)} & \targ{}  &          &          & \gate{SH} &
+\end{quantikz}}
+\caption{The variational quantum eigensolver as a circuit.  (a) Ansatz level:
+the Trotterised UCCSD product acts on the HF register ($2k$ qubits, slashed
+wire) and the energy is estimated by measuring $\langle\hat H\rangle$ (in
+practice a sum of Pauli expectation values, each averaged over many shots); a
+classical optimiser updates $\boldsymbol\theta$ and the entire circuit is
+re-executed, once per energy or gradient evaluation.  (b) Compiled circuit of
+one weight-4 Pauli rotation, here $e^{-i\frac{\phi}{2}X\otimes X\otimes X\otimes Y}$
+acting on the four qubits of a pair-hopping double excitation
+$(2p,2p{+}1)\!\to\!(2q,2q{+}1)$: basis changes into the $Z$ eigenbasis ($H$ for
+$X$, $HS^\dagger$ for $Y$), a CNOT parity ladder, the single parametrised
+$R_z(\phi)$, and the uncompute.  Eight such blocks ($48$ CNOTs) build one
+double excitation; $160$ of them ($1312$ CNOTs) build the $k=4$ preparation of
+Table~\ref{tab:uccsd}.}
+\label{fig:circ-vqe}
+\end{figure*}
+
 \paragraph{Hardware-efficient ansatz.}
 The HEA~\cite{Kandala2017} used for contrast consists of $L$ layers of
 $R_y$ rotations on all $2k$ qubits interleaved with a CNOT entangler
@@ -458,9 +505,19 @@ ground state (Fig.~\ref{fig:methods}).  Depth is not the only currency:
 trainability of the symmetry-blind landscape becomes the bottleneck first.
 
 \paragraph{Rodeo cycle.}
-One rodeo cycle adds a Hadamard on the ancilla, the controlled evolution
-$e^{-iHt_k}$, the ancilla phase $P(Et_k)$, a second Hadamard, and a mid-circuit
-measurement; the ancilla is reused across cycles.  The controlled evolution is
+One rodeo cycle (Fig.~\ref{fig:circ-rodeo}) adds a Hadamard on the ancilla, the
+controlled evolution $e^{-iHt_k}$, the ancilla phase $P(Et_k)$ --- the element
+that effectively shifts $H\to H-E$ --- a second Hadamard, and a mid-circuit
+measurement; the single ancilla is reset and reused across the $M$ cycles.  The
+contrast with Fig.~\ref{fig:circ-vqe}(a) is the structural point of this
+section: the rodeo circuit contains \emph{no} variational parameters and closes
+no optimisation loop.  The times $t_k$ are drawn once from a Gaussian, the
+target energy $E$ is a classical setting, and the algorithm is driven entirely
+by the measurement record --- a run is accepted when all $M$ ancilla outcomes
+read $0$, which applies the filter of Sec.~\ref{sec:rodeo} cycle by cycle.
+Where the VQE re-executes its full-depth circuit to steer $\boldsymbol\theta$,
+the rodeo circuit is executed as printed, and its only system-size-dependent
+element is the controlled evolution.  The controlled evolution is
 compiled from the same Pauli-rotation primitive: in each rotation sub-circuit
 only the central $R_z$ needs to be controlled (if the rotation is absent the
 basis changes and CNOT ladder cancel), and a controlled $R_z$ costs $2$ extra
@@ -475,6 +532,31 @@ phases, i.e.
 CNOTs uncontrolled --- $296$ at $k=4$ --- and $\approx 4.2\times10^{2}$ CNOTs per
 step once the controls are added.  A rodeo cycle with $n_T$ Trotter steps
 therefore costs $\approx 4.2\times10^{2}\,n_T$ CNOTs at $k=4$.
+
+\begin{figure}[t]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{quantikz}[row sep=0.9em, column sep=0.8em]
+\lstick{$\ket{0}$} & \gate{H}\gategroup[2,steps=5,style={dashed,rounded
+corners,inner xsep=2pt},background,label style={label
+position=below,anchor=north,yshift=-0.4cm}]{repeat $M$ times, resampling $t_k$}
+ & \ctrl{1} & \gate{P(E\,t_k)} & \gate{H} & \meter{} & \\
+\lstick{$\ket{\psi_{k-1}}$} & \qwbundle{2k} & \gate{e^{-i\hat H t_k}} & & & & \rstick{$\ket{\psi_k}$}
+\end{quantikz}}
+\caption{One cycle of the rodeo algorithm: Hadamard on the ancilla, controlled
+time evolution $e^{-i\hat Ht_k}$ of the $2k$-qubit system register with a
+Gaussian-random time $t_k$, ancilla phase $P(Et_k)$, second Hadamard, and a
+mid-circuit measurement of the ancilla, which is then reset and reused for the
+next cycle.  A run is accepted when all $M$ outcomes read $0$; each accepted
+cycle applies the filter $\frac12(\mathbb{1}+e^{iEt_k}e^{-i\hat Ht_k})$ to the
+system.  Unlike the VQE of Fig.~\ref{fig:circ-vqe}(a), the circuit carries no
+variational parameters and no classical optimisation loop; the controlled
+evolution, compiled from the same Pauli-rotation blocks as
+Fig.~\ref{fig:circ-vqe}(b) with only the central $R_z$ controlled, is the sole
+system-size-dependent element ($\approx4.2\times10^{2}$ CNOTs per Trotter step
+at $k=4$).}
+\label{fig:circ-rodeo}
+\end{figure}
 
 \subsection{Depth budget: UCCSD--VQE versus the rodeo-terminated pipeline}
 \label{sec:depth}
