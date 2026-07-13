@@ -467,14 +467,14 @@ amplitude of the parent excitation operator.
 \begin{quantikz}[ampersand replacement=\&, row sep=0.7em, column sep=1.0em]
 \lstick{$\ket{\mathrm{HF}}$} \& \qwbundle{2k} \&
 \gate{e^{\theta_1(\hat\tau_1-\hat\tau_1^{\dagger})}} \& \push{\;\cdots\;} \&
-\gate{e^{\theta_P(\hat\tau_P-\hat\tau_P^{\dagger})}} \& \meter{$\langle \hat H\rangle$}
+\gate{e^{\theta_P(\hat\tau_P-\hat\tau_P^{\dagger})}} \& \meter{\langle \hat H\rangle} \\
 \end{quantikz}\\[1.4em]
 \textbf{(b)}\\[0.4em]
 \begin{quantikz}[ampersand replacement=\&, row sep=0.5em, column sep=0.4em]
 \lstick{$2p$}     \& \gate{H} \& \ctrl{1} \&          \&          \&                  \&          \&          \& \ctrl{1} \& \gate{H} \& \\
 \lstick{$2p{+}1$} \& \gate{H} \& \targ{}  \& \ctrl{1} \&          \&                  \&          \& \ctrl{1} \& \targ{}  \& \gate{H} \& \\
 \lstick{$2q$}     \& \gate{H} \&          \& \targ{}  \& \ctrl{1} \&                  \& \ctrl{1} \& \targ{}  \&          \& \gate{H} \& \\
-\lstick{$2q{+}1$} \& \gate{HS^{\dagger}} \&  \&       \& \targ{}  \& \gate{R_z(\phi)} \& \targ{}  \&          \&          \& \gate{SH} \&
+\lstick{$2q{+}1$} \& \gate{HS^{\dagger}} \&  \&       \& \targ{}  \& \gate{R_z(\phi)} \& \targ{}  \&          \&          \& \gate{SH} \& \\
 \end{quantikz}
 \caption{The variational quantum eigensolver as a circuit.  (a) Ansatz level:
 the Trotterised UCCSD product acts on the HF register ($2k$ qubits, slashed
