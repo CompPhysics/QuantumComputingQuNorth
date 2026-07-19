@@ -16,7 +16,7 @@ notebook:
 	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NB) 1800
 
 check:
-	$(PY) $(SKILLS)/notebook-builder/scripts/check_notebook.py $(NB) 6
+	$(PY) $(SKILLS)/notebook-builder/scripts/check_notebook.py $(NB) 11
 
 figures:
 	$(PY) $(SKILLS)/physics-paper/scripts/extract_figures.py $(NB) $(FIGS)

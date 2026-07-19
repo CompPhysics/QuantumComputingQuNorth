@@ -1,5 +1,19 @@
 # Critical assessment of `eigenq_pairing.tex` (draft of 2026-07-13)
 
+> **Status update (2026-07-19):** revision items 1–4 below have been implemented,
+> targeting PRC. Done: Trotterised pipeline + honest per-accepted-prep depth budget
+> (new Sec. on the Trotterised pipeline, Fig. 9, rebuilt Table III); k=3→4 chain
+> (Fig. 10) and coupling/μ scan verifying T* ~ 1/ΔE_min (Fig. 11); reference
+> overhaul (20 new entries, Richardson framing, Magne corrected to QuNorth/Copenhagen,
+> all bibitems now cited, refs.bib synced); PRC documentclass, ~200-word abstract,
+> explicit novelty paragraph. `pairinglib` gained `trotter.py` + `refine_from_state`
+> (6 new tests; suite 14/14). Remaining for the authors: run `make notebook` and
+> `make paper` locally for a full clean re-execution/compile (the sandbox lacks
+> RevTeX; new notebook cells were executed and their outputs embedded, older cells
+> keep their stored outputs); double-check the two "(verify)" citations on INSPIRE
+> (Stetcu 2023 L031306; Bee-Lindgren arXiv:2208.13557 title change); add grant
+> numbers; deposit the repo (Zenodo DOI) for the code-availability section.
+
 Target journals considered: Physical Review C, Physics Letters B.
 
 ## Overall verdict

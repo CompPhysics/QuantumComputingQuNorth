@@ -8,7 +8,7 @@ NB = ROOT / "notebooks/ResolutionRefPairing.ipynb"
 TEX = ROOT / "paper/eigenq_pairing.tex"
 steps = [
     ["python3", str(S/"notebook-builder/scripts/execute_notebook.py"), str(NB), "1800"],
-    ["python3", str(S/"notebook-builder/scripts/check_notebook.py"), str(NB), "6"],
+    ["python3", str(S/"notebook-builder/scripts/check_notebook.py"), str(NB), "11"],
     ["python3", str(S/"physics-paper/scripts/extract_figures.py"), str(NB), str(ROOT/"paper/figs")],
     ["bash",    str(S/"physics-paper/scripts/build_paper.sh"), str(TEX)],
 ]
