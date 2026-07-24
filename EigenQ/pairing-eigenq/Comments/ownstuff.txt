@@ -1,0 +1,129 @@
+## Referee report
+
+### Summary
+
+The manuscript proposes a hybrid eigenstate-preparation pipeline combining resolution refinement with the rodeo spectral-filtering algorithm. The central idea is to prepare an approximate eigenstate in a smaller model space, prolong it to a larger space, improve its overlap through an adiabatic interpolation, and finally remove the remaining excited-state component using rodeo filtering. The authors demonstrate the construction for the constant-pairing Hamiltonian, including explicit Jordan–Wigner mappings, compiled circuits, Trotterized evolution, gate counts, and comparisons with UCCSD–VQE.
+
+The paper is well motivated and contains a useful end-to-end implementation. The explicit circuit compilation and the attempt to quantify the full gate budget are particular strengths. The pairing model is also a reasonable initial testbed because it is exactly solvable and permits detailed validation.
+
+My overall assessment is nevertheless that the manuscript requires major revision before it is suitable for publication. The results establish a convincing proof of concept for a small, highly structured model, but the current version sometimes presents model-specific observations as more general algorithmic conclusions than the evidence supports.
+
+### Major comments
+
+#### 1. Novelty and relation to previous work
+
+The combination of resolution refinement and rodeo filtering is potentially interesting, but the novelty claim should be made more carefully. The manuscript should distinguish clearly between:
+
+- the new element, namely combining the two procedures;
+- elements inherited from resolution refinement;
+- the already established properties of the rodeo algorithm;
+- and the particular implementation choices for the pairing Hamiltonian.
+
+The claim that this is the “first combination” should be supported by a more systematic discussion of related eigenstate-preparation, projection, filtering, multiscale, and model-space-embedding methods. The paper should also explain more explicitly what conceptual or asymptotic advantage the combination provides over simply using a better initial ansatz, ADAPT-VQE, quantum subspace methods, imaginary-time approaches, or polynomial spectral filters.
+
+#### 2. The adiabatic-scaling claim is not established generally
+
+A central claim is that the refinement time scales as \(T\sim 1/\Delta E\), rather than the generic \(1/\Delta E^2\). The numerical scan in Fig. 6 demonstrates an approximately linear relation for the particular interpolation and parameter range studied, but this is not by itself a general result.
+
+The standard adiabatic error depends on matrix elements of \(\partial_s H\), the minimum spectral gap, and the regularity of the interpolation. The manuscript should derive the relevant bound for Eq. (3), identify the assumptions under which a linear inverse-gap scaling can occur, and distinguish the physical excitation gap from the gap introduced by the energy shift and the null space of the prolongation operator. At present, the text risks suggesting a generally improved adiabatic theorem where only a model-specific empirical scaling has been shown.
+
+The spectral structure of Eq. (3) also deserves a more careful analysis. In particular, the role of the null space of \(P^\dagger\), the ordering of shifted coarse eigenvalues, and possible avoided crossings along the interpolation should be stated explicitly. Demonstrating that the path remains gapped for the examples shown is not sufficient to establish that it does so for general refinements.
+
+#### 3. The test problem is exceptionally favorable
+
+The constant-pairing model with \(N=4\) particles and \(k\leq 8\) levels is a useful calibration problem, but it is too small and structured to support broad claims about scalability or nuclear-structure applications. The seniority-zero sector is compact, the prolongation is gate-free, and the relevant pair-hopping terms have unusually favorable Jordan–Wigner structure.
+
+The paper should include at least some tests that challenge these favorable features:
+
+- larger particle numbers;
+- more levels at fixed filling;
+- weaker and stronger pairing over a wider range;
+- nontrivial prolongation operators;
+- a model where the coarse and fine Hamiltonians do not share such a simple embedding;
+- and, ideally, a second Hamiltonian such as the Lipkin model or a small Hubbard/shell-model instance.
+
+Without such tests, the current results should be presented explicitly as a demonstration on an exactly solvable pairing benchmark, not as evidence of general scalability.
+
+#### 4. Resource comparisons are not yet sufficiently fair
+
+The gate-count comparison with full-space UCCSD–VQE is useful, but it does not yet constitute a complete resource comparison. The pipeline uses a very long, nonvariational adiabatic refinement stage followed by controlled time evolutions and post-selection. The manuscript correctly reports that the pipeline can require approximately \(10^4\)-\(10^5\) two-qubit gates, but the comparison should include:
+
+- total number of circuit repetitions;
+- number of shots required for energy estimation and post-selection;
+- cost of failed rodeo runs;
+- classical optimization cost for UCCSD–VQE;
+- number of VQE energy and gradient evaluations;
+- and the effect of measurement noise and finite-shot uncertainty.
+
+The phrase “cost per accepted preparation” is not enough on its own, since acceptance probabilities, state-preparation repetitions, and the desired statistical precision all matter. The pipeline may reduce classical optimization difficulty while increasing coherent circuit depth substantially. That trade-off should be central to the conclusions.
+
+The comparison should also include a more competitive variational baseline. The manuscript itself notes that ADAPT-VQE or a symmetry-adapted pair-coupled ansatz can be much smaller than full UCCSD. Comparing against a deliberately symmetry-blind hardware-efficient ansatz and full UCCSD is not sufficient.
+
+#### 5. Exact-evolution and circuit-level results should be separated more sharply
+
+The paper first presents exact sector exponentials and later introduces Trotterized circuits. This is sensible, but the distinction between algorithmic performance and implementation error should be made clearer throughout. In particular:
+
+- specify which figures use exact exponentials;
+- specify which use first- or second-order Trotter formulas;
+- report the Trotter error in energy, overlap, and rodeo acceptance;
+- and explain how the error scales with \(k\), evolution time, and number of steps.
+
+The statement that the rodeo filter is “self-correcting” should be qualified. It may reject or filter some errors, but it ultimately projects onto the eigenstates of the effective Trotterized evolution, not necessarily those of the intended Hamiltonian. The attainable fidelity floor and the shift in the effective eigenvalues need to be analyzed more generally.
+
+#### 6. The rodeo analysis assumes ideal knowledge that should be discussed
+
+The filtering results use the exact target energy \(E_0\), or an energy obtained from a scan with exact or nearly exact information. In a practical application, the target energy must be estimated, and the filter is sensitive to detuning relative to the spectral gap and the chosen time distribution. The manuscript should quantify the effect of:
+
+- target-energy error;
+- finite energy-scan resolution;
+- uncertainty in the coarse variational energy;
+- finite-shot estimates of acceptance probabilities;
+- and imperfect controlled evolution.
+
+Otherwise, the reported \(10^{-6}\) infidelity may be difficult to interpret as a practically attainable preparation accuracy.
+
+#### 7. Claims concerning hardware readiness are premature
+
+The manuscript contains an extensive discussion of current and forthcoming hardware, including specific devices, gate fidelities, logical-qubit projections, and future platforms. This section is not necessary for establishing the algorithm and introduces several problems:
+
+- hardware specifications and roadmaps are time-dependent;
+- press releases are not equivalent to peer-reviewed technical evidence;
+- quoted gate fidelities do not directly translate into successful execution of a deep, correlated, post-selected circuit;
+- and the full \(k=4\) circuit budget already exceeds the stated physical error budget by a large margin.
+
+The hardware discussion should either be substantially shortened or converted into a cautious resource estimate. Claims should be restricted to what follows from the manuscript’s own circuit analysis.
+
+#### 8. Statistical support for numerical results
+
+Several conclusions rely on single runs or small samples. The paper should report uncertainty estimates and repeated trials for:
+
+- UCCSD optimization;
+- hardware-efficient VQE;
+- refinement times required to reach specified overlaps;
+- rodeo fidelity and acceptance;
+- and Trotterized circuit results.
+
+The gradient and coupling scans especially need error bars, the number of random realizations, and a clear definition of the fitted scaling model. A linear fit over a small range should not be described as confirmation of an asymptotic law without qualification.
+
+### Technical and presentation comments
+
+- The Hamiltonian should be written with fully explicit conventions for level indexing, spin-orbital ordering, fermionic signs, and the Jordan–Wigner mapping. It would be helpful to provide the resulting qubit Hamiltonian explicitly for at least one small \(k\).
+- The statement that the eight Pauli strings associated with a pair-hopping term commute should be demonstrated or cited, since this property is central to the gate-count simplification.
+- The UCCSD discussion should clarify whether the ansatz is number conserving, whether amplitudes are real, how Trotter ordering is chosen, and whether the reported circuit is standard UCCSD or a pairing-specialized reduction.
+- The comparison with CCD should explain the convention for the CCD energy and why it is nonvariational, rather than simply noting that it “over-binds.”
+- The energy-shift parameter \(\mu\) should be defined unambiguously, including whether it is based on an exact coarse energy, a variational coarse energy, or a fixed buffer.
+- The paper should distinguish “overlap,” “fidelity,” and “infidelity” consistently. For pure states, specify whether the reported quantity is \(|\langle\psi|\phi\rangle|^2\) or its square root.
+- The post-selection cost should account for the fact that all \(M\) ancilla measurements must succeed in a single accepted run.
+- The phrase “exponential accuracy” should be used with care. The rodeo convergence is exponential in the number of cycles under the stated assumptions, but the total cost includes energy resolution, acceptance, controlled-evolution depth, and sampling.
+- Several claims are supported mainly by figures and should be accompanied by numerical data or tables.
+- Code availability is currently incomplete: “Give GitHub link when everything is ready” must be resolved before publication. The repository should include version information, dependencies, scripts or notebooks for all figures, and instructions for reproducing exact and circuit-level results.
+- The acknowledgments contain apparent inconsistencies in initials and funding attribution and should be checked.
+- The hardware-landscape subsection should be removed from the main paper or supported with stable, primary references rather than relying on press-release material.
+
+### Recommendation
+
+**Recommendation: Major revision.**
+
+The manuscript has a potentially publishable idea and a well-constructed small-system demonstration. Its strongest contribution is the explicit, gate-level realization of a refinement-plus-filtering pipeline and the transparent identification of its trade-offs. However, publication would require a more cautious framing of the general claims, a rigorous treatment of the adiabatic-scaling argument, fuller resource accounting including sampling and failure probabilities, stronger baselines, repeated numerical experiments, and at least one benchmark beyond the unusually favorable constant-pairing setting.
+
+In its revised form, I would encourage the authors to present the work as a carefully validated algorithmic framework and benchmark study, rather than as evidence that the method is already a scalable route to practical nuclear-structure eigenstate preparation.
