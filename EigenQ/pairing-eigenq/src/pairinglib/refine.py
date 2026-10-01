@@ -39,23 +39,24 @@ def prolong_matrix(k_low, k_high, N):
         Pm[ih[Ih], il[Il]] = 1.0
     return Pm
 
-def refine_state(N, k_high, T, k_low=2, M=160, mu_buf=0.6, g=1.0):
-    """Adiabatically refine the prolonged low-res ground state; return (psi, H_high)."""
-    nl, sl, il = build_sector(k_low, N); Hl = H_pairing_sparse(k_low, g, N, sl, il).toarray()
+def refine_state(N, k_high, T, k_low=2, M=160, mu_buf=0.6, g=1.0, f=0.0):
+    """Adiabatically refine the prolonged low-res ground state; return (psi, H_high).
+    f != 0 switches on the particle-hole term (same path, same shift rule)."""
+    nl, sl, il = build_sector(k_low, N); Hl = H_pairing_sparse(k_low, g, N, sl, il, f=f).toarray()
     wl, vl = np.linalg.eigh(Hl); El = wl[0]; psi_low = vl[:, 0]
     Pm = prolong_matrix(k_low, k_high, N); Phi0 = Pm @ psi_low
-    nh, sh, ih = build_sector(k_high, N); Hh = H_pairing_sparse(k_high, g, N, sh, ih).toarray()
+    nh, sh, ih = build_sector(k_high, N); Hh = H_pairing_sparse(k_high, g, N, sh, ih, f=f).toarray()
     mu = El + mu_buf
     Hle = Pm @ (Hl - mu*np.eye(len(Hl))) @ Pm.T; Hhs = Hh - mu*np.eye(len(Hh))
     psi = _evolve(Phi0, _slice_eigs(Hle, Hhs, M), T)
     return psi/np.linalg.norm(psi), Hh
 
-def refine_NK(N, k_high, Ts, k_low=2, M=160, mu_buf=0.6, g=1.0):
+def refine_NK(N, k_high, Ts, k_low=2, M=160, mu_buf=0.6, g=1.0, f=0.0):
     """Overlap and physical energy of the refined state vs adiabatic time T."""
-    nl, sl, il = build_sector(k_low, N); Hl = H_pairing_sparse(k_low, g, N, sl, il).toarray()
+    nl, sl, il = build_sector(k_low, N); Hl = H_pairing_sparse(k_low, g, N, sl, il, f=f).toarray()
     wl, vl = np.linalg.eigh(Hl); El = wl[0]; psi_low = vl[:, 0]
     Pm = prolong_matrix(k_low, k_high, N); Phi0 = Pm @ psi_low
-    nh, sh, ih = build_sector(k_high, N); Hh = H_pairing_sparse(k_high, g, N, sh, ih).toarray()
+    nh, sh, ih = build_sector(k_high, N); Hh = H_pairing_sparse(k_high, g, N, sh, ih, f=f).toarray()
     wh, vh = np.linalg.eigh(Hh); Eh = wh[0]; Psih = vh[:, 0]
     mu = El + mu_buf
     Hle = Pm @ (Hl - mu*np.eye(len(Hl))) @ Pm.T; Hhs = Hh - mu*np.eye(len(Hh))
@@ -68,16 +69,16 @@ def refine_NK(N, k_high, Ts, k_low=2, M=160, mu_buf=0.6, g=1.0):
     return dict(ov=np.array(ov), en=np.array(en), Eh=Eh, El=El, gap=wh[1]-wh[0],
                 ov0=abs(np.vdot(Psih, Phi0))**2, E0=float(np.real(Phi0 @ Hh @ Phi0)))
 
-def refine_from_state(psi_low, N, k_low, k_high, Ts, M=160, mu_buf=0.6, g=1.0):
+def refine_from_state(psi_low, N, k_low, k_high, Ts, M=160, mu_buf=0.6, g=1.0, f=0.0):
     """Refinement starting from a SUPPLIED coarse state (e.g. a gate-level
     UCCSD-VQE state at k_low > 2), rather than the exact coarse ground state.
     Returns the same dictionary as refine_NK.  The shift mu uses the coarse
     variational energy <psi_low|H_low|psi_low>, which is all a device knows."""
-    nl, sl, il = build_sector(k_low, N); Hl = H_pairing_sparse(k_low, g, N, sl, il).toarray()
+    nl, sl, il = build_sector(k_low, N); Hl = H_pairing_sparse(k_low, g, N, sl, il, f=f).toarray()
     psi_low = np.asarray(psi_low, dtype=complex); psi_low = psi_low/np.linalg.norm(psi_low)
     El = float(np.real(psi_low.conj() @ (Hl @ psi_low)))
     Pm = prolong_matrix(k_low, k_high, N); Phi0 = Pm @ psi_low
-    nh, sh, ih = build_sector(k_high, N); Hh = H_pairing_sparse(k_high, g, N, sh, ih).toarray()
+    nh, sh, ih = build_sector(k_high, N); Hh = H_pairing_sparse(k_high, g, N, sh, ih, f=f).toarray()
     wh, vh = np.linalg.eigh(Hh); Eh = wh[0]; Psih = vh[:, 0]
     mu = El + mu_buf
     Hle = Pm @ (Hl - mu*np.eye(len(Hl))) @ Pm.T; Hhs = Hh - mu*np.eye(len(Hh))

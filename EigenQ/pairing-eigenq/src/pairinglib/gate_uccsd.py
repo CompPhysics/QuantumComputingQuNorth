@@ -25,9 +25,9 @@ def gate_uccsd_setup(k, N):
     return dict(nq=nq, terms=terms, gens=gens, hf=hf, P=len(terms),
                 ncnot=ncnot, nrot=nrot)
 
-def gate_uccsd_vqe(k, N, g, setup, delta=1.0):
+def gate_uccsd_vqe(k, N, g, setup, delta=1.0, f=0.0):
     nq = setup['nq']; dim = 2**nq; terms = setup['terms']; gens = setup['gens']
-    hf = setup['hf']; P = setup['P']; H = build_H_full(k, g, delta)
+    hf = setup['hf']; P = setup['P']; H = build_H_full(k, g, delta, f=f)
     def state(th):
         psi = np.zeros(dim, complex); psi[hf] = 1.0
         for m in range(P): psi = apply_exc_circuit(psi, th[m], terms[m], nq)
@@ -47,10 +47,11 @@ def gate_uccsd_vqe(k, N, g, setup, delta=1.0):
                    options={'ftol': 1e-13, 'gtol': 1e-11, 'maxiter': 2000})
     return res.fun, res.nit
 
-def gate_uccsd_state(k, N, g):
-    """Optimise the gate-UCCSD circuit; return (energy, full-space statevector)."""
+def gate_uccsd_state(k, N, g, f=0.0, delta=1.0):
+    """Optimise the gate-UCCSD circuit; return (energy, full-space statevector).
+    f != 0 adds the particle-hole term (singles then no longer vanish)."""
     su = gate_uccsd_setup(k, N); nq = su['nq']; dim = 2**nq
-    H = build_H_full(k, g); terms = su['terms']; gens = su['gens']
+    H = build_H_full(k, g, delta, f=f); terms = su['terms']; gens = su['gens']
     hf = su['hf']; P = su['P']
     def state(th):
         psi = np.zeros(dim, complex); psi[hf] = 1.0

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Execute the EXT:TROTTER cells of ResolutionRefPairing.ipynb in-process and
 attach their real outputs (stdout + PNG figures) to the notebook via nbformat.
-Usage: run_new_cells.py [first_idx last_idx]   (indices into the new-cell list;
-earlier new cells are always re-executed silently to rebuild kernel state).
+Usage: run_new_cells.py [--mark "<!-- EXT:PH -->"] [first_idx last_idx]
+(indices into the new-cell list; earlier new cells are always re-executed
+silently to rebuild kernel state; --mark selects which tagged section to run,
+default EXT:TROTTER).
 The remaining (pre-existing) cells keep their stored outputs; a full clean
 re-execution is `make notebook`."""
 import sys, io, base64, pathlib, contextlib
@@ -14,6 +16,8 @@ import matplotlib.pyplot as plt
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 NB = ROOT / "notebooks/ResolutionRefPairing.ipynb"
 MARK = "<!-- EXT:TROTTER -->"
+if "--mark" in sys.argv:
+    j = sys.argv.index("--mark"); MARK = sys.argv[j + 1]; del sys.argv[j:j + 2]
 
 nb = nbf.read(NB, as_version=4)
 new_code = [i for i, c in enumerate(nb.cells)
@@ -51,6 +55,8 @@ for j, idx in enumerate(new_code):
         nb.cells[idx]["outputs"] = outs
         nb.cells[idx]["execution_count"] = maxec + j + 1
         print(f"cell {j} (nb index {idx}): {len(outs)} outputs")
+    if j >= hi:
+        break
 
 nbf.write(nb, NB)
 print("notebook updated")

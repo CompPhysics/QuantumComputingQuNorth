@@ -27,7 +27,7 @@ commuting weight-4 Pauli rotations, so the only error is the non-commutativity
 `trotter_U`, `refine_state_trotter` and `rodeo_track_U`; nothing is redefined here.
 """
 
-code_trotter_check = MARK + r"""
+code_trotter_check = "# " + MARK + r"""
 import numpy as np, matplotlib.pyplot as plt
 try:
     import pairinglib as pl
@@ -50,7 +50,7 @@ for n in (1, 2, 4, 8, 16):
     print(f"{n:>8} {e1:>12.3e} {e2:>12.3e}")
 """
 
-code_trotter_fig = MARK + r"""
+code_trotter_fig = "# " + MARK + r"""
 # ---- circuit-level refinement and rodeo: Trotter error at the pipeline level ----
 w4, v4 = np.linalg.eigh(H4); E0 = w4[0]; GS = v4[:, 0]
 T_AD = 30.0
@@ -121,7 +121,7 @@ operating points, with the first-order per-step CNOT counts of the paper
 (`pl.cnot_counts`); an order-2 step costs twice the order-1 count.
 """
 
-code_budget = MARK + r"""
+code_budget = "# " + MARK + r"""
 # ---- honest depth budget at k=4 (per accepted preparation, matched target) ----
 cn = pl.cnot_counts(4)
 CN_STEP, CN_CSTEP = cn["step_uncontrolled"], cn["step_controlled"]
@@ -173,7 +173,7 @@ start buys: a higher initial overlap and a shorter adiabatic stage, at the price
 the coarse-circuit depth.
 """
 
-code_k34 = MARK + r"""
+code_k34 = "# " + MARK + r"""
 # ---- k=3->4 chain from the gate-level UCCSD coarse state ----
 E3, psi3_full = pl.gate_uccsd_state(3, N, G)
 nq3, st3, ix3 = pl.build_sector(3, N)
@@ -220,7 +220,7 @@ $T\sim1/\Delta E$ scaling, and doubles as the sensitivity study for the (otherwi
 ad hoc) choice $\mu=E_{\rm low}+0.6$.
 """
 
-code_gscan = MARK + r"""
+code_gscan = "# " + MARK + r"""
 # ---- (a) g-scan of the k=2->4 refinement at fixed mu_buf=0.6 ----
 def min_path_gap(g, mu_buf, k_low=2, k_high=4):
     nl, sl, il = pl.build_sector(k_low, N)

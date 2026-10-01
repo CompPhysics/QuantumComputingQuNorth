@@ -2,13 +2,28 @@
 import numpy as np
 from scipy.sparse import csr_matrix
 from ._pairlib import (_bit, _flip, _jw_sign, build_sector,
-                       H_pairing_sparse, fci_ground, E_HF)
+                       H_pairing_sparse as _H_pair_only, fci_ground, E_HF)
+from .phmodel import H_ph_sparse, build_H_ph_full
 
 __all__ = ["build_sector", "H_pairing_sparse", "fci_ground", "E_HF",
            "build_H_full", "_bit", "_flip", "_jw_sign"]
 
-def build_H_full(k, g, delta=1.0):
-    """Pairing H over the FULL 2^(2k) Fock space (used by HEA / gate-UCCSD)."""
+def H_pairing_sparse(k, g, N, states, index, delta=1.0, f=0.0):
+    """Sparse Hamiltonian in the fixed-N sector.  f = 0 (default) is the
+    constant-pairing model; f != 0 adds the pair-breaking particle-hole term
+    V_ph of `phmodel` (g -> g + 2f in the seniority-zero block, plus 1p-1h and
+    seniority-two 2p-2h couplings)."""
+    H = _H_pair_only(k, g, N, states, index, delta)
+    if f != 0.0: H = H + H_ph_sparse(k, f, N, states, index)
+    return H
+
+def build_H_full(k, g, delta=1.0, f=0.0):
+    """H over the FULL 2^(2k) Fock space (used by HEA / gate-UCCSD).
+    f != 0 adds the particle-hole term V_ph (see `phmodel`)."""
+    if f != 0.0: return _build_H_full_pair(k, g, delta) + build_H_ph_full(k, f)
+    return _build_H_full_pair(k, g, delta)
+
+def _build_H_full_pair(k, g, delta=1.0):
     nq = 2*k; dim = 2**nq; gh = -0.5*g; rows, cols, vals = [], [], []
     for I in range(dim):
         rows.append(I); cols.append(I)

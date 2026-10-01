@@ -32,6 +32,8 @@ automatically and `CLAUDE.md` provides project memory. Example requests:
   quantify the Trotter error." (uses `vqe-circuits` + `notebook-builder`)
 - "Regenerate the paper figures and rebuild the PDF." (uses `physics-paper`)
 - "Extend the four-particle analysis to N=6." (uses `pairing-model` + library)
+- "Run the pipeline with the particle-hole term at f=0.3." (pass `f=` to the
+  library calls; see `scripts/extend_notebook_ph.py` for the full section)
 
 Authors (alphabetical): Bogner, Glittum, Hergert, Hjorth-Jensen, Lange, LaRose,
 Lee, Massel. See `paper/eigenq_pairing.tex` for affiliations.

@@ -31,7 +31,13 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 - Notebooks: built with `notebook-builder` scripts (nbformat), never hand-edited JSON.
 - LaTeX: `article` class + `authblk`; authors ALPHABETICAL by surname.
 - Benchmark anchors (N=4, g=1): FCI(k=3)=0.794697, FCI(k=4)=0.635548; rodeo
-  acceptance -> p. CI and `make check` assert these.
+  acceptance -> p. With the particle-hole term (k=4): f=0.05 -> 0.45058234,
+  f=0.2 -> -0.18348455, f=0.5 -> -1.69173670 (book Chapter 4). CI and
+  `make check` assert these.
+- The seniority-breaking particle-hole term `V_ph` (strength `f`) is switched on
+  with the `f=` keyword everywhere (`phmodel.py`); `f=0` is the pure pairing model.
+- Notebook extensions are tagged sections (`scripts/extend_notebook_*.py` +
+  `scripts/run_new_cells.py --mark`); see the notebook-builder skill.
 
 ## Definition of done
 A change is done only when `make test` and `make check` pass and (if the paper
