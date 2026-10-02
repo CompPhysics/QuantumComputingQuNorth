@@ -37,7 +37,20 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 - The seniority-breaking particle-hole term `V_ph` (strength `f`) is switched on
   with the `f=` keyword everywhere (`phmodel.py`); `f=0` is the pure pairing model.
 - Notebook extensions are tagged sections (`scripts/extend_notebook_*.py` +
-  `scripts/run_new_cells.py --mark`); see the notebook-builder skill.
+  `scripts/run_new_cells.py --mark`); see the notebook-builder skill.  Sections:
+  EXT:TROTTER, EXT:PH, EXT:BASELINES (matched-observable baselines, sizes,
+  observables; cell code is read from `scripts/baselines_rodeo.py` and
+  `scripts/sizes_observables.py`, which also run standalone).
+- Compare like with like: an energy error is NOT an infidelity
+  (<H>-E0 >= gap*(1-F)).  UCCSD k=4, g=1 infidelities: 1.78e-4 (f=0),
+  1.01e-3 (f=0.2), 3.72e-3 (f=0.5).  Every comparison with the pipeline uses the
+  acceptance-weighted ensemble infidelity of the accepted runs.
+- Gate budgets must include the embedded coarse term A = P(H_low-mu)P^T of the
+  refinement path (2->4: 4-qubit conditional phase, 14 CNOTs/application;
+  3->4: doubly-conditioned k=3 step, ~350 CNOTs).  `cnot_counts` counts the
+  high-space step only.
+- Review history: `paper/revisions.txt` (external review) and
+  `paper/response_to_revisions.md` (what was verified/changed/open).
 
 ## Definition of done
 A change is done only when `make test` and `make check` pass and (if the paper

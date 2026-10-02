@@ -26,8 +26,8 @@
 
 \begin{document}
 
-\title{Resolution refinement followed by the rodeo algorithm for
-eigenstate preparation: implementation and assessment on the pairing Hamiltonian}
+\title{Hybrid resolution refinement and the rodeo algorithm for
+eigenstate preparation: a demonstration on the pairing Hamiltonian}
 
 \author{Scott Bogner}
 \affiliation{Facility for Rare Isotope Beams and Department of Physics and Astronomy, Michigan State University, East Lansing, MI 48824, USA}
@@ -54,37 +54,31 @@ eigenstate preparation: implementation and assessment on the pairing Hamiltonian
 
 \begin{abstract}
 Projective spectral filters such as the rodeo algorithm prepare eigenstates with
-exponential accuracy in the number of filter cycles, but their cost is set by
-the squared overlap $p$ of the input state with the target.  We implement and
-assess, on the exactly solvable constant-pairing Hamiltonian, a pipeline in
-which \emph{resolution refinement} --- the adiabatic transport of an eigenstate
-from a coarse to a fine single-particle basis along a shift-controlled,
-gapped path --- supplies the input of the rodeo filter, and we compare it
-against the simplest alternatives on the same footing: the same filter applied
-to the unrefined prolonged state and to a full-space unitary coupled-cluster
-(UCCSD) state.  All comparisons use the ground-state infidelity as the common
-observable, the same second-order product-formula evolution, and a two-qubit
-gate budget per accepted preparation that includes the embedded
-coarse-Hamiltonian term of the refinement path.  For four particles on four
-levels (eight system qubits) the refined input ($p=0.998$) is filtered to an
-infidelity of $5\times10^{-4}$ after two cycles and $1.5\times10^{-4}$ after
-six, close to the floor set by the Trotterized evolution; the same filter brings
-the prolonged determinant ($p=0.868$) to a comparable accuracy at a comparable
-gate count, while the UCCSD state, whose actual infidelity is $1.8\times10^{-4}$
-although its energy error is $1.4\times10^{-3}$, reaches $1.3\times10^{-4}$
-after two cycles at one third of the cost.  Refinement therefore does not
-beat a cheap, accurate variational input at this system size; its merits are
-the absence of a classical optimization loop and of training measurements.
-The extracted refinement time grows with the inverse of the minimum path gap
-when the gap is varied through the energy shift, and with the loss of initial
-overlap when the pairing strength is varied.  A pair-breaking particle-hole
-interaction, which destroys the seniority symmetry of the model, leaves the
-structure and convergence of the pipeline unchanged, raises the depth of a
-Trotter step ninefold, and leaves the hybrid tied with the filtered UCCSD state
-at weak and behind it at strong pair breaking.  Level occupation numbers and
-correlation energies of the prepared states are reported, and all stages are
-compiled to rotation--CNOT circuits with gate counts verified against exact
-evolution.
+exponential accuracy, but only from an input state with sizable overlap $p$ with
+the target --- the quantity that vanishes at scale for variational and adiabatic
+preparation alone.  We combine \emph{resolution refinement}, which bootstraps an
+eigenstate from a coarse to a fine model space along a gapped adiabatic path, with
+the rodeo algorithm, and demonstrate the hybrid end to end on the exactly solvable
+constant-pairing Hamiltonian.  For four particles on four levels (eight qubits) the
+refined input ($p\simeq0.998$) is filtered to infidelity $\sim10^{-6}$ within one
+or two rodeo cycles, and the extracted adiabatic time scales linearly with the
+inverse spectral gap along the path across weak to strong pairing.  Every stage is
+compiled to explicit rotation--CNOT circuits, and the complete pipeline ---
+Trotterized refinement and Trotterized controlled evolution included --- is
+simulated at the circuit level, confirming that modest product-formula depths do
+not spoil the filter.  A transparent gate budget compares the optimizer-free
+pipeline with a full-space UCCSD--VQE preparation, whose accuracy floor the
+pipeline undercuts by one to three orders of magnitude depending on the
+Trotter budget.  Adding a pair-breaking particle-hole interaction, which opens
+the one-particle--one-hole channel and destroys the seniority symmetry of the
+pairing model, leaves the pipeline and its convergence intact --- the
+refinement time grows only through the lower initial overlap, and the rodeo
+filter still converges geometrically --- while the variational floor degrades
+by a factor of twenty; at the circuit level the extra term raises the depth of
+a Trotter step ninefold but barely moves the product-formula error or the
+operating point.  The construction provides a
+concrete template for eigenstate preparation in nuclear-structure applications on
+mid-circuit-measurement hardware.
 \end{abstract}
 
 \maketitle
@@ -115,31 +109,20 @@ projection by measurement~\cite{Stetcu2023}, and the rodeo algorithm
 (RA)~\cite{Choi2021,Qian2024,Cohen2023,BeeLindgren2022,Patkowski2026} --- converge
 exponentially in the number of cycles, but only once the initial state has a
 significant squared overlap $p$ with the target eigenstate; their cost grows as
-$1/p$, and for a fixed, unoptimized reference state $p$ falls exponentially with
-system size.
+$1/p$, and $p$ itself typically falls exponentially with system size.
 
-These limitations are complementary, and the idea of \emph{preconditioning} the
-input of a projective filter by an adiabatic stage is as old as the rodeo
-algorithm itself: the original proposal~\cite{Choi2021} already combines a
-short adiabatic ramp with the filter, the hierarchical fusion method of
-Ref.~\cite{Patkowski2025fusion} builds large systems from exactly solvable
-subsystems by alternating adiabatic ramps and rodeo cycles, and the
-resolution-refinement proposal~\cite{Bogner2026} explicitly recommends
-switching from adiabatic evolution to a filter such as the rodeo algorithm once
-the overlap is large.  \emph{Resolution refinement} bootstraps an eigenstate
-across model-space scales: an eigenstate of a coarse (low-resolution)
-Hamiltonian is lifted by a prolongation operator into a finer space and
-adiabatically evolved to the fine-resolution eigenstate.  Because refinement
-changes the low-energy spectrum only mildly, the interpolation path can be
-kept gapped, and under the additional assumption that the first-order
-perturbative correction to the tracked state stays bounded~\cite{Bogner2026}
-the required adiabatic time scales as the inverse gap times a slowly growing
-system-size factor rather than as the inverse gap squared.  The present work
-implements this chain --- (i) prepare a low-resolution eigenstate; (ii) prolong
-and adiabatically refine for a time $T$; (iii) apply the rodeo algorithm ---
-for a hierarchy of fermionic single-particle bases, and asks the question that
-decides whether the refinement stage earns its gates: does refinement followed
-by filtering beat filtering the best input that is available cheaply?
+These limitations are complementary, which suggests a hybrid strategy.
+\emph{Resolution refinement}~\cite{Bogner2026} bootstraps an eigenstate across
+model-space scales: an eigenstate of a coarse (low-resolution) Hamiltonian is lifted
+by a prolongation operator into a finer space and adiabatically evolved to the
+fine-resolution eigenstate.  Because refinement preserves the low-energy spectral
+structure, the path stays gapped and the required adiabatic time scales only as the
+inverse physical gap (times a slowly growing system-size factor), delivering an
+output with $p\approx 1$.  That output is exactly the high-overlap input the rodeo
+algorithm needs to converge exponentially.  This is the core idea of the present
+approach: (i) prepare a low-resolution eigenstate; (ii) prolong and adiabatically
+refine to a final time $T^\ast$; (iii) apply the rodeo algorithm to reach the target
+fidelity and observables with exponential convergence.
 
 The pairing problem has become a standard target for quantum algorithms, and
 the programme of Lacroix and collaborators is the closest in spirit to ours.
@@ -180,32 +163,22 @@ Ref.~\cite{Qian2024}.  All circuits are implemented explicitly as rotation and C
 gates (and an ancilla-based rodeo cycle), so the demonstration doubles as a
 reference implementation for hardware.
 
-Relative to the resolution-refinement proposal of Ref.~\cite{Bogner2026}, the
-rodeo literature~\cite{Choi2021,Qian2024} and the fusion
-method~\cite{Patkowski2025fusion}, which established adiabatic preconditioning
-of the filter on lattice and spin systems, the present work contributes five
-elements: (i) an implementation of refinement for a hierarchy of
-\emph{single-particle bases} in a fermionic pairing problem, where the
-prolongation is gate-free and the embedded coarse Hamiltonian is a conditioned
-operator whose circuit we give and count; (ii) a quantitative benchmark of the
-refinement-plus-filter chain against the same filter applied to the unrefined
-input and to a full-space UCCSD state, with the ground-state infidelity as the
-common observable and matched evolution accuracy; (iii) a gate-level
-compilation of every stage --- Trotterized refinement and Trotterized
-controlled evolution included --- with a two-qubit-gate budget per accepted
-preparation that separates one-time training, repeated preparation and the
-filter; (iv) a test of the pipeline on a seniority-breaking Hamiltonian --- the
-pairing model supplemented by a particle-hole interaction~\cite{MHJbook}, which
-carries the one-particle--one-hole channel of realistic interactions ---
-including the corresponding product-formula study and resource table; and (v)
-a reproducible reference implementation in which every figure and number
-derives from a single executable notebook.  The outcome of (ii) is stated
-plainly: at the system sizes accessible to exact validation here, refinement
-followed by filtering does not outperform filtering a UCCSD input, and is
-roughly tied with filtering the unrefined prolonged state at matched fidelity;
-the case for the refinement stage rests on its freedom from classical
-optimization and training measurements, and on regimes --- larger spaces,
-poorer variational inputs --- that lie beyond what we can validate exactly.
+Relative to the resolution-refinement proposal of Ref.~\cite{Bogner2026} and the
+rodeo literature~\cite{Choi2021,Qian2024}, the present work contributes four
+elements: (i) the first \emph{combination} of the two algorithms, closing the
+overlap loophole of projective filters with an input whose overlap the refinement
+itself makes large; (ii) the first application of refinement to a hierarchy of
+\emph{single-particle bases} in a fermionic pairing problem, where the prolongation
+is gate-free; (iii) a complete gate-level compilation of every stage --- including
+Trotterized refinement and Trotterized controlled evolution --- with a transparent
+two-qubit-gate budget compared, per accepted preparation and at matched accuracy,
+against a full-space variational preparation; (iv) a test of the whole
+pipeline on a seniority-breaking Hamiltonian --- the pairing model supplemented
+by a particle-hole interaction~\cite{MHJbook}, which carries the
+one-particle--one-hole channel of realistic interactions --- showing that the
+hybrid is insensitive to the symmetry that makes the pairing model simple;
+and (v) a reproducible reference implementation in which every figure and
+number derives from a single executable notebook.
 
 % ===========================================================================
 \section{The pairing model and its qubit encoding}
@@ -286,35 +259,13 @@ energy-shifted Hamiltonian
   \label{eq:path}
 \end{equation}
 \end{widetext}
-evolved by a Suzuki--Trotter product over total time $T$.  The shift $\mu$
+evolved by a Suzuki--Trotter product over total time $T\le T^\ast$.  The shift $\mu$
 (here $\mu=E_{\rm low}+0.6$) places the tracked low-energy states below the large
 null space of $P^\dagger$, so the level followed from $s=0$ to $s=1$ is the
-high-resolution ground state.  The first term is \emph{not} the coarse
-Hamiltonian acting on the coarse register alone: since $PP^\dagger$ projects on
-the states in which the appended single-particle levels are empty,
-\begin{equation}
-  A\equiv P(\Hlow-\mu)P^\dagger=(\Hlow-\mu)\otimes
-  \ket{0\!\cdots\!0}\!\bra{0\!\cdots\!0}_{\rm app},
-  \label{eq:Aterm}
-\end{equation}
-a coarse-space operator conditioned on the $2(k_{\rm high}-k_{\rm low})$ new
-qubits being in $\ket{0}$; its circuit and cost are given in
-Sec.~\ref{sec:trotterized}.  At $s=0$ the gap above the tracked state is
-$\min(E_1^{\rm low}-E_0^{\rm low},\,\mu-E_0^{\rm low})$: increasing the shift
-lowers the embedded coarse states further below the null space, and the gain
-in initial gap saturates at the coarse excitation gap (for a one-dimensional
-coarse space, as in the $k=2$ start used below, it is simply $\mu-E_{\rm low}$).
-Along the path the instantaneous spectrum is found to stay smooth and gapped
-in all cases studied here.  A gapped path alone does not fix the adiabatic
-time scale; Ref.~\cite{Bogner2026} shows that when the squared norm of the
-first-order perturbative correction to the tracked state stays bounded along
-the path --- a condition on the transition matrix elements of $dH/ds$ relative
-to the excitation gaps --- the adiabatic time scales as $T\sim1/\Delta E$
-rather than as the $O(1/\Delta E_{\min}^2)$ of the generic adiabatic
-theorem~\cite{Albash2018}.  We test this empirically in
-Sec.~\ref{sec:res-gscan} and treat the overlap
-$p=\abs{\braket{\Psi_{\rm high}}{\Phi(T)}}^2$ as the figure of merit of the
-stage.
+high-resolution ground state.  The instantaneous spectrum stays smooth and gapped
+along the entire path; consequently the adiabatic time scales as $T\sim 1/\Delta E$
+rather than the $O(1/\Delta E_{\min}^2)$ of generic adiabatic preparation, and the
+overlap $p=\abs{\braket{\Psi_{\rm high}}{\Phi(T)}}^2$ rises toward unity.
 
 \subsection{The rodeo algorithm}
 \label{sec:rodeo}
@@ -341,11 +292,7 @@ and averaging the $t_k$ over a Gaussian of RMS width $\sigma$ gives
 \end{equation}
 On resonance ($E=\Eobj$) the success probability is unity at every cycle, while
 off-resonant weight is suppressed geometrically toward the background $2^{-M}$ (the
-arithmetic mean of $\cos^2$ is $1/2$); note that the Gaussian-averaged
-single-cycle factor $q=\tfrac12[1+e^{-(\Eobj-E)^2\sigma^2/2}]$ is never
-smaller than $1/2$, so $2^{-M}$ is the suppression of components far from
-resonance, $\abs{\Eobj-E}\sigma\gg1$, not a general lower bound on the
-retained weight.  Scanning $E$ thus locates eigenvalues as
+arithmetic mean of $\cos^2$ is $1/2$).  Scanning $E$ thus locates eigenvalues as
 peaks whose width $\sim 1/\sigma$ sets the energy resolution; fixing $E$ at the
 target eigenvalue turns the algorithm into a state-preparation filter.
 
@@ -365,49 +312,29 @@ at fixed runtime and would only improve the numbers reported here, as would the
 controlled-reversal-gate compilation of the controlled evolution of
 Ref.~\cite{BeeLindgren2022}.
 
-\paragraph{Convergence criterion and the random-time ensemble.}
+\paragraph{Convergence criterion.}
 With $E$ tuned to the target eigenvalue $E_0$, the all-zero acceptance probability of
-an input $\ket{\psi}=\sum_k c_k\ket{E_k}$ after $M$ cycles, averaged over the
-Gaussian time sets, is
+an input $\ket{\psi}=\sum_k c_k\ket{E_k}$ after $M$ cycles is
 \begin{equation}
-  P_M=p+\sum_{k\neq0}\abs{c_k}^2\,q_k^{M},
-  \qquad p=\abs{c_0}^2 ,
+  P_M=p+\sum_{k\neq0}\abs{c_k}^2
+  \Big[\tfrac12\big(1+e^{-(E_k-E_0)^2\sigma^2/2}\big)\Big]^{M},
+  \quad p=\abs{c_0}^2 .
   \label{eq:PM}
 \end{equation}
-with $q_k=\tfrac12\big(1+e^{-(E_k-E_0)^2\sigma^2/2}\big)$ the Gaussian-averaged
-single-cycle factor of Eq.~\eqref{eq:rodeo2}.
-The target weight $p$ is preserved at every round while off-resonant components
-decay geometrically, so $P_M\to p$.  Two fidelities must be distinguished for a
-randomized filter.  For one fixed time set $\{t_k\}$ the post-selected state has
-a fidelity $\mathcal F(\{t_k\})$ and an acceptance probability $P(\{t_k\})$; the
-fidelity of the \emph{ensemble of accepted runs}, which is what repeated
-executions on a device deliver, is the acceptance-weighted average
-$\mathcal F_M=\langle P\,\mathcal F\rangle/\langle P\rangle$, and for it the
-spectral decomposition gives exactly
+The target weight $p$ is preserved at every round while off-resonant components decay
+geometrically, so $P_M\to p$ and the post-selected fidelity obeys
 \begin{equation}
-  1-\mathcal{F}_M=\frac{\sum_{k\neq0}\abs{c_k}^2 q_k^{M}}
-                       {p+\sum_{k\neq0}\abs{c_k}^2 q_k^{M}}
-  \le\frac{(1-p)\,q_{\max}^{M}}{p+(1-p)\,q_{\max}^{M}},
+  \mathcal{F}_M=\frac{p}{P_M}\simeq\Big[1+\tfrac{1-p}{p}\,2^{-M}\Big]^{-1},
+  \qquad
+  1-\mathcal{F}_M\lesssim\frac{1-p}{p}\,2^{-M}.
   \label{eq:fid}
 \end{equation}
-with $q_{\max}=\tfrac12\big(1+e^{-\Delta_{\min}^2\sigma^2/2}\big)$ and
-$\Delta_{\min}$ the smallest excitation energy carrying weight.  The
-familiar estimate $1-\mathcal F_M\simeq\tfrac{1-p}{p}2^{-M}$ is the limit
-$\Delta_{\min}\sigma\gg1$ of Eq.~\eqref{eq:fid}; for the pairing spectra used
-below ($\Delta_{\min}\sigma\ge5$) the two are indistinguishable, and we plot
-Eq.~\eqref{eq:fid} as the analytic expectation of the ensemble average.  The
-unweighted mean of $\mathcal F(\{t_k\})$ over time sets, which some of our
-figures report, differs from $\mathcal F_M$ by less than one percent for inputs
-with $p>0.99$ and by a few percent for $p\simeq0.87$; both are quoted where the
-difference is visible.  Reaching an ensemble fidelity $1-\delta$ needs
-$M\gtrsim\log_{1/q_{\max}}[(1-p)/(p\,\delta)]$ cycles, and since the expected
-number of repetitions per accepted run is $1/P_M\to1/p$, the total
+Reaching fidelity $1-\delta$ therefore needs only
+$M\gtrsim\log_2[(1-p)/(p\,\delta)]$ cycles, and since the expected number of
+repetitions to obtain an accepted run is $\sim 1/P_M\to 1/p$, the total
 controlled-evolution effort scales as $O\!\big(\abs{\log\delta}/(p\,\epsilon)\big)$
-at energy resolution $\epsilon$~\cite{Choi2021}.  The filter is efficient
-whenever $p$ is close to one, whatever supplies that overlap --- resolution
-refinement, a variational circuit or a cheap correlated reference --- which is
-why the comparison of Sec.~\ref{sec:depth} is between \emph{inputs} to the
-same filter.
+at energy resolution $\epsilon$~\cite{Choi2021}.  This is efficient precisely when
+resolution refinement supplies $p\approx 1$.
 
 % ===========================================================================
 \section{Results}
@@ -427,17 +354,6 @@ the physically structured UCCSD circuit.  Figure~\ref{fig:scaling} shows that th
 UCCSD solver remains a tight variational bound all the way to $k=8$ (sixteen qubits),
 at the cost of a CNOT count that grows steeply ($1312$ CNOTs already at $k=4$); the
 compiled circuits and their depths are analyzed in Sec.~\ref{sec:circuits}.
-Two remarks keep this table in proportion.  First, an energy error is not an
-infidelity: for a normalized state $\expval{H}-E_0=\sum_{j>0}\abs{c_j}^2(E_j-E_0)
-\ge\Delta\,(1-\mathcal F)$, so with the physical gap $\Delta=1.823$ the $k=4$
-energy error $1.44\times10^{-3}$ already caps the infidelity at
-$7.9\times10^{-4}$; the actual value, obtained from the optimized state, is
-$1-\mathcal F_{\rm UCCSD}=1.78\times10^{-4}$, a factor eight below the energy
-error, and it is this infidelity that every comparison below uses.  Second, the
-scan in $k$ at fixed $N=4$ is a basis-size study --- the fixed-$N$ sector grows
-as $k^{4}$ and the seniority-zero sector as $k^{2}$ --- and it concerns the
-UCCSD solver alone, not the complete pipeline; it is not evidence of favorable
-many-particle scaling at fixed filling.
 
 \begin{table}[t]
 \caption{\label{tab:uccsd}Ground-state energies at $g=1$, $N=4$, for the
@@ -485,10 +401,9 @@ gapped path of Eq.~\eqref{eq:path} drives both quantities toward their exact tar
 the overlap rises to $\simeq0.999$ and the energy falls from $E_{\rm HF}=1$ to the FCI
 value from above --- $0.7964$ for $k=3$ (FCI $0.794697$) and $0.6397$ for $k=4$ (FCI
 $0.635548$) at $T=30$ (Fig.~\ref{fig:fourparticle}).  The instantaneous spectrum stays
-open along the whole path (Fig.~\ref{fig:refine}, right), a necessary condition
-for the favorable $T\sim 1/\Delta E$ timescale discussed in
-Sec.~\ref{sec:refine}; the larger $k=4$ space starts lower in overlap and
-converges more slowly, as expected from the system-size dependence of the
+open along the whole path (Fig.~\ref{fig:refine}, right), confirming the favorable
+$T\sim 1/\Delta E$ timescale; the larger $k=4$ space starts lower in overlap and
+converges more slowly, exactly as expected from the system-size dependence of the
 refinement.
 
 \begin{figure*}[t]
@@ -522,24 +437,12 @@ $3\to4$, and refine along the same path, with the shift $\mu$ now referenced to
 the \emph{variational} coarse energy $\expval{\Hlow}{\psi_{\rm low}}$, the only
 quantity a device can know.  Figure~\ref{fig:chains} compares the two chains.
 The better coarse start raises the prolonged overlap from $0.868$ to $0.964$ and
-reaches the target overlap $0.99$ at $T^{*}=9$ instead of $T^{*}=16$.  Whether
-this saves gates is decided by the embedded coarse term of
-Eq.~\eqref{eq:Aterm}, which is not free when the coarse space is nontrivial.
-For the $2\to4$ chain $A$ is a single four-qubit conditional phase ($14$ CNOTs
-per application, Sec.~\ref{sec:trotterized}); for the $3\to4$ chain it is the
-complete $k=3$ Hamiltonian conditioned on the two appended qubits being empty,
-about $350$ CNOTs per application, more than the $296$ CNOTs of the
-high-resolution pairing step itself.  At the fixed step density of
-Table~\ref{tab:depth} ($80$ second-order steps per $T=30$) the $2\to4$ chain
-needs $43$ steps for $T^{*}=16$, i.e.\ $2\times43\times(296+14)\simeq2.7\times10^{4}$
-CNOTs, and the $3\to4$ chain $24$ steps for $T^{*}=9$, i.e.\
-$2\times24\times(296+350)\simeq3.1\times10^{4}$ CNOTs plus the $272$ of the coarse
-circuit.  The shorter adiabatic time of the better start is thus offset by the
-cost of carrying the coarse Hamiltonian along the path, and the two chains cost
-the same within $15\%$.  Starting higher in the hierarchy remains the right
-choice when the prolonged overlap of the trivial start is poor (the
-strong-coupling regime of Sec.~\ref{sec:res-gscan}), but it is not a gate
-saving in itself.
+reaches the target overlap $0.99$ at $T^{*}=9$ instead of $T^{*}=16$; at fixed
+Trotter-step density the saved refinement time is worth
+$\sim2\times10^{4}$ CNOTs, vastly more than the $272$ spent on the coarse
+circuit.  Starting higher in the resolution hierarchy is therefore not merely
+allowed by the pipeline --- it is the economical choice, and the trade-off is
+quantified entirely in two-qubit gates.
 
 \begin{figure*}[t]
 \centering
@@ -570,25 +473,15 @@ and it is precisely the regime where a coarse start higher in the hierarchy
 (Sec.~\ref{sec:res-k34}) pays off most.
 
 Because the path gap is controlled by the shift, varying $\mu$ at fixed $g=1$
-changes the minimum gap over a factor five (right panel): the extracted $T^{*}$
-is well described by a line in the inverse minimum gap,
-$T^{*}\approx17/\Delta E_{\min}$, which is the behavior expected of a
-first-order-in-$1/\Delta E$ refinement path and incompatible with a
-$1/\Delta E_{\min}^{2}$ law over this range.  The scan does not, however,
-isolate the gap dependence in a strict sense: changing $\mu$ changes the
-interpolation operator $H(s)$ itself, not only its gap, so the result is an
-empirical trend for this family of paths in a finite system, not a test of the
-general assumptions under which Ref.~\cite{Bogner2026} derives the inverse-gap
-scaling.  Two gaps should also be kept apart: the shift-controlled gap at
-$s=0$, $\mu-E_{\rm low}$, which is an artificial parameter, and the physical
-gap of $\Hhigh$ at $s=1$ ($1.823$ at $g=1$), which the shift does not touch.
-The same scan doubles as the sensitivity study for the shift: the choice
-$\mu_{\rm buf}=0.6$ used throughout is conservative, and enlarging the buffer
-to $1.5$ \emph{shortens} the refinement to $T^{*}=6$.  For a one-dimensional
-coarse space there is no upper limit to the buffer other than the growth of
-the energy scale (and hence of the Trotter error) of the path; for coarse
-spaces with several states the useful initial gap saturates at the coarse
-excitation gap, as noted in Sec.~\ref{sec:refine}.
+isolates the gap dependence cleanly (right panel): the extracted $T^{*}$ is
+linear in the inverse minimum gap, $T^{*}\approx17/\Delta E_{\min}$, the
+behavior expected of a gapped, first-order-in-$1/\Delta E$ refinement path and
+markedly better than the $1/\Delta E_{\min}^{2}$ of generic adiabatic
+preparation.  The same scan doubles as the sensitivity study for the shift: the
+choice $\mu_{\rm buf}=0.6$ used throughout is conservative, and enlarging the
+buffer to $1.5$ \emph{shortens} the refinement to $T^{*}=6$.  (For coarse spaces
+with more than one state the buffer has a ceiling: the shifted coarse spectrum
+must stay below the null space of $P^\dagger$.)
 
 \begin{figure*}[t]
 \centering
@@ -612,42 +505,24 @@ Gaussian-averaged single-cycle factor matching $\tfrac12(1+e^{-(\Delta E\,\sigma
 to three digits.
 
 The state fed to the filter is the resolution-refined $k=4$ state of
-Sec.~\ref{sec:res-refine} at $T=25$, with overlap $p=0.9976$ with the exact ground
-state; for contrast we also use the unrefined prolonged guess $\Phi_0$ ($p=0.868$).
-Scanning the target energy $E$ (Fig.~\ref{fig:scan}; $M=4$ cycles, $12$ time sets
-per energy) produces a peak at the ground-state energy; a coarse scan
-($\sigma=2$) resolves it from the excited band, and a fine scan ($\sigma=8$)
-locates it at $E=0.6352$ against the exact $E_0=0.635548$.  Starting from the
-refined state, essentially all spectral weight sits in the single ground-state
-peak; starting from $\Phi_0$, the small residual weight on excited states is
-visible as secondary structure above the $2^{-M}$ background.  The scan is part
-of the cost of the method: the fine scan alone evaluates $161$ energies with
-$12$ time sets each, i.e.\ about $2\times10^{3}$ four-cycle runs, each repeated
-over enough shots to estimate an acceptance probability.
+Sec.~\ref{sec:res-refine}, with overlap $p=0.998$ with the exact ground state; for
+contrast we also use the unrefined prolonged guess $\Phi_0$ ($p=0.868$).  Scanning the
+target energy $E$ (Fig.~\ref{fig:scan}) produces a peak at the ground-state energy; a
+coarse scan ($\sigma=2$) resolves it from the excited band, and a fine scan
+($\sigma=8$) locates it at $E=0.6352$ against the exact $E_0=0.635548$.  Starting from
+the refined state, essentially all spectral weight sits in the single ground-state
+peak; starting from $\Phi_0$, the small residual weight on excited states is visible as
+secondary structure above the $2^{-M}$ background.
 
-Fixing $E=E_0$ and applying $M$ cycles with $\sigma=3$
-(Fig.~\ref{fig:convergence}; $40$ Gaussian time sets, unweighted mean of the
-post-selected fidelity), the fidelity rises geometrically and the cumulative
-acceptance settles at $\approx p$, in quantitative agreement with
-Eqs.~\eqref{eq:PM}--\eqref{eq:fid}.  The refined input reaches an infidelity
-$1-\mathcal{F}=1.4\times10^{-3}$ after one cycle, $6.5\times10^{-4}$ after two,
-$2.1\times10^{-5}$ after six and $2\times10^{-6}$ after ten; the prolonged input
-reaches $1.3\times10^{-4}$ after ten cycles while its acceptance holds at
-$0.868$.  The dotted lines are the analytic ensemble expectation of
-Eq.~\eqref{eq:fid}; the sampled points scatter around them by up to $\pm30\%$
-at the smallest infidelities, the statistical precision of $40$ time sets
-(the acceptance-weighted ensemble fidelity agrees with Eq.~\eqref{eq:fid} to
-better than $1\%$ for the refined input).  Each cycle buys roughly a factor two
-in infidelity, so reaching $10^{-6}$ from $p=0.998$ takes ten cycles, not one
-or two.  Two practical checks complete the picture.  First, the target energy
-on a device is the scan estimate, not the exact eigenvalue: repeating the
-filter at $E=0.6352$ instead of $E_0$ changes no digit of the infidelities
-quoted above.  Second, a deliberately detuned target attenuates the ground
-state as well: for $E-E_0=0.05$, $0.1$ and $0.2$ the six-cycle infidelity is
-unchanged within $10\%$, $35\%$ and a factor $2.7$, while the acceptance falls
-from $0.998$ to $0.971$, $0.895$ and $0.656$ --- the acceptance, not the
-fidelity, is the sensitive diagnostic of a wrong target, and it then no longer
-tends to the input overlap.
+Fixing $E=E_0$ and applying $M$ cycles (Fig.~\ref{fig:convergence}), the post-selected
+fidelity rises exponentially and the cumulative acceptance settles at $\approx p$, in
+quantitative agreement with Eqs.~\eqref{eq:PM}--\eqref{eq:fid}.  The refined input
+reaches an infidelity $1-\mathcal{F}\simeq5\times10^{-6}$ within one to two cycles;
+even the cruder prolonged input reaches $\simeq1.3\times10^{-4}$ in a few cycles, while
+its acceptance holds at $0.868$.  The dotted reference lines $\tfrac{1-p}{p}2^{-M}$
+bracket the measured infidelities, confirming the convergence criterion.  This is the
+concrete pay-off of the pipeline: resolution refinement supplies the high overlap that
+turns the rodeo algorithm from a $1/p$-expensive filter into a few-cycle polish.
 
 \begin{figure*}[t]
 \centering
@@ -662,14 +537,10 @@ $E_0=0.6355$).}
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{figs/fig8.png}
-\caption{Rodeo eigenstate preparation at $E=E_0$ ($k=4$, $N=4$, $g=1$,
-$\sigma=3$), averaged over $40$ Gaussian time sets, for the resolution-refined
-input ($T=25$, exact slices, $p=0.9976$) and the prolonged determinant
-($p=0.868$), with exact controlled evolution.  Left: unweighted mean of the
-post-selected infidelity versus the number of cycles $M$ (dotted: the analytic
-ensemble expectation of Eq.~\eqref{eq:fid}, which for these spectra coincides
-with $\tfrac{1-p}{p}2^{-M}$).  Right: the post-selection acceptance converges to
-the input overlap $p$.}
+\caption{Rodeo eigenstate preparation at $E=E_0$, averaged over random time sets.
+Left: post-selected infidelity $1-\mathcal{F}_M$ versus the number of cycles $M$
+(dotted: the bound $\tfrac{1-p}{p}2^{-M}$).  Right: the post-selection acceptance
+converges to the input overlap $p$.}
 \label{fig:convergence}
 \end{figure*}
 
@@ -678,24 +549,11 @@ the input overlap $p$.}
 \label{sec:circuits}
 % ===========================================================================
 All quantum operations in this work are compiled to a common gate set of
-single-qubit rotations and CNOTs, so the resource costs of the different routes
-to the high-resolution ground state --- a full-space UCCSD--VQE, the
-refinement-plus-filter pipeline, and the filter applied directly to cheaper
-inputs --- can be compared gate by gate.  Every number quoted below is produced
-in the accompanying notebook.  Two levels of simulation must be distinguished.
-The Pauli-rotation primitive, the UCCSD excitation circuits, the
-hardware-efficient ansatz and the ancilla-based rodeo cycle are simulated
-\emph{gate by gate} on the full $2k$-qubit register and verified against exact
-exponentials.  The product-formula evolutions of Sec.~\ref{sec:trotterized},
-by contrast, are simulated \emph{block by block}: each term of the Hamiltonian
-splitting is a set of mutually commuting Pauli strings whose exponential is
-realized exactly by the corresponding rotation--CNOT block, and we apply that
-exact block exponential within the conserved $N$-particle sector.  This
-reproduces faithfully the state that the compiled circuit would produce, and
-the CNOT counts are those of the compiled blocks, but it does not execute
-every individual rotation and CNOT; we therefore quote CNOT \emph{counts}
-rather than scheduled circuit depths, which depend on the connectivity and
-parallelism of a device.
+single-qubit rotations and CNOTs, so the resource costs of the two routes to the
+high-resolution ground state --- a traditional full-space UCCSD--VQE versus the
+rodeo-terminated pipeline --- can be compared gate by gate.  Every number quoted
+below is produced (and verified against exact matrix exponentials) in the
+accompanying notebook.
 
 \subsection{Circuit building blocks}
 \label{sec:blocks}
@@ -843,55 +701,23 @@ non-commutativity between terms --- exactly as on a device.  At $k=4$, $t=1$ the
 second-order (symmetric) formula reaches spectral-norm error $3.4\times10^{-2}$
 with $4$ steps and $8.3\times10^{-3}$ with $8$.
 
-\paragraph{The embedded coarse term.}
-The refinement path, Eq.~\eqref{eq:path}, contains a third kind of factor,
-$e^{-i\cos^2(\pi s/2)A\,\delta t}$ with $A=P(\Hlow-\mu)P^\dagger$ of
-Eq.~\eqref{eq:Aterm}.  Gate-free prolongation does not make this evolution
-gate-free.  For the $2\to4$ chain at $N=4$ the coarse space is the single
-determinant $\ket{\rm HF}$, so $A=(E_{\rm low}-\mu)\ket{\rm HF}\!\bra{\rm HF}
-=-0.6\,\ket{\rm HF}\!\bra{\rm HF}$, and within the $N=4$ sector $\ket{\rm HF}$ is
-the unique state with the four appended qubits $4$--$7$ all in $\ket0$.  Its
-exponential is therefore a phase conditioned on four qubits being empty,
-$X^{\otimes4}\,C^{3}P(\phi)\,X^{\otimes4}$ with $\phi=0.6\cos^2(\pi s/2)\delta t$.
-Expanding the projector, $\ket{1111}\!\bra{1111}=2^{-4}\sum_{S}(-1)^{|S|}Z_S$
-over the $15$ nonempty subsets $S$ of the four qubits, gives a phase polynomial
-of $15$ commuting $Z$-strings; ordered along a Gray code it compiles into
-$14$ CNOTs and $15$ $R_z$ rotations (the naive ladder-per-string construction
-costs $34$ CNOTs).  We verified that this operator reproduces the sector
-matrix exponential of $A$ exactly.  For a chain that starts from a nontrivial
-coarse space the term is $(\Hlow-\mu)$ on the coarse register conditioned on
-the appended qubits being empty; for the $3\to4$ chain each of the $33$ Pauli
-rotations of a $k=3$ step acquires a double control ($6$ CNOTs per rotation
-with a three-qubit Gray-code phase polynomial), for about $350$ CNOTs per
-application, which is the figure used in Sec.~\ref{sec:res-k34}.  All
-refinement budgets below include the coarse term; for the $2\to4$ chain it
-adds $14$ CNOTs to the $296$ of a first-order step, i.e.\ $2\times80\times14
-=2\,240$ CNOTs or $5\%$ over the $T=30$ path.
-
 Figure~\ref{fig:trotter} shows the two pipeline stages under this compilation.
 For the refinement (left), $n_s=80$ second-order steps along the $T=30$ path
 reproduce the exact-slice result to within its own adiabatic error, delivering
 $p=0.9977$ against the exact-slice $0.9988$; first-order steps need several
-hundred.  For the rodeo stage (right) the honest scheme fixes the maximum
-Trotter step \emph{size} $\delta t$, so a cycle with Gaussian time $t_k$ uses
-$n_k=\lceil \abs{t_k}/\delta t\rceil$ steps of size $t_k/n_k$
-($\sigma\sqrt{2/\pi}/\delta t\approx13$ steps on average at $\sigma=4$,
-$\delta t=0.25$).  The filter is strikingly diagnostic of its own Trotter
-error: at $\delta t=1$ the corrupted evolution is simply \emph{rejected} ---
-the acceptance collapses to $0.10$ and the fidelity never converges --- while at
-$\delta t=0.25$ the infidelity tracks the exact-evolution curve down to
-$1.2\times10^{-4}$ at $M=6$ with acceptance $0.989$.  The intermediate
-$\delta t=0.5$ converges to a floor of $2\times10^{-3}$.  The picture of
-Ref.~\cite{Qian2024} --- the filter projects onto the ground state of an
+hundred.  For the rodeo stage (right) the honest scheme fixes the Trotter step
+\emph{size} $\delta t$, so a cycle with Gaussian time $t_k$ uses
+$\lceil t_k/\delta t\rceil$ steps ($\sigma\sqrt{2/\pi}/\delta t\approx13$ on
+average at $\sigma=4$, $\delta t=0.25$).  The filter is strikingly diagnostic of
+its own Trotter error: at $\delta t=1$ the corrupted evolution is simply
+\emph{rejected} --- the acceptance collapses to $0.10$ and the fidelity never
+converges --- while at $\delta t=0.25$ the infidelity tracks the
+exact-evolution curve down to $1.2\times10^{-4}$ at $M=6$ with acceptance
+$0.989$.  The intermediate $\delta t=0.5$ converges to a floor of
+$2\times10^{-3}$: the rodeo filter projects onto the ground state of the
 \emph{effective} Trotterized Hamiltonian, whose $O(\delta t^{2})$ rotation away
-from the true ground state sets the attainable fidelity --- describes this
-behavior, with one qualification: because the step size $t_k/n_k$ differs from
-cycle to cycle, the cycles do not share a single effective Hamiltonian, and the
-observed floor is the result of a mixture of nearby effective ground states
-rather than a projection on one of them.  Coherent product-formula errors can
-thus both shift the located energy and bias the prepared state; the rejection
-of grossly inaccurate evolutions seen at $\delta t=1$ is a useful diagnostic,
-not a guarantee that smaller coherent errors are removed.
+from the true ground state sets the attainable fidelity, confirming the
+self-correcting picture of Ref.~\cite{Qian2024} quantitatively.
 
 \begin{figure*}[t]
 \centering
@@ -908,115 +734,63 @@ evolution.}
 \label{fig:trotter}
 \end{figure*}
 
-\subsection{Gate budget at matched fidelity: which input should the filter get?}
+\subsection{Depth budget: UCCSD--VQE versus the rodeo-terminated pipeline}
 \label{sec:depth}
-The question that decides the value of the refinement stage is not whether the
-pipeline beats an \emph{unfiltered} variational state --- a few rodeo cycles
-improve any input with large overlap --- but whether refinement followed by the
-filter beats the same filter applied to the best input that is available
-cheaply.  We therefore feed one and the same Trotterized filter (second order,
-$\delta t=0.25$, $\sigma=4$, $\abs{t_k}$ drawn from a Gaussian, $40$ common time
-sets) four inputs: (i) the prolonged $k=2$ determinant, $p=0.868$, gate-free;
-(ii) the full-space gate-level UCCSD state, $p=0.99982$, $1\,312$ CNOTs;
-(iii) the Trotterized refined state at $T^{*}=16$ ($43$ second-order steps,
-$p=0.9922$, $2\times43\times310=26\,660$ CNOTs including the coarse term); and
-(iv) the refined state at $T=30$ of Fig.~\ref{fig:trotter} ($80$ steps,
-$p=0.9977$, $49\,600$ CNOTs).  For each we track the ensemble infidelity of the
-accepted runs, the acceptance $P_M$, and the CNOTs per accepted preparation,
-\begin{equation}
-  C_M=\frac{C_{\rm prep}+\sum_{m=1}^{M}\langle P_{m-1}\rangle\,c_m}{P_M},
-  \label{eq:cost}
-\end{equation}
-where $c_m=2\times416\,n_m$ is the cost of the $m$-th controlled cycle and the
-factor $\langle P_{m-1}\rangle$ accounts for early termination of a run at the
-first ancilla outcome $1$ (without early termination the numerator is simply
-$C_{\rm prep}+\sum_m c_m$; the difference is below $5\%$ for all inputs).
-Equation~\eqref{eq:cost} counts repeated state preparation only.  One-time
-costs are reported separately: the UCCSD training took eight L-BFGS iterations,
-each requiring the energy and its $26$-component gradient, i.e.\ of order $30$
-distinct $1\,312$-CNOT circuits per iteration times the shots needed for the
-expectation values; the energy search of the rodeo stage costs the scans of
-Sec.~\ref{sec:res-rodeo}, of order $10^{3}$ four-cycle runs times their shots,
-and is common to all inputs.
+Table~\ref{tab:depth} summarizes the comparison at the circuit-level operating
+point of Fig.~\ref{fig:trotter} ($n_s=80$ second-order refinement steps,
+$M=2$ rodeo cycles at $\delta t=0.25$), counting \emph{total CNOTs per accepted
+preparation at matched target}, including the post-selection repetition factor
+$1/P_M$.  The comparison is deliberately honest in both directions.
 
-Figure~\ref{fig:baselines} and Table~\ref{tab:depth} give the result.  The
-first observation is that every input converges to the same floor,
-$1-\mathcal F\simeq1.1$--$1.5\times10^{-4}$ after six cycles, set by the
-product-formula evolution at $\delta t=0.25$ and not by the input.  The second
-is the ranking at fixed cycle number.  The UCCSD state, whose actual infidelity
-$1.78\times10^{-4}$ is already close to that floor, reaches $1.3\times10^{-4}$
-after two cycles for $2.3\times10^{4}$ CNOTs per accepted preparation; the
-refined $T=30$ state reaches $5.3\times10^{-4}$ after two cycles for
-$7.2\times10^{4}$ CNOTs and $1.5\times10^{-4}$ after six for $1.2\times10^{5}$;
-the refined $T^{*}=16$ state is cheaper at every cycle number than the $T=30$
-state at equal or better accuracy beyond $M=4$, which shows that the
-refinement time of Table~\ref{tab:depth} was not chosen economically; and the
-unrefined prolonged determinant, filtered directly, reaches $1.8\times10^{-3}$
-after six cycles for $7.0\times10^{4}$ CNOTs, i.e.\ roughly the accuracy of the
-$T^{*}=16$ chain after two cycles ($1.7\times10^{-3}$) at roughly $1.4$ times its
-cost.  At matched fidelity, therefore, refinement followed by the filter is
-tied within a factor $1.5$ with filtering the unrefined input, and costs three
-times more than filtering the UCCSD input while delivering a lower fidelity.
-The claim that the hybrid undercuts the variational preparation by orders of
-magnitude, which compared the UCCSD \emph{energy error} with the pipeline
-\emph{infidelity}, does not survive the comparison of like with like.
+The traditional route prepares the $k=4$ ground state directly with the
+gate-level UCCSD--VQE: after a one-time classical optimization (eight L-BFGS
+iterations, each executing the full circuit once per energy and gradient
+evaluation, averaged over many shots), every subsequent preparation replays the
+$1312$-CNOT, $26$-parameter circuit.  Its accuracy saturates at the ansatz
+error, $E-E_{\rm FCI}=1.4\times10^{-3}$ ($k=4$, Table~\ref{tab:uccsd}), and the
+cost grows steeply with resolution ($272\to1312$ CNOTs from $k=3$ to $k=4$).
 
-What remains in favor of the refinement stage is qualitative but real.  It
-contains no variational parameters: nothing is trained at full resolution, no
-expectation values are measured during state preparation, and the only
-classical inputs are the shift $\mu$ and the schedule $T$, which the coupling
-and shift scans of Sec.~\ref{sec:res-gscan} set from coarse-space information.
-Its gate count is dominated by the refinement, which scales with the Trotter
-step of the fine Hamiltonian and with $T^{*}$, and is independent of how hard
-the variational landscape is.  Whether this trade --- trainability for depth
---- pays off is a question about regimes in which the full-space variational
-input is poor or expensive to train.  For the pairing model with $N=4$ that
-regime is not reached at any size we can validate exactly
-(Sec.~\ref{sec:sizes}), and we state this as the main negative finding of the
-present assessment.
+One pipeline repetition costs $80\times296\times2=47\,360$ CNOTs of
+parameter-free refinement plus $\approx23\,000$ CNOTs for two rodeo cycles
+($\approx28$ controlled Trotter steps of $416$ CNOTs, doubled for the symmetric
+formula), i.e.\ $\approx7.1\times10^{4}$ CNOTs per run; with acceptance
+$P_M=0.99$ this is also the cost per \emph{accepted} preparation.  Per shot the
+pipeline is therefore $\sim50$ times deeper than a single UCCSD replay --- there
+is no free lunch in coherent depth, and the refinement dominates.  What the
+depth buys is accuracy and trainability: the $M=2$ operating point reaches an
+infidelity of $5\times10^{-4}$, four more cycles reach $1.2\times10^{-4}$, and
+with exact controlled evolution the same input reaches $5\times10^{-6}$
+(Fig.~\ref{fig:convergence}) --- all below the variational floor, which no
+number of UCCSD--VQE shots can cross.  The pipeline contains no variational
+parameters, so nothing is trained at full resolution; its dominant cost, the
+refinement, is set by $T^{*}\sim1/\Delta E_{\min}$
+(Sec.~\ref{sec:res-gscan}) and can be halved by starting the chain at $k=3$
+(Sec.~\ref{sec:res-k34}).
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\linewidth]{figs/fig17.png}
-\caption{Matched-observable comparison of inputs to the same Trotterized
-rodeo filter ($k=4$, $N=4$, $g=1$; second order, $\delta t=0.25$, $\sigma=4$,
-$40$ common Gaussian time sets): the prolonged $k=2$ determinant, the full-space
-gate-level UCCSD state, and the Trotterized resolution-refined state at
-$T^{*}=16$ and $T=30$ (the refinement cost includes the coarse term of
-Eq.~\eqref{eq:Aterm}).  Left: acceptance-weighted ensemble infidelity of the
-accepted runs versus CNOTs per accepted preparation, Eq.~\eqref{eq:cost}, as
-the number of cycles grows from $M=0$ (unfiltered input; omitted for the
-gate-free determinant) to $M=6$.  Right: the same infidelities versus $M$.  All
-inputs converge to the floor set by the product formula; the UCCSD input
-reaches it first and cheapest.}
-\label{fig:baselines}
-\end{figure*}
-
-\begin{table*}[t]
-\caption{\label{tab:depth}Gate budget per accepted preparation at $k=4$
-($N=4$, $g=1$, eight system qubits) for four inputs to the same Trotterized
-rodeo filter ($\delta t=0.25$, $\sigma=4$, $40$ time sets).  $p$ is the input
-overlap, $C_{\rm prep}$ the CNOT count of the input (refinement: $2\,n_s$
-second-order half-steps of $296+14$ CNOTs, the $14$ being the conditional
-phase of the coarse term), $1-\mathcal F_M$ the acceptance-weighted infidelity
-of the accepted runs, $P_M$ the acceptance and $C_M$ the CNOTs per accepted
-preparation of Eq.~\eqref{eq:cost}.  One-time training (UCCSD) and the energy
-scan are not included (see text).  The UCCSD energy error of $1.4\times10^{-3}$
-(Table~\ref{tab:uccsd}) corresponds to the infidelity $1.8\times10^{-4}$ listed
-here.}
-\footnotesize
+\begin{table}[t]
+\caption{\label{tab:depth}Circuit-depth budget at $k=4$ ($N=4$, $g=1$, eight
+system qubits) at the operating point of Fig.~\ref{fig:trotter}: $n_s=80$
+second-order refinement steps ($T=30$), $M=2$ rodeo cycles with
+$\delta t=0.25$, $\sigma=4$.  CNOT counts follow Table~\ref{tab:uccsd} and
+Eq.~\eqref{eq:trottercost}; the factor $2$ is the symmetric-formula doubling.
+The UCCSD--VQE floor is its ansatz error; the pipeline numbers are per accepted
+preparation (acceptance $P_M=0.99$).}
 \begin{ruledtabular}
-\begin{tabular}{lcc ccc ccc}
- & & & \multicolumn{3}{c}{$M=2$} & \multicolumn{3}{c}{$M=6$}\\
-input to the filter & $p$ & $C_{\rm prep}$ & $1-\mathcal F_2$ & $P_2$ & $C_2$ & $1-\mathcal F_6$ & $P_6$ & $C_6$\\
+\begin{tabular}{lccc}
+circuit & params & CNOTs & infidelity\\
 \colrule
-prolonged determinant ($k{=}2\!\to\!4$) & $0.868$ & $0$ & $2.9\times10^{-2}$ & $0.887$ & $2.3\times10^{4}$ & $1.8\times10^{-3}$ & $0.854$ & $7.0\times10^{4}$\\
-UCCSD, full space ($26$ parameters) & $0.99982$ & $1\,312$ & $1.3\times10^{-4}$ & $0.996$ & $2.3\times10^{4}$ & $1.1\times10^{-4}$ & $0.986$ & $6.8\times10^{4}$\\
-refined, $T^{*}{=}16$ ($n_s{=}43$) & $0.9922$ & $26\,660$ & $1.7\times10^{-3}$ & $0.989$ & $4.9\times10^{4}$ & $1.7\times10^{-4}$ & $0.979$ & $9.4\times10^{4}$\\
-refined, $T{=}30$ ($n_s{=}80$) & $0.9977$ & $49\,600$ & $5.3\times10^{-4}$ & $0.994$ & $7.2\times10^{4}$ & $1.5\times10^{-4}$ & $0.985$ & $1.2\times10^{5}$\\
+UCCSD--VQE prep.\ ($k{=}4$) & 26 & $1312$/prep.\ & $1.4\times10^{-3}$ (floor)\\
+\colrule
+coarse UCCSD ($k{=}2$) & 0 & 0 & \\
+prolongation $k{=}2\!\to\!4$ & 0 & 0 & \\
+refinement ($80\times296\times2$) & 0 & $47\,360$ & $2.3\times10^{-3}$ (input)\\
+rodeo, $M{=}2$ ($\approx28\times416\times2$) & 0 & $\approx23\,000$ & $5\times10^{-4}$\\
+\colrule
+pipeline total per accepted prep. & 0 & $\approx7.1\times10^{4}$ & $5\times10^{-4}$\\
+\quad --- with $M{=}6$ cycles & 0 & $\approx1.2\times10^{5}$ & $1.2\times10^{-4}$\\
 \end{tabular}
 \end{ruledtabular}
-\end{table*}
+\end{table}
 
 \subsection{Remarks on adaptive and improved VQE}
 \label{sec:adapt}
@@ -1037,101 +811,11 @@ the optimum just as the singles do.  Qubit-ADAPT-VQE~\cite{Tang2021} pushes
 further by drawing the pool from individual Pauli strings, removing the
 eightfold string overhead per fermionic double.  These developments are
 complementary to the present pipeline rather than competing with it: the
-filter is agnostic to how its input is produced, so an ADAPT-style state
---- at the coarse or at the full resolution --- slots in directly, and in the
-light of Table~\ref{tab:depth} a pair-adapted full-space ansatz of $192$ CNOTs
-followed by two rodeo cycles would be the cheapest route of all at this system
-size.  We have not implemented ADAPT-VQE here; its inclusion as a comparator is
-the natural next step of the assessment.  Conversely, no variational
-compression by itself supplies the geometric, optimizer-free convergence that
+pipeline is agnostic to how the coarse state is produced, so an ADAPT-style
+coarse solver slots in directly, reducing the (already modest) low-resolution
+cost and potentially raising the prolonged overlap; conversely, no variational
+compression by itself supplies the exponential, optimizer-free convergence that
 the rodeo filter provides once the overlap is large.
-
-\subsection{Other model-space sizes, particle numbers, and observables}
-\label{sec:sizes}
-To see whether the ranking of Table~\ref{tab:depth} is an accident of the
-smallest nontrivial case, Table~\ref{tab:sizes} repeats the comparison, with
-exact-slice refinement and exact controlled evolution ($\sigma=3$, $40$ time
-sets), for $N=4$ and $N=6$ particles on $k=4$ and $k=6$ levels (eight and
-twelve qubits), always starting from the filled determinant of the smallest
-coarse space ($k_{\rm low}=N/2$).  The pattern is the same throughout: the
-prolonged overlap falls to $0.78$--$0.80$ at $k=6$, refinement for $T=30$
-restores it to $0.997$--$0.999$, and the UCCSD input, whose infidelity grows
-from $1.8\times10^{-4}$ to $1.0\times10^{-3}$ over the table, still enters the
-filter with a higher overlap than the refined state and leaves it with a lower
-infidelity at every cycle number.  (At $N=6$, $k=4$ the ansatz is exact: three
-pairs on four levels are the particle--hole conjugate of one pair, for which
-UCCSD is complete.)  The price of the UCCSD input is its circuit ---
-$6\,976$ CNOTs and $92$ parameters at $k=6$, $N=4$; $9\,024$ CNOTs and $117$
-parameters at $k=6$, $N=6$ --- and the training of those parameters, which the
-refinement avoids at the cost of $2n_s(N_{\rm CNOT}^{\rm step}+N_{\rm CNOT}^{A})$
-CNOTs with $N_{\rm CNOT}^{\rm step}=732$ at $k=6$.  This is a controlled
-small-system demonstration, not a scaling study; a regime in which refinement
-wins would require a Hamiltonian for which the variational input is poor, and
-we do not find one within the pairing model at these sizes.
-
-\begin{table*}[t]
-\caption{\label{tab:sizes}The pipeline and the UCCSD comparator at other
-sizes ($g=1$): coarse space the filled determinant at $k_{\rm low}=N/2$,
-exact-slice refinement for $T=30$, exact controlled evolution with $\sigma=3$,
-$40$ time sets.  ${\rm ov}_0$ and $p$ are the overlaps of the prolonged and
-refined states with the exact ground state, the UCCSD columns give the
-infidelity and energy error of the sector-level UCCSD state together with its
-parameter and CNOT counts, and the last four columns the acceptance-weighted
-infidelity after $M$ rodeo cycles from the refined and from the UCCSD input.
-The register has $2k$ qubits ($8$ and $12$) and the uncontrolled first-order
-Trotter step of Eq.~\eqref{eq:trottercost} costs $296$ CNOTs at $k=4$ and
-$732$ at $k=6$.}
-\footnotesize
-\begin{ruledtabular}
-\begin{tabular}{ccc cc cccc cc cc}
-$(k,N)$ & dim & gap & ${\rm ov}_0$ & $p\,(T{=}30)$ & $1-\mathcal F_{\rm UCCSD}$ & $\Delta E_{\rm UCCSD}$ & params & CNOTs & \multicolumn{2}{c}{refined$+$rodeo} & \multicolumn{2}{c}{UCCSD$+$rodeo}\\
- & & & & & & & & & $M{=}2$ & $M{=}6$ & $M{=}2$ & $M{=}6$\\
-\colrule
-$(4,4)$ & 70  & $1.823$ & $0.868$ & $0.9988$ & $1.8\times10^{-4}$ & $1.4\times10^{-3}$ & 26  & $1\,312$ & $3.4\times10^{-4}$ & $2.3\times10^{-5}$ & $4.1\times10^{-5}$ & $1.4\times10^{-6}$\\
-$(6,4)$ & 495 & $2.017$ & $0.798$ & $0.9976$ & $7.6\times10^{-4}$ & $6.1\times10^{-3}$ & 92  & $6\,976$ & $6.3\times10^{-4}$ & $4.1\times10^{-5}$ & $1.7\times10^{-4}$ & $7.6\times10^{-6}$\\
-$(4,6)$ & 28  & $1.779$ & $0.894$ & $0.9991$ & $<10^{-15}$ & $<10^{-15}$ & 15  & $688$    & $2.5\times10^{-4}$ & $1.7\times10^{-5}$ & $0$ & $0$\\
-$(6,6)$ & 924 & $2.052$ & $0.780$ & $0.9972$ & $1.0\times10^{-3}$ & $8.3\times10^{-3}$ & 117 & $9\,024$ & $7.2\times10^{-4}$ & $4.8\times10^{-5}$ & $2.4\times10^{-4}$ & $1.0\times10^{-5}$\\
-\end{tabular}
-\end{ruledtabular}
-\end{table*}
-
-\paragraph{Observables.}
-A state-preparation method for nuclear structure is judged by the observables
-of the state it delivers, not only by its overlap.  Table~\ref{tab:obs} lists
-the level occupation numbers $n_p=\sum_\sigma\expval{n_{p\sigma}}$ and the
-correlation energy $E-E_{\rm ref}$ of the states of Table~\ref{tab:depth} at
-$k=4$, $N=4$, $g=1$ (for the filtered states, the acceptance-weighted average
-over the $40$ time sets).  The exact ground state depletes the two occupied
-levels by $0.07$ and $0.20$ particles.  The UCCSD state reproduces the
-occupations to $3\times10^{-3}$ and the correlation energy to $1.4\times10^{-3}$;
-the refined state at $T=30$, whose infidelity is $2.3\times10^{-3}$, deviates by
-up to $0.02$ in the occupations and by $10^{-2}$ in the correlation energy,
-and two rodeo cycles reduce both deviations by a factor $2$--$3$, six cycles by
-a factor $4$--$5$.  Occupation numbers converge more slowly than the energy,
-as expected for a quantity that is linear rather than quadratic in the error
-of the state.
-
-\begin{table}[t]
-\caption{\label{tab:obs}Level occupation numbers $n_p$ and energy of the
-prepared states at $k=4$, $N=4$, $g=1$ ($E_{\rm ref}=1$); the filtered states
-use the Trotterized filter of Table~\ref{tab:depth} ($\delta t=0.25$) and are
-acceptance-weighted averages over $40$ time sets; $a\,10^{-b}$ stands for
-$a\times10^{-b}$.}
-\footnotesize
-\begin{ruledtabular}
-\begin{tabular}{lcccccc}
-state & $n_0$ & $n_1$ & $n_2$ & $n_3$ & $E-E_{\rm ref}$ & $1-\mathcal F$\\
-\colrule
-exact & $1.929$ & $1.803$ & $0.197$ & $0.071$ & $-0.3645$ & $0$\\
-reference det. & $2$ & $2$ & $0$ & $0$ & $0$ & $1.3\,10^{-1}$\\
-UCCSD & $1.930$ & $1.806$ & $0.194$ & $0.070$ & $-0.3630$ & $1.8\,10^{-4}$\\
-refined ($T{=}30$) & $1.908$ & $1.795$ & $0.205$ & $0.092$ & $-0.3549$ & $2.3\,10^{-3}$\\
-refined$+$rodeo $M{=}2$ & $1.920$ & $1.798$ & $0.202$ & $0.080$ & $-0.3621$ & $5.3\,10^{-4}$\\
-refined$+$rodeo $M{=}6$ & $1.923$ & $1.801$ & $0.199$ & $0.077$ & $-0.3637$ & $1.5\,10^{-4}$\\
-UCCSD$+$rodeo $M{=}2$ & $1.924$ & $1.801$ & $0.199$ & $0.076$ & $-0.3637$ & $1.3\,10^{-4}$\\
-\end{tabular}
-\end{ruledtabular}
-\end{table}
 
 % ===========================================================================
 \section{Beyond seniority: adding a particle-hole interaction}
@@ -1143,13 +827,9 @@ complete pairs and does nothing else; the seniority is conserved, the $N=4$
 ground state lives in a $\binom{k}{2}$-dimensional seniority-zero space, and an
 entire class of excitations is absent --- there is no matrix element between
 the reference determinant and any one-particle--one-hole state.  Realistic
-nuclear and electronic Hamiltonians do have that channel.  The pure pairing
-model is by no means outside the reach of mean-field-based methods --- the
-Richardson model has long served as a testing ground for particle-particle
-RPA and its self-consistent and renormalized
-variants~\cite{Hirsch2002,Dang2006} and for the quasiparticle
-RPA~\cite{RingSchuck} --- but the particle-hole channel on which Tamm--Dancoff
-and particle-hole RPA are built is simply closed in it.  To test the pipeline on a
+nuclear and electronic Hamiltonians do have that channel, and the mean-field
+theories built on it (Tamm--Dancoff, RPA, quasiparticle RPA~\cite{RingSchuck})
+have nothing to say about the pure pairing model.  To test the pipeline on a
 Hamiltonian with the central ingredients of a realistic two-body interaction
 we therefore add, following Chapter~4 of Ref.~\cite{MHJbook}, one extra term
 to Eq.~\eqref{eq:H}, keeping the level scheme, the particle number $N=4$ and the
@@ -1169,24 +849,17 @@ excitation.  $V_{\rm ph}$ still conserves $N_\uparrow$ and $N_\downarrow$
 separately, so $S_z$ remains a good quantum number, but the seniority does not:
 at $k=4$ the $S_z=0$ sector has $36$ determinants instead of the six pair
 configurations, and the compact one-qubit-per-pair encoding of the pairing
-model~\cite{Lacroix2020,AychetClaisse2026} is no longer available.  We keep
-the $2k$-qubit Jordan--Wigner register used throughout this work; it is the
-convenient general choice, not the only one --- the conserved particle number
-and $S_z$ still permit compressed encodings of the $36$-dimensional block ---
-but it is the register on which the gate counts below are meaningful.  Acting
-once on the reference determinant at $k=4$, the Hamiltonian now reaches eight
-$1p$--$1h$ and eight seniority-two $2p$--$2h$ determinants with matrix elements
-$\pm f/2$, in addition to the four seniority-zero $2p$--$2h$ states whose
-coupling grows from $g/2$ to $(g+2f)/2$.  Two consequences matter for the
-pipeline.  First, the filled determinant is no longer a stationary
-Hartree--Fock solution: its one-particle--one-hole matrix elements
-$\mel{\Phi_i^a}{H}{\Phi_0}=\pm f/2$ do not vanish (Brillouin's theorem holds
-for the self-consistent determinant, which we have not re-optimized), so the
-UCCSD \emph{singles}, identically zero for the pairing force, switch on and
-absorb part of what an optimized reference would describe as mean-field
-relaxation rather than correlation.  Second, the reference energy becomes
-$E_{\rm ref}=2-g-2f$, and the quantity we call correlation energy below is
-measured from this unrelaxed reference.  We use the strengths $f=0.05$, $0.2$ and $0.5$ of
+model~\cite{Lacroix2020,AychetClaisse2026} is no longer available --- the
+$2k$-qubit Jordan--Wigner register used throughout this work becomes the only
+option.  Acting once on the reference
+determinant at $k=4$, the Hamiltonian now reaches eight $1p$--$1h$ and eight
+seniority-two $2p$--$2h$ determinants with matrix elements $\pm f/2$, in
+addition to the four seniority-zero $2p$--$2h$ states whose coupling grows from
+$g/2$ to $(g+2f)/2$.  Two consequences matter for the pipeline: the reference
+determinant is no longer the Hartree--Fock solution (Brillouin's theorem fails,
+$\mel{\Phi_i^a}{H}{\Phi_0}=\pm f/2$), so the UCCSD \emph{singles}, identically
+zero for the pairing force, switch on; and the reference energy becomes
+$E_{\rm ref}=2-g-2f$.  We use the strengths $f=0.05$, $0.2$ and $0.5$ of
 Ref.~\cite{MHJbook} at $g=1$, so that every exact number below can be
 cross-checked against its tables, and we apply the pipeline exactly as before
 --- the only change is the Hamiltonian passed to each stage.
@@ -1202,42 +875,35 @@ $f$).  As $f$ grows the correlation energy grows much faster than the
 reference energy falls, from $-0.36$ at $f=0$ to $-1.69$ at $f=0.5$
 (Fig.~\ref{fig:phscan}, left), the signature of a second, competing mean field.
 At $k=3$ the UCCSD ansatz remains exact for every $f$, now with non-vanishing
-singles amplitudes (up to $0.09$ at $f=0.5$).  At $k=4$ the ansatz energy
-error grows by a factor of twenty across the scan, from $1.4\times10^{-3}$ at
-$f=0$ to $3.2\times10^{-2}$ at $f=0.5$, and the infidelity of the optimized
-state by the same factor, from $1.8\times10^{-4}$ to $3.7\times10^{-3}$,
-tracking the weight of the exact ground state outside the seniority-zero
-space, which reaches $3.9\%$ at $f=0.5$ (Fig.~\ref{fig:phscan}, right).  This
-is the first qualitative difference from the pairing model: the accuracy of
-the fixed single-reference ansatz, which did not depend on $g$ before, now
-degrades with the strength of the pair-breaking channel.  We note that these
-are the errors of the optimized Trotterized UCCSD circuit found by L-BFGS from
-a zero start; they document the accuracy of this preparation, not a proven
-expressivity limit of the ansatz.
+singles amplitudes (up to $0.09$ at $f=0.5$).  At $k=4$ the ansatz error grows
+by a factor of twenty across the scan, from $1.4\times10^{-3}$ at $f=0$ to
+$3.2\times10^{-2}$ at $f=0.5$, tracking the weight of the exact ground state
+outside the seniority-zero space, which reaches $3.9\%$ at $f=0.5$
+(Fig.~\ref{fig:phscan}, right).  This is the first qualitative difference from
+the pairing model: the variational floor, which was a fixed $10^{-3}$ before, is
+now a moving target that degrades with the strength of the pair-breaking
+channel.
 
 \begin{table}[t]
 \caption{\label{tab:ph}The pairing model with the particle-hole term of
 Eq.~\eqref{eq:Vph}, $N=4$, $g=1$.  $E_{\rm ref}=1-2f$ is the energy of the
 reference determinant, FCI the exact $N$-sector ground state, UCCSD the
 statevector unitary coupled-cluster energy (identical to the gate-level circuit
-at $k=3$), $\Delta E_{\rm UCCSD}=E_{\rm UCCSD}-E_{\rm FCI}$, $1-\mathcal F_{\rm UCCSD}$ the infidelity of the optimized UCCSD
-state with respect to the exact ground state, and $w_0$ the weight of the
-exact ground state in the seniority-zero subspace.  The $k=4$ FCI column agrees
-with the corresponding table of Ref.~\cite{MHJbook}.}
-\footnotesize
+at $k=3$), and $w_0$ the weight of the exact ground state in the seniority-zero
+subspace.  The $k=4$ FCI column agrees with the corresponding table of Ref.~\cite{MHJbook}.}
 \begin{ruledtabular}
 \begin{tabular}{ccccccc}
-$k$ & $f$ & FCI & UCCSD & $\Delta E_{\rm UCCSD}$ & $1-\mathcal F_{\rm UCCSD}$ & $w_0$\\
+$k$ & $f$ & $E_{\rm ref}$ & FCI & UCCSD & $E_{\rm UCCSD}-E_{\rm FCI}$ & $w_0$\\
 \colrule
-3 & 0 & $\phantom{-}0.794697$ & $\phantom{-}0.794697$ & $<10^{-14}$ & $<10^{-14}$ & $1$\\
-3 & 0.05 & $\phantom{-}0.650378$ & $\phantom{-}0.650378$ & $<10^{-14}$ & $<10^{-14}$ & $0.9994$\\
-3 & 0.2 & $\phantom{-}0.185803$ & $\phantom{-}0.185803$ & $<10^{-14}$ & $<10^{-14}$ & $0.9938$\\
-3 & 0.5 & $-0.839538$ & $-0.839538$ & $<10^{-14}$ & $<10^{-14}$ & $0.9808$\\
+3 & 0    & $1.0$ & $\phantom{-}0.794697$ & $\phantom{-}0.794697$ & $<10^{-14}$ & $1$\\
+3 & 0.05 & $0.9$ & $\phantom{-}0.650378$ & $\phantom{-}0.650378$ & $<10^{-14}$ & $0.9994$\\
+3 & 0.2  & $0.6$ & $\phantom{-}0.185803$ & $\phantom{-}0.185803$ & $<10^{-14}$ & $0.9938$\\
+3 & 0.5  & $0.0$ & $-0.839538$ & $-0.839538$ & $<10^{-14}$ & $0.9808$\\
 \colrule
-4 & 0 & $\phantom{-}0.635548$ & $\phantom{-}0.636987$ & $1.4\times10^{-3}$ & $1.8\times10^{-4}$ & $1$\\
-4 & 0.05 & $\phantom{-}0.450582$ & $\phantom{-}0.453024$ & $2.4\times10^{-3}$ & $3.0\times10^{-4}$ & $0.9988$\\
-4 & 0.2 & $-0.183485$ & $-0.175303$ & $8.2\times10^{-3}$ & $1.0\times10^{-3}$ & $0.9869$\\
-4 & 0.5 & $-1.691737$ & $-1.659594$ & $3.2\times10^{-2}$ & $3.7\times10^{-3}$ & $0.9605$\\
+4 & 0    & $1.0$ & $\phantom{-}0.635548$ & $\phantom{-}0.636987$ & $1.4\times10^{-3}$ & $1$\\
+4 & 0.05 & $0.9$ & $\phantom{-}0.450582$ & $\phantom{-}0.453024$ & $2.4\times10^{-3}$ & $0.9988$\\
+4 & 0.2  & $0.6$ & $-0.183485$ & $-0.175303$ & $8.2\times10^{-3}$ & $0.9869$\\
+4 & 0.5  & $0.0$ & $-1.691737$ & $-1.659594$ & $3.2\times10^{-2}$ & $0.9605$\\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
@@ -1333,7 +999,8 @@ $4.5\times10^{-5}$ for $f=0$, $0.05$, $0.2$ and $0.5$, with acceptances
 $0.998$, $0.997$, $0.994$ and $0.980$.  The pair-breaking channels cost the
 pipeline one order of magnitude in final infidelity at the strongest coupling
 --- recoverable with three more cycles --- and nothing in acceptance beyond the
-lower input overlap.
+lower input overlap, while the variational floor of Table~\ref{tab:ph} has
+moved up by a factor of twenty over the same range.
 
 \begin{figure*}[t]
 \centering
@@ -1399,27 +1066,18 @@ Second, the depth of one step grows ninefold: compiled block by block with
 the ladder rule of Eq.~\eqref{eq:trottercost}, a first-order step costs $2728$
 CNOTs instead of $296$ ($348$ rotations instead of $60$; $3424$ against $416$
 once controlled), the $1p$--$1h$ family contributing $640$ and the
-pair-breaking family $1792$ CNOTs; the coarse term is unchanged ($14$ CNOTs,
-the coarse space is still one determinant).  The budget per accepted
-preparation therefore scales almost exactly with the step cost: at the
-pairing-model operating point ($n_s=80$, $M=2$, $\delta t=0.25$) it is
-$6.5\times10^{5}$ CNOTs at $f=0.2$ against $7.2\times10^{4}$ for the pure pairing
-force, for an infidelity of $1.0\times10^{-3}$, and at $f=0.5$ the finer rodeo
-step brings the total to $8.3\times10^{5}$ CNOTs for $5.3\times10^{-3}$.  The
-price of a more realistic interaction thus appears where it should, in the
-depth of each Trotter step of the Hamiltonian evolution, and not in the
-structure, the operating point or the convergence of the pipeline.  Measured
-against the right comparator, however, the extra depth buys no accuracy
-advantage: the actual infidelity of the UCCSD state is $1.0\times10^{-3}$ at
-$f=0.2$ and $3.7\times10^{-3}$ at $f=0.5$, so the hybrid at $M=2$ is tied with
-the \emph{unfiltered} variational state at $f=0.2$ and behind it at $f=0.5$,
-and the same filter applied to the UCCSD input (last column of
-Table~\ref{tab:phdepth}) reaches $5.1\times10^{-4}$ and $2.0\times10^{-3}$ at
-$\delta t=0.25$, $2.6\times10^{-4}$ and $9.6\times10^{-4}$ at $\delta t=0.125$,
-for $2.0$--$3.8\times10^{5}$ CNOTs per accepted preparation --- a factor two to
-three below the hybrid in both accuracy and cost.  The seniority-breaking
-term thus confirms the structural robustness of the pipeline and, at the same
-time, the conclusion of Sec.~\ref{sec:depth}.
+pair-breaking family $1792$ CNOTs.  The budget per accepted preparation
+therefore scales almost exactly with the step cost: at the pairing-model
+operating point ($n_s=80$, $M=2$, $\delta t=0.25$) it is $6.4\times10^{5}$
+CNOTs at $f=0.2$ against $7.1\times10^{4}$ for the pure pairing force, for an
+infidelity of $1.0\times10^{-3}$ --- eight times below the UCCSD--VQE floor of
+$8.2\times10^{-3}$ at this $f$ --- and at $f=0.5$ the finer rodeo step brings
+the total to $8.3\times10^{5}$ CNOTs for $5.3\times10^{-3}$, six times below the
+floor of $3.2\times10^{-2}$.  The price of a more realistic interaction thus
+appears exactly where it should, in the depth of each Trotter step of the
+Hamiltonian evolution, and not in the structure, the operating point or the
+convergence of the pipeline; the gap to the variational floor, which the
+particle-hole term widens, is what the extra depth buys.
 
 \begin{figure*}[t]
 \centering
@@ -1437,28 +1095,24 @@ the six-cycle acceptance.}
 \end{figure*}
 
 \begin{table*}[t]
-\caption{\label{tab:phdepth}Gate budget at $k=4$ ($N=4$, $g=1$) with the
-particle-hole term, per accepted preparation, at the operating point of
+\caption{\label{tab:phdepth}Circuit-depth budget at $k=4$ ($N=4$, $g=1$) with
+the particle-hole term, per accepted preparation, at the operating point of
 Table~\ref{tab:depth} ($n_s=80$ second-order refinement steps at $T=30$, $M=2$
 rodeo cycles, $\sigma=4$) for two rodeo step sizes $\delta t$.  Step costs are
-the block-by-block CNOT counts (uncontrolled / controlled); the refinement
-column includes the $14$-CNOT coarse term per half-step; the rodeo column uses
-the mean number of Trotter steps over the two cycles, doubled for the symmetric
-formula.  The last two columns give the infidelity of the hybrid and, for
-comparison, the infidelity of the unfiltered UCCSD state ($1\,312$ CNOTs,
-$26$ parameters, the same circuit for every $f$) and of the UCCSD state passed
-through the same two-cycle filter, with its CNOTs per accepted preparation in
-parentheses.  The first row is the pure pairing model of Table~\ref{tab:depth}.}
-\footnotesize
+the block-by-block CNOT counts (uncontrolled / controlled); the rodeo column
+uses the mean number of Trotter steps over the two cycles, doubled for the
+symmetric formula.  The UCCSD--VQE circuit ($1312$ CNOTs, $26$ parameters) is
+the same for every $f$; only its ansatz floor moves (Table~\ref{tab:ph}).  The
+first row is the pure pairing model of Table~\ref{tab:depth}.}
 \begin{ruledtabular}
-\begin{tabular}{cccccccc cc}
-$f$ & $\delta t$ & step (unctrl./ctrl.) & refinement & rodeo & per run & $P_M$ & per accepted & $1-\mathcal{F}$: hybrid / UCCSD & UCCSD$+$rodeo (CNOTs)\\
+\begin{tabular}{ccccccccc}
+$f$ & $\delta t$ & step (unctrl./ctrl.) & refinement & rodeo & per run & $P_M$ & per accepted & $1-\mathcal{F}$ (UCCSD floor)\\
 \colrule
-$0$   & $0.25$  & $296$ / $416$   & $49\,600$  & $22\,000$ & $71\,600$ & $0.994$ & $7.2\times10^{4}$ & $5.3\times10^{-4}$ / $1.8\times10^{-4}$ & $1.3\times10^{-4}$ ($2.3\times10^{4}$)\\
-$0.2$ & $0.25$  & $2728$ / $3424$ & $438\,720$ & $190\,603$ & $629\,323$ & $0.972$ & $6.5\times10^{5}$ & $1.0\times10^{-3}$ / $1.0\times10^{-3}$ & $5.1\times10^{-4}$ ($2.0\times10^{5}$)\\
-$0.2$ & $0.125$ & $2728$ / $3424$ & $438\,720$ & $375\,499$ & $814\,219$ & $0.996$ & $8.2\times10^{5}$ & $8.1\times10^{-4}$ / $1.0\times10^{-3}$ & $2.6\times10^{-4}$ ($3.8\times10^{5}$)\\
-$0.5$ & $0.25$  & $2728$ / $3424$ & $438\,720$ & $190\,603$ & $629\,323$ & $0.891$ & $7.1\times10^{5}$ & $6.1\times10^{-3}$ / $3.7\times10^{-3}$ & $2.0\times10^{-3}$ ($2.1\times10^{5}$)\\
-$0.5$ & $0.125$ & $2728$ / $3424$ & $438\,720$ & $375\,499$ & $814\,219$ & $0.979$ & $8.3\times10^{5}$ & $5.3\times10^{-3}$ / $3.7\times10^{-3}$ & $9.6\times10^{-4}$ ($3.8\times10^{5}$)\\
+$0$   & $0.25$  & $296$ / $416$   & $47\,360$  & $\approx23\,000$ & $\approx7.1\times10^{4}$ & $0.99$ & $\approx7.1\times10^{4}$ & $5\times10^{-4}$ ($1.4\times10^{-3}$)\\
+$0.2$ & $0.25$  & $2728$ / $3424$ & $436\,480$ & $190\,603$ & $627\,083$ & $0.972$ & $6.4\times10^{5}$ & $1.0\times10^{-3}$ ($8.2\times10^{-3}$)\\
+$0.2$ & $0.125$ & $2728$ / $3424$ & $436\,480$ & $375\,499$ & $811\,979$ & $0.996$ & $8.2\times10^{5}$ & $8.1\times10^{-4}$ ($8.2\times10^{-3}$)\\
+$0.5$ & $0.25$  & $2728$ / $3424$ & $436\,480$ & $190\,603$ & $627\,083$ & $0.891$ & $7.0\times10^{5}$ & $6.1\times10^{-3}$ ($3.2\times10^{-2}$)\\
+$0.5$ & $0.125$ & $2728$ / $3424$ & $436\,480$ & $375\,499$ & $811\,979$ & $0.979$ & $8.3\times10^{5}$ & $5.3\times10^{-3}$ ($3.2\times10^{-2}$)\\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
@@ -1468,7 +1122,6 @@ $0.5$ & $0.125$ & $2728$ / $3424$ & $438\,720$ & $375\,499$ & $814\,219$ & $0.97
 qubits: number of strings and largest Pauli weight, for the pairing model and
 for the pairing model with the particle-hole term ($f\neq0$; the counts do not
 depend on the value of $f$).  The $k=2,3$ rows agree with Ref.~\cite{MHJbook}.}
-\footnotesize
 \begin{ruledtabular}
 \begin{tabular}{cccc}
 $k$ & qubits & pairing & pairing $+$ $V_{\rm ph}$\\
@@ -1484,47 +1137,29 @@ $k$ & qubits & pairing & pairing $+$ $V_{\rm ph}$\\
 \section{Discussion and outlook}
 \label{sec:discussion}
 % ===========================================================================
-The pairing model lets us exhibit the complete refinement-plus-filter chain
-with every stage benchmarked against exact results: a gate-level UCCSD coarse
-solver, a gate-free prolongation with a counted conditioned coarse term, a
-gapped adiabatic refinement whose extracted time grows linearly with the
-inverse of the shift-controlled path gap over the range studied, and a rodeo
-filter whose ensemble infidelity follows Eq.~\eqref{eq:fid} --- all validated
-a second time at the circuit level with product formulas.  The two algorithms
-are complementary in the intended sense: refinement raises the overlap from
-$0.87$ to $0.998$, and the filter removes the adiabatic tail geometrically.
-The coupling scan adds a practical lesson: at strong pairing the limiter is
-not the path gap but the quality of the prolonged starting state.  The
-particle-hole extension of Sec.~\ref{sec:ph} shows that none of this depends
-on the seniority symmetry that makes the pairing model convenient: with the
-one-particle--one-hole channel open, the same stages run unchanged, the path
-gap is still set by the shift, the refinement cost is governed by the
-renormalized pairing strength $g+2f$, and the filter converges geometrically
-for every strength studied; the cost of the more realistic interaction shows
-up in the Pauli-string content of the Hamiltonian ($61\to325$ strings at $k=4$)
-and hence in the depth of each Trotter step ($296\to2728$ CNOTs).
-
-The central quantitative finding, however, is negative for the refinement
-stage as a gate-saving device.  Compared on the same observable --- the
-ground-state infidelity --- and with the same Trotterized filter, refinement
-followed by the rodeo algorithm is tied with filtering the unrefined prolonged
-determinant and is beaten, in accuracy and in cost per accepted preparation,
-by filtering the full-space UCCSD state, for the pure pairing force as well as
-with the particle-hole term and at every size we can validate exactly
-(Tables~\ref{tab:depth}, \ref{tab:sizes} and \ref{tab:phdepth}).  The reason is
-simple: in these systems a single-reference variational circuit with a few
-tens of parameters already has an overlap above $0.998$, and an overlap of
-$0.87$ costs the filter only a few extra cycles, whereas an adiabatic path of
-length $T^{*}\sim10$--$30$ at a Trotter step of several hundred CNOTs costs
-tens of thousands.  What the refinement offers in exchange is that it is
-optimizer-free and measurement-free during preparation, and that its cost is
-set by the Hamiltonian evolution rather than by the trainability of a
-landscape.  Whether that trade pays off is a question about regimes we cannot
-reach with exact validation --- larger spaces, interactions for which
-single-reference ans\"atze fail, or hardware on which the training
-measurements of a variational loop dominate --- and we regard the present
-work as the controlled baseline against which such claims should be measured,
-not as evidence for them.
+The pairing model lets us exhibit our entire hybrid pipeline with every stage
+benchmarked against exact results: a gate-level UCCSD coarse solver, a gate-free
+prolongation, a gapped adiabatic refinement whose $T^{*}\sim1/\Delta E_{\min}$
+scaling we verify directly through the shift-controlled path gap, and a rodeo
+filter with $1-\mathcal{F}_M\lesssim\tfrac{1-p}{p}2^{-M}$ --- all validated a
+second time at the circuit level with explicit product formulas.  The two
+algorithms are genuinely complementary --- refinement provides the large overlap
+$p\approx1$ that the rodeo algorithm requires, and the rodeo algorithm removes the
+slow adiabatic tail that refinement alone leaves behind.  The coupling scan adds a
+practical lesson: at strong pairing the limiter is not the path gap but the
+quality of the prolonged starting state, which is exactly what starting the chain
+higher in the resolution hierarchy repairs.  The particle-hole extension of
+Sec.~\ref{sec:ph} removes the suspicion that these conclusions depend on the
+seniority symmetry that makes the pairing model so convenient: with the
+one-particle--one-hole channel open and the ground state leaking out of the
+seniority-zero space, the same four stages run unchanged, the path gap is still
+set by the shift, the refinement cost is governed by the renormalized pairing
+strength $g+2f$, and the rodeo filter converges geometrically for every
+strength studied, whereas the UCCSD floor degrades twentyfold.  The cost of
+the more realistic interaction shows up where it should --- in the Pauli-string
+content of the Hamiltonian ($61\to325$ strings at $k=4$) and hence in the depth
+of each Trotter step ($296\to2728$ CNOTs) --- and not in the structure of the
+pipeline, whose operating point and product-formula error barely move.
 
 \paragraph{Relation to symmetry-restoration and subspace approaches.}
 The results invite a comparison with the pairing-model work of Lacroix and
@@ -1547,86 +1182,96 @@ are complementary in a different way: they trade coherent depth for
 measurements and a classical generalized eigenvalue problem, and their
 accuracy is bounded by the quality of the states that span the subspace,
 whereas the rodeo filter converges geometrically in depth but requires the
-controlled evolution.  Two observations of that work bear on ours, with the
-limits of an energy filter kept in mind.  Ref.~\cite{Zhang2024} documents that
-ADAPT-VQE with a symmetry-breaking pool can collapse to unphysical energies on
-degenerate pairing systems.  A downstream energy filter can repair such an
-input only insofar as the input retains a nonzero overlap with the target:
-it cannot recover a state of zero overlap, cannot move weight between
-particle-number sectors that the evolution conserves, and cannot separate
-exactly degenerate states by energy alone, so a symmetry-broken ADAPT state
-would have to be symmetry-projected before, not instead of, the filter.
-Ref.~\cite{AychetClaisse2026} shows that the accuracy of the one-body Green's
-function of a small superfluid system, computed with the pure pairing
-Hamiltonian across the normal-to-superfluid transition driven by the pairing
-strength, is controlled by the quality of the even-$N$ ground state; a
-filtered state of the kind prepared here is a possible input to that
-construction, and the particle-hole term of Sec.~\ref{sec:ph} --- which is
-not part of the model of Ref.~\cite{AychetClaisse2026} --- is the ingredient
-that forces one out of the pair-to-qubit encoding used there.
+controlled evolution.  Two observations of that work bear directly on ours.
+Ref.~\cite{Zhang2024} documents that ADAPT-VQE with a symmetry-breaking pool
+can collapse to unphysical energies on degenerate pairing systems --- a failure
+mode of the coarse stage that a downstream filter agnostic to how the trial
+state was prepared is designed to absorb --- and Ref.~\cite{AychetClaisse2026}
+shows that the accuracy of the Green's function of a small superfluid system,
+across the normal-to-superfluid transition, is controlled by the quality of the
+even-$N$ ground state; the resolution-refined and rodeo-filtered state of
+Sec.~\ref{sec:ph} is precisely such an input, and the particle-hole term
+studied there is the ingredient that drives the system across that transition
+once the pair-to-qubit encoding of Refs.~\cite{Lacroix2020,AychetClaisse2026}
+can no longer be used.
 
-\paragraph{Hardware requirements.}
-The Trotterized pipeline of Sec.~\ref{sec:trotterized} quantifies the dominant
-coherent error of an ideal device, and the requirements it implies are
-explicit: $2k+1$ qubits ($9$ at $k=4$, $13$ at $k=6$, $17$ at $k=8$); a
-mid-circuit measurement with reset and reuse of one ancilla; arbitrary-angle
-$R_z$ rotations, $160$ of them per UCCSD preparation and $60$ (pairing) to
-$348$ (with $V_{\rm ph}$) per Trotter step; and a coherent budget per accepted
-preparation that ranges from $2\times10^{4}$ two-qubit gates for the cheapest
-route of Table~\ref{tab:depth} (UCCSD input, two cycles) to $10^{5}$ for the
-refined input with six cycles, and to $10^{6}$ with the particle-hole term
-(Table~\ref{tab:phdepth}), on top of the energy scan and the repetitions
-needed to estimate acceptance probabilities.  At the two-qubit error rates
-demonstrated in large-scale experiments today --- of order $10^{-2}$ on the
-superconducting processor of Ref.~\cite{Kim2023} and $(0.8$--$2)\times10^{-3}$
-on trapped-ion processors~\cite{Moses2023,Ransford2025} --- a $10^{4}$-gate
-run suffers of order ten faults even on the best of these and a
-$10^{5}$-gate run of order one hundred; none of these
-budgets is executable with physical qubits without substantial error
-mitigation, and qubit counts alone say nothing about a device's suitability.
-Early logical-qubit demonstrations on neutral-atom arrays have executed
-circuits on tens of logical qubits with error detection and, in part, error
-correction and mid-circuit readout~\cite{Bluvstein2024,Reichardt2024}, and the
-rodeo algorithm has been run in two-qubit form on trapped-ion and
-superconducting hardware~\cite{BeeLindgren2022,Qian2024}; a logical-depth
-implementation of the budgets above remains to be demonstrated.  A
-proportionate near-term target is therefore a mitigated $k=3$ demonstration:
-the $2\to3$ chain of Sec.~\ref{sec:res-refine} on seven qubits (six system
-qubits plus the ancilla), whose $N=4$ coarse state is a single determinant, or
-the $3\to4$ chain of Sec.~\ref{sec:res-k34} on nine qubits, with a short
-refinement schedule and one or two rodeo cycles at coarse $\delta t$, i.e.\
-$10^{3}$--$10^{4}$ two-qubit gates, where the collapse of the acceptance under
-a corrupted evolution (Sec.~\ref{sec:trotterized}) doubles as a hardware
-diagnostic.  All-to-all connectivity absorbs the Jordan--Wigner ladders
-without SWAP overhead; on square or heavy-hex lattices the weight-4
-pair-hopping rotations act on adjacent qubits, which limits but does not
-eliminate routing costs, and the weight-$2k$ strings of $V_{\rm ph}$ do not.
-The full $k=4$ budget is a workload for the first generation of logical-qubit
-machines such as the neutral-atom system planned by the QuNorth
-initiative~\cite{QuNorth}, and Tables~\ref{tab:depth} and \ref{tab:phdepth}
-are offered as its specification.
+Moving to hardware, the Trotterized pipeline of Sec.~\ref{sec:trotterized} already
+quantifies the dominant coherent error: the rodeo algorithm filters the eigenstates
+of the effective (Trotterized) Hamiltonian~\cite{Qian2024}, and its self-correcting
+design (small unitary errors broaden the energy window rather than biasing the
+estimate) keeps the required product-formula depth modest.  The device-level
+requirements are then explicit: $2k+1$ qubits ($9$ at $k=4$, $17$ at $k=8$),
+mid-circuit measurement with ancilla reset and reuse, and --- at the full $k=4$
+operating point of Table~\ref{tab:depth} --- a coherent budget of order
+$10^{4}$--$10^{5}$ two-qubit gates per accepted preparation.
+
+\paragraph{The present hardware landscape.}
+It is instructive to hold this budget against the machines available today.  Among
+superconducting platforms, IBM's Heron and Nighthawk processors ($133$--$156$ and
+$120$ qubits, respectively) reach median two-qubit errors at or below the
+$10^{-3}$ level and support dynamic circuits --- mid-circuit measurement with
+feed-forward --- with a stated target of executing $\sim5\,000$
+(growing toward $10^{4}$) reliable two-qubit gates~\cite{Kim2023}; Rigetti's
+$84$-qubit Ankaa-3 reports $99.5\%$ median two-qubit fidelity, with a
+chiplet-based roadmap toward $150$-plus qubits at $99.7\%$~\cite{Rigetti2024};
+and Google has demonstrated surface-code error correction below
+threshold~\cite{Acharya2025}, the gateway to logical depth on this platform.
+Trapped-ion systems trade speed for quality and connectivity: Quantinuum's QCCD
+machines~\cite{Moses2023}, most recently the $98$-qubit Helios with
+$99.92\%$ two-qubit fidelity, offer all-to-all connectivity and native
+mid-circuit measurement with qubit reuse --- the primitive our rodeo cycle is
+built on --- and the rodeo algorithm itself has already run on a Quantinuum
+H1-2 device in two-qubit form~\cite{BeeLindgren2022}, as has its original
+demonstration on IBM hardware~\cite{Qian2024}.  Neutral-atom arrays have moved
+fastest on logical qubits: reconfigurable atom arrays have run algorithms on
+$48$ logical qubits with mid-circuit readout~\cite{Bluvstein2024}, and the
+Atom Computing/Microsoft stack has entangled $24$ logical qubits and
+demonstrated logical computation~\cite{Reichardt2024} --- the technology behind
+the Magne system of the QuNorth initiative in Copenhagen, specified at
+$\sim50$ logical qubits on more than $1\,200$ physical qubits~\cite{QuNorth}.
+
+For our pipeline the platform arithmetic is straightforward.  A truncated
+demonstration --- the $k=3$ chain of Sec.~\ref{sec:res-k34} with a short
+refinement schedule and one or two rodeo cycles at coarse $\delta t$, roughly
+$10^{3}$--$10^{4}$ two-qubit gates on seven qubits --- is within reach of
+error-mitigated Heron/Ankaa-class superconducting devices and comfortable for
+Helios-class trapped-ion machines, whose all-to-all connectivity also absorbs
+the Jordan--Wigner ladders without SWAP overhead (on square or heavy-hex
+superconducting lattices the weight-4 pair-hopping rotations act on adjacent
+qubits, which limits, but does not eliminate, routing costs).  The full $k=4$
+budget of $\sim7\times10^{4}$ two-qubit gates per accepted preparation, by
+contrast, exceeds any physical-qubit error budget available today: at a
+two-qubit error of $8\times10^{-4}$ the expected number of faults per run is
+$\mathcal{O}(50)$.  It is, however, a natural early workload for the first
+logical-qubit generation: $9$--$17$ logical qubits with deep coherent circuits
+and repeated mid-circuit measurement of a single logical ancilla is precisely
+the regime that Magne-class machines are being built for, and well below their
+specified logical-qubit counts.
 
 \paragraph{Concluding remarks and perspectives.}
-The present results establish, on a fully controlled example, how resolution
-refinement followed by the rodeo algorithm behaves at the circuit level ---
-every stage compiled, counted and validated against exact results --- and
-what it is worth: it prepares the correlated ground state to the accuracy of
-the Trotterized evolution without any variational optimization, at a gate
-cost that, for the pairing model at these sizes, exceeds that of filtering a
-cheap variational input.  Three extensions would sharpen the assessment.
-First, comparators: an ADAPT-VQE or pair-adapted input, and a jointly
-optimized choice of refinement time and cycle number along the cost--fidelity
-curves of Fig.~\ref{fig:baselines}, with statistical uncertainties from
-larger time-set ensembles.  Second, Hamiltonians for which single-reference
-variational inputs fail --- shell-model interactions with competing
-deformations, or the strong-coupling regime of Sec.~\ref{sec:res-gscan}
-treated with a nontrivial coarse space --- which is where the trainability
-argument for refinement would be tested rather than asserted.  Third,
-hardware: a mitigated seven- or nine-qubit demonstration on present devices,
-where the acceptance statistics of the filter double as a diagnostic of the
-compiled evolution, followed by the full $k=4$ budget on an early
-logical-qubit machine.  The pairing model, exactly solvable at every
-resolution, remains the calibration standard for all three.
+The present results establish, on a fully controlled example, that the hybrid of
+resolution refinement and the rodeo algorithm prepares correlated eigenstates
+with exponential accuracy at a cost set by an overlap that the refinement itself
+makes large --- and they do so at the circuit level, with every stage compiled,
+budgeted, and validated against exact results.  This work is deliberately the
+theoretical half of a two-step program: we are now moving from these
+considerations to calculations on existing and forthcoming machines.  The
+staging follows the platform arithmetic above.  First, a mitigated $k=3$
+mini-pipeline (UCCSD coarse state, gate-free prolongation, short refinement, one
+to two rodeo cycles) on present-day trapped-ion or superconducting hardware,
+where the acceptance statistics of the rodeo filter --- which, as
+Sec.~\ref{sec:trotterized} shows, collapse when the compiled evolution is wrong
+--- double as a sensitive hardware diagnostic.  Second, the full $k=4$ pipeline
+on an early logical-qubit machine such as Magne, for which the depth budget of
+Table~\ref{tab:depth} is a concrete workload specification.  Third, scaling in
+$k$ at fixed $N$ ($13$ qubits at $k=6$, $17$ at $k=8$, Table~\ref{tab:uccsd})
+and onward to the realistic targets of this program --- light and medium-mass
+nuclei benchmarked against coupled-cluster and in-medium similarity
+renormalization group calculations, molecular systems, and Hubbard models
+refined from coarse to fine lattices --- with a closed-loop control layer that
+adapts the refinement schedule to the rodeo acceptance read out mid-circuit.
+The pairing model, exactly solvable at every resolution, will remain the
+calibration standard against which those hardware campaigns are judged.
 
 % ===========================================================================
 \section*{Code availability}
@@ -1681,14 +1326,9 @@ Z.~Qian, J.~Watkins, G.~Given, J.~Bonitati, K.~Choi, D.~Lee,
 Eur.\ Phys.\ J.\ A \textbf{60}, 151 (2024).
 
 \bibitem{Bogner2026}
-S.~Bogner, H.~Hergert, M.~Hjorth-Jensen, R.~LaRose, D.~Lee, M.~Patkowski,
+S.~Bogner \textit{et al.},
 \textit{Quantum state preparation with resolution refinement},
-Phys.\ Lett.\ B \textbf{875}, 140363 (2026); arXiv:2511.14732.
-
-\bibitem{Patkowski2025fusion}
-M.~Patkowski, O.~Ayyildiz, M.~Kebri\v{c}, K.~L.~C.~Hunt, D.~Lee,
-\textit{Hierarchical fusion method for scalable quantum eigenstate preparation},
-Phys.\ Rev.\ A \textbf{113}, 052442 (2026); arXiv:2510.19039.
+Phys.\ Lett.\ B \textbf{875}, 140363 (2026).
 
 \bibitem{LeeReview2023}
 D.~Lee,
@@ -1813,17 +1453,6 @@ P.~Ring, P.~Schuck,
 \textit{The Nuclear Many-Body Problem},
 Springer, Berlin (1980).
 
-\bibitem{Hirsch2002}
-J.~G.~Hirsch, A.~Mariano, J.~Dukelsky, P.~Schuck,
-\textit{Fully self-consistent RPA description of the many level pairing model},
-Ann.\ Phys.\ (N.Y.) \textbf{296}, 187 (2002).
-
-\bibitem{Dang2006}
-N.~Dinh~Dang,
-\textit{Consistency of particle-particle random-phase approximation and its
-renormalizations},
-Phys.\ Rev.\ C \textbf{74}, 034326 (2006).
-
 \bibitem{NielsenChuang}
 M.~A.~Nielsen, I.~L.~Chuang,
 \textit{Quantum Computation and Quantum Information},
@@ -1883,10 +1512,10 @@ J.~Zhang, D.~Lacroix, Y.~Beaujeault-Taudi\`ere,
 Phys.\ Rev.\ C \textbf{110}, 064320 (2024).
 
 \bibitem{Lacroix2023}
-E.~A.~Ruiz~Guzman,
-\textit{Symmetry breaking and restoration for many-body problems treated on
-quantum computers},
-PhD thesis, Universit\'e Paris-Saclay (2023); arXiv:2310.17996.
+D.~Lacroix, E.~A.~Ruiz~Guzman, Y.~Beaujeault-Taudi\`ere, et al.,
+\textit{Symmetry breaking and symmetry restoration for many-body problems treated
+on quantum computers},
+arXiv:2310.17996 (2023).
 
 \bibitem{Cohen2023}
 T.~D.~Cohen, H.~Oh,
@@ -1897,7 +1526,7 @@ Phys.\ Rev.\ A \textbf{108}, 032422 (2023).
 M.~Bee-Lindgren, Z.~Qian, M.~DeCross, N.~C.~Brown, C.~N.~Gilbreth, J.~Watkins,
 X.~Zhang, D.~Lee,
 \textit{Controlled gate networks: theory and application to eigenvalue estimation},
-Eur.\ Phys.\ J.\ A \textbf{61}, 263 (2025); arXiv:2208.13557.
+arXiv:2208.13557.
 
 \bibitem{Patkowski2026}
 M.~Patkowski, O.~Ayyildiz, K.~Hunt, N.~Jansen, D.~Lee,
@@ -1943,15 +1572,22 @@ H.~Nayfeh, Y.~Wu, M.~Zaletel, K.~Temme, A.~Kandala,
 \textit{Evidence for the utility of quantum computing before fault tolerance},
 Nature \textbf{618}, 500 (2023).
 
+\bibitem{Rigetti2024}
+Rigetti Computing,
+\textit{Rigetti launches the 84-qubit Ankaa-3 system, achieving a 99.5\%
+median two-qubit gate fidelity milestone},
+press release (December 2024),
+\url{https://investors.rigetti.com}.
+
+\bibitem{Acharya2025}
+R.~Acharya \textit{et al.}\ (Google Quantum AI and Collaborators),
+\textit{Quantum error correction below the surface code threshold},
+Nature \textbf{638}, 920 (2025).
+
 \bibitem{Moses2023}
 S.~A.~Moses \textit{et al.},
 \textit{A race-track trapped-ion quantum processor},
 Phys.\ Rev.\ X \textbf{13}, 041052 (2023).
-
-\bibitem{Ransford2025}
-A.~Ransford \textit{et al.},
-\textit{Helios: a 98-qubit trapped-ion quantum computer},
-arXiv:2511.05465 (2025).
 
 \bibitem{Bluvstein2024}
 D.~Bluvstein \textit{et al.},

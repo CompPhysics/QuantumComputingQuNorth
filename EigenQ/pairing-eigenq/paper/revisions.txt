@@ -1,0 +1,173 @@
+
+
+## Editorial judgment
+
+Physical Review C is a sensible target for a substantially revised regular research article. I would not submit the present version. Its weaknesses are more consequential than presentation: the main comparison mixes energy error with infidelity, the headline cycle count contradicts the plotted result, and the refinement resource budget omits an operator that the numerical evolution includes. These affect the claimed accuracy and cost advantage.
+
+The scientific idea remains useful. An exactly solvable pairing benchmark is appropriate for validating a nuclear many-body method, and the seniority-breaking extension makes the demonstration more interesting. The strongest defensible contribution is a quantitative implementation and assessment of refinement followed by spectral filtering in fermionic model spaces. The manuscript needs to show when that combination is useful, including against inputs that can already be filtered cheaply.
+
+PRC explicitly seeks significant and substantive contributions to nuclear physics and includes nuclear structure within its scope. It has published both quantum state-preparation methods and pairing-model calculations. A realistic nucleus or hardware experiment is not an automatic prerequisite. The paper should, however, give nuclear physicists a clear reason to use the proposed method. These are editorial judgments, not predictions of a journal decision. [PRC scope and criteria](https://journals.aps.org/prc/about), [a relevant projection-method paper](https://journals.aps.org/prc/abstract/10.1103/PhysRevC.108.L031306), [a pairing/ADAPT-VQE example](https://journals.aps.org/prc/abstract/10.1103/PhysRevC.110.064320).
+
+## What is already strong
+
+- Exact reference calculations allow unusually transparent validation of energies, overlaps, and filtering.
+- The four-stage construction is understandable and reproducible in principle.
+- The nontrivial 3-to-4-level chain exercises a genuine coarse-state preparation stage and shows that its quality affects refinement time.
+- The particle-hole extension breaks seniority, includes additional excitation channels, and now includes a product-formula study and resource table. This is a substantive improvement over an exclusively seniority-zero demonstration.
+- The distinction between ideal evolution and finite product-formula accuracy is useful, as is the acknowledgment that the full circuit costs exceed current physical-qubit capabilities.
+
+## Changes that should precede submission
+
+### 1. Rebuild the accuracy comparison using the same observable
+
+**Locations: Table I; Table II and Sec. V C, pp. 9-10; Table V and Sec. VI D, pp. 15-16; abstract.**
+
+Table I reports a UCCSD energy error of approximately 1.44 x 10^-3 at k=4, N=4, g=1. Table II labels that number as an infidelity. Table V likewise places the energy errors 8.2 x 10^-3 and 3.2 x 10^-2 beside pipeline infidelities. These quantities cannot be compared directly.
+
+For a normalized state, the spectral identity is
+
+\[
+\langle H\rangle-E_0=\sum_{j>0}|c_j|^2(E_j-E_0)
+\geq \Delta\,(1-F).
+\]
+
+The manuscript's physical gap 1.823 already implies an infidelity no larger than about 7.9 x 10^-4 for the listed UCCSD energy. Therefore 1.4 x 10^-3 cannot be its actual infidelity.
+
+An independent calculation in the six-dimensional seniority-zero space reproduces the optimized energy and gives:
+
+| Quantity | Independent result |
+|---|---:|
+| Exact ground-state energy | 0.635548473575598 |
+| UCCSD energy | 0.636986981044554 |
+| UCCSD energy error | 1.43850747 x 10^-3 |
+| UCCSD infidelity | 1.77644271 x 10^-4 |
+
+This reduction uses the four nonzero pair-hopping factors of the zero-initialized pure-pairing UCCSD ansatz; the other amplitudes have zero gradients. It reproduces the manuscript's listed energy to its printed precision and the underlying optimized value to approximately thirteen digits.
+
+On fidelity, the manuscript's two-cycle pipeline result of 5 x 10^-4 is consequently worse than this UCCSD preparation. Its six-cycle result of 1.2 x 10^-4 is only about 1.5 times better. The advertised one-to-three-orders advantage does not describe these finite-product-formula operating points. More accurate ideal filtering can outperform the ansatz, but that is a different operating point and must have its own cost.
+
+An additional independent optimization of the full 26-parameter operator ansatz in the fixed-N sector reproduces the particle-hole energies to more than ten digits. It gives the following comparison to the manuscript's two-cycle operating points:
+
+| Model | UCCSD energy error | Actual UCCSD infidelity | Quoted hybrid infidelity |
+|---|---:|---:|---:|
+| Pure pairing | 1.4385 x 10^-3 | 1.7764 x 10^-4 | 5 x 10^-4 |
+| f=0.2 | 8.1814 x 10^-3 | 1.0144 x 10^-3 | 1.0 x 10^-3 |
+| f=0.5, finer filter step | 3.2143 x 10^-2 | 3.7202 x 10^-3 | 5.3 x 10^-3 |
+
+Thus the showcased hybrid is approximately tied at f=0.2 and worse at f=0.5. The claimed eightfold and sixfold improvements in Sec. VI D do not survive a comparison of actual infidelities. This affects the central argument in both Hamiltonian variants.
+
+**Required revision:** verify both energy error and actual ground-state infidelity for every comparator in the production implementation, including f=0.2 and f=0.5. Rewrite the abstract and tables around those results. Distinguish an observed optimized-ansatz error from a demonstrated global expressivity limit; optimizer convergence alone does not prove the latter.
+
+### 2. Establish the benefit of refinement against the strongest simple baselines
+
+**Locations: Secs. IV E, V C-D, and VI; Figs. 8, 11, 15-16.**
+
+The comparison to an unfiltered fixed UCCSD ansatz does not establish the value of the hybrid. The rodeo stage can also filter a full-space UCCSD state, a prolonged coarse state without refinement, or a cheap correlated state. Since the pure-pairing determinant already has overlap about 0.868, improved acceptance alone is not a compelling justification for tens of thousands of refinement gates.
+
+An illustrative independent check used the same pure-pairing Hamiltonian, second-order formula, sigma=4, maximum step size 0.25, and 200 seeded Gaussian time sets. It also reproduces the circuit-level refinement overlap 0.997720914627348. At two cycles:
+
+| Input followed by rodeo | Infidelity of the accepted ensemble | Acceptance | CNOTs per accepted preparation |
+|---|---:|---:|---:|
+| Full-space UCCSD | 1.35 x 10^-4 | 0.9958 | approximately 22,500 |
+| T=30 refined determinant | 6.36 x 10^-4 | 0.9947 | approximately 68,800 |
+
+These are diagnostic calculations, not a statistically converged replacement for the manuscript figures. They use the manuscript's gate convention, including its omitted coarse-projector cost, and amortize VQE training as its resource comparison does. They nevertheless show why UCCSD plus rodeo is an essential comparator: at this operating point it improves both fidelity and preparation cost relative to the displayed hybrid. This does not rule out a refinement advantage in larger spaces or with poorer full-space inputs.
+
+**Required revision:** plot cost versus achieved fidelity for at least (i) prolonged input plus rodeo, (ii) full-space UCCSD plus rodeo, (iii) refinement alone, and (iv) refinement plus rodeo. Add a pair-adapted or ADAPT-VQE comparator where feasible. Optimize refinement time and filter cycle count jointly, rather than selecting T=30 without demonstrating it is economical. Identify a regime where refinement wins, or state clearly where it does not.
+
+Account separately for one-time training, repeated state preparation, energy-search measurements, and early termination after a failed ancilla measurement. Use the same fidelity target and evolution accuracy across methods.
+
+### 3. Compile and count the projected coarse Hamiltonian
+
+**Locations: Eq. (3); Sec. V B-C; Tables II and V.**
+
+The interpolation contains both the fine Hamiltonian and
+
+\[
+A=P(H_{\rm low}-\mu)P^\dagger.
+\]
+
+At k=2 to 4 and N=4, this is the rank-one operator -0.6 |HF><HF| within the conserved sector. Its exponential applies a conditional phase. Gate-free prolongation does not make that evolution gate-free.
+
+Inspection of the companion evolution routines confirms that the refinement includes A as an exact matrix factor, while the gate-count routine counts only the high-space pairing or particle-hole blocks. The displayed costs 80 x 296 x 2 and 80 x 2728 x 2 omit this factor's compilation. A simple implementation in the fixed-N sector can condition on all four newly appended qubits being empty; it has nonzero cost. The 3-to-4 chain similarly needs the coarse Hamiltonian conditioned on the appended orbitals being empty.
+
+**Required revision:** give the explicit circuit for this term, verify it, and include its gates and any ancillary qubits in the budget. Avoid assuming that a raw Pauli expansion is an irreducible minimum; optimized conditional-phase circuits may be cheaper.
+
+The product-formula routines evolve sector matrices through exact block exponentials. That can accurately emulate a valid block decomposition, but it does not itself demonstrate the execution of every rotation and CNOT on the full register. Qualify the claim of a complete gate-by-gate simulation unless that complete circuit, including A, is actually constructed and checked. Also distinguish CNOT count from scheduled circuit depth.
+
+### 4. Correct the headline convergence result and probability statements
+
+**Locations: abstract; Sec. IV E, p. 6; Eq. (7); Fig. 8, p. 8; discussion.**
+
+The abstract and Sec. IV E say that an infidelity around 5 x 10^-6 is obtained within one or two cycles. Figure 8 reaches approximately that value at ten cycles. Its two-cycle refined curve is around 6 x 10^-4. Correct the text, or supply a genuinely different experiment with its time schedule explicitly stated.
+
+Equation (6) gives the Gaussian-averaged suppression factor
+
+\[
+q_j=\tfrac12[1+\exp(-\Delta_j^2\sigma^2/2)].
+\]
+
+It is at least 1/2. Consequently 2^-M is a well-separated-spectrum approximation, not a general upper bound on unwanted weight. A valid upper bound for the ensemble of accepted runs, with the energy set exactly to E0, uses q_max=[1+exp(-Delta_min^2 sigma^2/2)]/2:
+
+\[
+1-F_M\leq\frac{(1-p)q_{\max}^M}{p+(1-p)q_{\max}^M}.
+\]
+
+Specify the random-time ensemble. Averaging each time set's normalized fidelity is different from weighting the fidelities by their acceptance probabilities. The plotted averages should match the analytic definition. Supply uncertainty bands or an adequate convergence analysis for the small reported infidelities.
+
+The filtering calculations set E to the exact eigenvalue, although the preceding scans produce approximate estimates. Demonstrate the full procedure using the estimated energy, measure sensitivity to detuning, and include energy-search shots/cost. An incorrect target energy attenuates the desired component too, so acceptance need not tend to the initial overlap.
+
+### 5. Limit the inverse-gap and scalability claims to the evidence
+
+**Locations: abstract; Sec. III C; Sec. IV D/Fig. 6; discussion.**
+
+A smooth, gapped interpolation does not by itself imply a preparation time proportional to the inverse gap. The cited refinement paper additionally assumes controlled transition matrix elements relative to excitation gaps, expressed in its supplement through a bounded perturbative wavefunction correction. The relevant assumptions should be stated and tested for this interpolation. [Resolution-refinement derivation](https://arxiv.org/html/2511.14732v2).
+
+Varying the shift mu changes both the gap and the interpolation operator. Figure 6 therefore establishes a finite-system empirical trend for a chosen path family; it does not isolate gap dependence while holding all other adiabatic factors fixed. The g scan holds the minimum path gap nearly constant while the required time changes substantially. Also separate the artificial shift-controlled initial gap from the physical fine-space gap.
+
+The claim that the shift buffer has a ceiling because shifted coarse states must remain below zero reverses the stated condition. Increasing mu lowers those states further. For a nontrivial coarse space, the initial ground-state gap is min(E1_low-E0_low, mu-E0_low); useful initial-gap improvement saturates at the coarse excitation gap. A different path-based limitation would need a separate demonstration.
+
+The largest k results in Fig. 2 concern UCCSD, not the complete hybrid. Moreover, fixed N=4 gives a full sector growing as k^4 and a seniority-zero sector growing as k^2. This is a basis-size study, not evidence of favorable many-particle scaling at fixed filling. Extend the complete pipeline to more than one target size and particle number if making scalability claims. Otherwise present the result as a controlled small-system demonstration.
+
+Remove the universal suggestion that variational and adiabatic preparations necessarily have vanishing overlap at scale. State the regimes and limitations that motivate the hybrid.
+
+### 6. Position the contribution accurately relative to prior work
+
+**Location: p. 2 contribution paragraph; introduction and discussion.**
+
+The original rodeo paper already demonstrates adiabatic preconditioning. The fusion method develops subsystem growth with adiabatic preparation and rodeo filtering, and the resolution-refinement paper explicitly recommends refinement followed by rodeo. The current manuscript should cite this closest prior work and explain its additional implementation and findings. [Original rodeo paper](https://link.aps.org/accepted/10.1103/PhysRevLett.127.040505), [fusion method](https://arxiv.org/abs/2510.19039), [resolution refinement](https://arxiv.org/html/2511.14732v2).
+
+An appropriate contribution statement would emphasize implementation for a fermionic single-particle basis hierarchy, quantitative benchmarking, the seniority-breaking test, and a fully documented resource analysis. The broad claim of being the first combination that closes the overlap problem is not supported as written.
+
+## Technical and literature corrections
+
+- **Sec. VI, p. 11:** nonzero single-excitation matrix elements mean that the chosen reference is not a stationary self-consistent Hartree-Fock solution; Brillouin's theorem does not fail. Distinguish reference relaxation from correlation energy, and consider an optimized-reference comparison.
+- **Sec. VI, p. 11:** remove the assertion that RPA/QRPA have nothing to say about the pure pairing model. Such methods have been applied to pairing models; distinguish the absent normal-reference excitation channel from the scope of quasiparticle approaches. [A PRC Richardson-model RPA study](https://journals.aps.org/prc/abstract/10.1103/PhysRevC.74.034326).
+- **Sec. VI, p. 11:** the 2k-qubit occupation encoding is a convenient general encoding, not the only possible encoding after seniority is broken. Fixed-particle-number and spin symmetries still permit compression.
+- **Sec. VII, p. 15:** an energy filter cannot recover a target state whose overlap is zero, change an absent conserved particle-number sector, or distinguish exactly energy-degenerate states by energy alone. Qualify the discussion of repairing wrong-symmetry ADAPT inputs.
+- **Sec. VII, p. 15 / Ref. [29]:** the cited Green's-function study uses a pure pairing Hamiltonian and varies the pairing strength. It does not use this manuscript's particle-hole perturbation to drive the transition. Correct that attribution. [Primary paper, Eq. (12)](https://arxiv.org/html/2509.02272v2).
+- **Ref. [42]:** arXiv:2310.17996 is a single-author thesis by Andres Ruiz, not the listed multi-author paper. [Primary record](https://arxiv.org/abs/2310.17996).
+- **Ref. [44]:** replace the preprint-only citation with the published EPJ A 61, 263 (2025) reference where appropriate. [Publisher record](https://link.springer.com/article/10.1140/epja/s10050-025-01750-y).
+- **Sec. V B / discussion:** the implemented maximum-step convention uses h=t/ceil(|t|/delta_t_max), so different random times generally correspond to different effective product-formula Hamiltonians. Projection onto one common effective Hamiltonian is an approximation. Coherent errors can shift energies and bias states; rejection of one inaccurate evolution is not a universal self-correction guarantee.
+- **p. 17:** the seven-qubit proposed demonstration is attributed to Sec. IV C's 3-to-4 chain, which requires nine qubits including the ancilla. A 2-to-3 demonstration uses seven, but its N=4 coarse state is trivial.
+- **p. 2:** the text announces four contributions and lists five.
+
+## Presentation, reproducibility, and submission preparation
+
+Shorten the vendor-by-vendor hardware outlook and replace broad feasibility assertions with the actual gates, measurement requirements, error assumptions, and logical resource needs. Qubit count alone does not establish suitability for 10^5-10^6 gates or arbitrary rotations. Distinguish announced systems from demonstrated workloads.
+
+The current hardware citations also require checking. Ref. [52]'s 2023 study concerns Eagle and does not substantiate Heron/Nighthawk specifications. Ref. [55]'s 2023 processor paper does not substantiate Helios specifications. The neutral-atom logical demonstrations should be described by their actual error-detection/correction and measurement protocols. [Original IBM study](https://www.nature.com/articles/s41586-023-06096-3), [Helios benchmark](https://arxiv.org/abs/2511.05465), [neutral-atom study](https://www.nature.com/articles/s41586-023-06927-3).
+
+The PDF layout is readable. Consolidating some repeated energy/fidelity plots would make room for the missing comparative result. Figures should state sampling counts, time distributions, input preparation, and evolution approximation consistently. Avoid calling theoretical guide curves bounds when the observed points exceed them.
+
+## Practical revision order
+
+1. Correct the energy-versus-infidelity tables and the one/two-cycle claim.
+2. Verify and count the complete refinement circuit, including the projected coarse term.
+3. Run the missing matched-fidelity baselines and identify the regime where refinement is useful.
+4. Correct the probability bound, qualify inverse-gap/scaling statements, and narrow novelty.
+5. Add a nuclear observable and a modest extension in target size or particle number.
+6. Finish the structured abstract, data/code release, and citation audit.
+
+The key question before submission is whether refinement followed by rodeo provides a useful, measured improvement over directly filtering the best affordable initial state. Answering that question would give the paper a much stronger and more credible PRC argument.
+
