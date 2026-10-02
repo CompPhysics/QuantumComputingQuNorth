@@ -48,6 +48,18 @@ re-implemented) by the notebook and analysis scripts.
 - Feed the rodeo the RESOLUTION-REFINED state (high overlap p): that is the
   whole point — cost ~ 1/p and a few cycles when p ~ 1.
 
+## With the particle-hole term (f != 0, see pairing-model skill)
+- Pass `f=` to `refine_*`, `gate_uccsd_*`, `H_pairing_sparse`, `build_H_full`; the
+  path, shift rule and rodeo cycle are unchanged.  Singles are no longer zero.
+- Anchors (N=4, k=2->4, g=1, mu_buf=0.6): min path gap stays 0.600 for all f;
+  ov0 = 0.868/0.841/0.751/0.600 and T* = 16/20/26/32 for f = 0/0.05/0.2/0.5;
+  refined (T=25) overlap p = 0.9976/0.9969/0.9937/0.9798; rodeo acceptance -> p.
+- Circuit level with `f=`: `model_terms` adds 48 exactly-exponentiable V_ph blocks at
+  k=4 (55 blocks total); step cost 296 -> 2728 CNOTs (controlled 416 -> 3424) while the
+  Trotter error at fixed steps grows only 2-4x (coefficient f/2).  Operating point
+  n_s=80 order 2, M=2, dt=0.25 still works at f=0.2 (acceptance 0.97, 1-F 1.0e-3,
+  6.4e5 CNOTs per accepted prep); at f=0.5 use dt=0.125 (acceptance 0.98, 8.3e5).
+
 ## Validation anchors (assert these when you touch the code)
 - `rodeo_cycle_ancilla` == `rodeo_post0` to ~1e-16.
 - Eigenstate input reproduces `prod cos^2(t_k (E_obj-E)/2)` (Eq. 1); Gaussian

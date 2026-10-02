@@ -292,6 +292,138 @@ for f in FS:
     print(f"  f={f:<5}: input p={p0:.5f}   F={F[-1]:.6f}   1-F={1-F[-1]:.1e}   acceptance={A[-1]:.4f}")
 """
 
+md_trot = MARK + r"""
+### The circuit-level budget with the particle-hole term
+
+Section~13 Trotterised the pipeline for the pairing force with two kinds of exactly
+exponentiable blocks: the diagonal term and one pair-hopping term per level pair.  The
+particle-hole term adds blocks of its own.  Its $q=r$ pieces are pairing terms and only
+rescale the existing rotation angles ($g\to g+2f$) at no cost; the remaining pieces,
+one per $(p,q,r)$ with $q\neq r$, split into $2k(k-1)$ one-particle-one-hole blocks
+($\hat a^\dagger_{p\uparrow}\hat n_{p\downarrow}\hat a_{r\uparrow}+{\rm h.c.}$ and its
+spin partner; four Pauli strings each) and $k(k-1)(k-2)$ pair-breaking blocks
+(eight strings each, like a double excitation).  Within every block the strings commute,
+so each factor $e^{-i\hat T\delta t}$ is again realised exactly by its rotations, and the
+product-formula error comes only from the non-commutativity *between* blocks --- $55$ of
+them at $k=4$ instead of seven.  What changes on hardware is the depth of one step: the
+$1p$--$1h$ strings carry Jordan--Wigner parity chains of weight up to $2k$, and the
+step cost grows from $296$ to $2728$ CNOTs at $k=4$ (`pl.cnot_counts(4, f=f)`).  We use
+`pl.model_terms`, `pl.trotter_error`, `pl.refine_state_trotter` and `pl.trotter_U_dt`
+with the `f` keyword; nothing is redefined here.
+"""
+
+code_trot_terms = "# " + MARK + r"""
+# ---- term decomposition with V_ph, Trotter error, and the per-step CNOT bill ----
+nq4, st4, ix4 = pl.build_sector(4, N)
+print("Term decomposition and product-formula error at k=4, N=4, g=1, t=1")
+print("="*78)
+print(f"{'f':>5} {'blocks':>7} {'‖Σ T − H‖':>11} | {'n=1 (o1)':>9} {'n=4 (o1)':>9} {'n=16 (o1)':>10} | "
+      f"{'n=1 (o2)':>9} {'n=4 (o2)':>9} {'n=16 (o2)':>10}")
+terms_f = {}
+for f in (0.0, 0.2, 0.5):
+    H = pl.H_pairing_sparse(4, G, N, st4, ix4, f=f).toarray()
+    tm = pl.model_terms(4, G, N, f); terms_f[f] = tm
+    e1 = [pl.trotter_error(4, G, N, 1.0, n, order=1, f=f, terms=tm) for n in (1, 4, 16)]
+    e2 = [pl.trotter_error(4, G, N, 1.0, n, order=2, f=f, terms=tm) for n in (1, 4, 16)]
+    print(f"{f:>5.2f} {len(tm):>7d} {np.abs(sum(tm)-H).max():>11.1e} | "
+          + " ".join(f"{x:>9.2e}" for x in e1) + " | " + " ".join(f"{x:>9.2e}" for x in e2))
+
+print("\nCNOTs per first-order Trotter step (ladders 2(w−1) per string; controlled: +2 per rotation)")
+print(f"{'k':>2} {'qubits':>7} {'pairing: rot / CNOT / ctrl':>28} {'+ p-h: rot / CNOT / ctrl':>26} {'ratio':>6}")
+for k in (3, 4):
+    c0 = pl.cnot_counts(k); c1 = pl.cnot_counts(k, f=0.2)
+    print(f"{k:>2} {2*k:>7} {c0['rotations']:>10} / {c0['step_uncontrolled']:>5} / {c0['step_controlled']:>5}"
+          f" {c1['rotations']:>10} / {c1['step_uncontrolled']:>5} / {c1['step_controlled']:>5}"
+          f" {c1['step_uncontrolled']/c0['step_uncontrolled']:>6.1f}")
+pc = pl.ph_pauli_costs(4)
+for fam, d in pc.items():
+    print(f"  k=4 {fam} blocks: {d['terms']} terms, {d['rotations']} strings, {d['cnots']} CNOTs, largest weight {d['max_weight']}")
+"""
+
+code_trot_fig = "# " + MARK + r"""
+# ---- Trotterised refinement and rodeo with the particle-hole term ----
+T_AD = 30.0; ns_grid = [10, 20, 40, 80, 160]
+inf_ref = {}; inf_exact = {}; GSf = {}; E0f = {}; Hf = {}
+for f in (0.2, 0.5):
+    Hh = pl.H_pairing_sparse(4, G, N, st4, ix4, f=f).toarray(); w, V = np.linalg.eigh(Hh)
+    Hf[f] = Hh; E0f[f] = w[0]; GSf[f] = V[:, 0]
+    for order in (1, 2):
+        inf_ref[(f, order)] = [1 - abs(np.vdot(GSf[f], pl.refine_state_trotter(N, 4, T_AD, ns, order=order, f=f)[0]))**2
+                               for ns in ns_grid]
+    pe, _ = pl.refine_state(N, 4, T_AD, f=f); inf_exact[f] = 1 - abs(np.vdot(GSf[f], pe))**2
+
+# rodeo with Trotterised controlled evolution at fixed step size dt, refined (n_s=80, order 2) input
+NS_OP, M_CYC, SIG, NSAMP = 80, 6, 4.0, 12
+rng = np.random.default_rng(11)
+tsets = [np.abs(rng.normal(0.0, SIG, M_CYC)) for _ in range(NSAMP)]
+psi_in = {}; p_in = {}; curves = {}; accepts = {}; mean_steps = {}
+for f in (0.2, 0.5):
+    psi_in[f], _ = pl.refine_state_trotter(N, 4, T_AD, NS_OP, order=2, f=f)
+    p_in[f] = abs(np.vdot(GSf[f], psi_in[f]))**2
+    w, V = np.linalg.eigh(Hf[f])
+    for dtm in (1.0, 0.5, 0.25, 0.125, None):
+        F_acc = np.zeros(M_CYC); A_fin = 0.0; nst = 0
+        for ts in tsets:
+            if dtm is None:
+                Ufun = lambda t: (V*np.exp(-1j*w*t)) @ V.T
+            else:
+                Ufun = lambda t, dtm=dtm, f=f: pl.trotter_U_dt(4, G, N, t, dtm, order=2, terms=terms_f[f])[0]
+                nst += sum(max(1, int(np.ceil(t/dtm))) for t in ts)
+            Fc, Ac = pl.rodeo_track_U(psi_in[f], Ufun, ts, E0f[f], GSf[f])
+            F_acc += Fc/NSAMP; A_fin += Ac[-1]/NSAMP
+        curves[(f, dtm)] = F_acc; accepts[(f, dtm)] = A_fin; mean_steps[(f, dtm)] = nst/NSAMP
+
+fig, ax = plt.subplots(1, 2, figsize=(13, 5))
+for f, ls in ((0.2, '-'), (0.5, '--')):
+    for order, c in ((1, 'C0'), (2, 'C3')):
+        ax[0].loglog(ns_grid, inf_ref[(f, order)], 'o' + ls, color=c, label=f'$f={f}$, order {order}')
+    ax[0].axhline(inf_exact[f], color='gray', ls=ls, lw=0.9, label=f'$f={f}$, exact slices')
+ax[0].set_xlabel('refinement steps $n_s$'); ax[0].set_ylabel(r'$1-|\langle\Psi_0|\Phi\rangle|^2$')
+ax[0].set_title(r'Trotterised refinement $k=2\to4$, $T=30$, with $V_{\rm ph}$'); ax[0].legend(fontsize=7); ax[0].grid(alpha=0.3, which='both')
+Ms = np.arange(1, M_CYC+1)
+for dtm, c in ((1.0, 'C0'), (0.5, 'C1'), (0.25, 'C2'), (0.125, 'C4'), (None, 'k')):
+    lab = 'exact evolution' if dtm is None else f'$\\delta t={dtm}$ ({mean_steps[(0.5, dtm)]/M_CYC:.1f} steps/cycle)'
+    ax[1].semilogy(Ms, 1 - curves[(0.5, dtm)], 'o-' if dtm else ':', color=c, label=lab + f', acc {accepts[(0.5, dtm)]:.3f}')
+ax[1].set_xlabel('rodeo cycles $M$'); ax[1].set_ylabel(r'$1-\mathcal{F}_M$')
+ax[1].set_title(f'rodeo on the circuit-level refined input, $f=0.5$ ($p={p_in[0.5]:.4f}$)')
+ax[1].legend(fontsize=7); ax[1].grid(alpha=0.3, which='both')
+plt.tight_layout(); plt.show()
+for f in (0.2, 0.5):
+    print(f"f={f}: circuit-level refined input (n_s=80, order 2): overlap p = {p_in[f]:.5f}  (exact slices: {1-inf_exact[f]:.5f})")
+    for dtm in (1.0, 0.5, 0.25, 0.125, None):
+        lab = 'exact evolution' if dtm is None else f'dt={dtm}'
+        print(f"   {lab:>16}: infidelity after 2 cycles = {1-curves[(f, dtm)][1]:.3e}, after 6 = {1-curves[(f, dtm)][5]:.3e}, acceptance = {accepts[(f, dtm)]:.4f}")
+"""
+
+code_trot_budget = "# " + MARK + r"""
+# ---- depth budget at k=4 with the particle-hole term (per accepted preparation) ----
+ORDER_FAC, M_OP = 2, 2
+print("k=4 depth budget with V_ph (CNOTs), N=4, g=1; refinement n_s=80 order 2, rodeo M=2")
+print("="*96)
+print(f"{'f':>5} {'dt':>6} {'step':>6} {'ctrl step':>9} {'refine':>8} {'rodeo':>8} {'per run':>8} {'P_M':>7} "
+      f"{'per accepted':>12} {'1-F (M=2)':>10} {'UCCSD floor':>11}")
+budget = {}
+for f in (0.2, 0.5):
+    cn = pl.cnot_counts(4, f=f); err_vqe = bench[(4, f)]['uccsd'] - bench[(4, f)]['fci']
+    for dtm in (0.25, 0.125):
+        rng = np.random.default_rng(3); F2 = A2 = 0.0; nsteps_tot = 0
+        for _ in range(NSAMP):
+            ts = np.abs(rng.normal(0.0, SIG, M_OP))
+            Fc, Ac = pl.rodeo_track_U(psi_in[f], lambda t: pl.trotter_U_dt(4, G, N, t, dtm, order=2, terms=terms_f[f])[0],
+                                      ts, E0f[f], GSf[f])
+            F2 += Fc[-1]/NSAMP; A2 += Ac[-1]/NSAMP
+            nsteps_tot += sum(max(1, int(np.ceil(t/dtm))) for t in ts)
+        nsteps_avg = nsteps_tot/NSAMP
+        cn_refine = NS_OP*cn['step_uncontrolled']*ORDER_FAC
+        cn_rodeo = int(round(nsteps_avg*cn['step_controlled']*ORDER_FAC))
+        cn_run = cn_refine + cn_rodeo; cn_acc = cn_run/A2
+        budget[(f, dtm)] = dict(refine=cn_refine, rodeo=cn_rodeo, run=cn_run, acc=A2, per_acc=cn_acc, inf=1-F2, steps=nsteps_avg)
+        print(f"{f:>5.2f} {dtm:>6} {cn['step_uncontrolled']:>6} {cn['step_controlled']:>9} {cn_refine:>8} {cn_rodeo:>8} "
+              f"{cn_run:>8} {A2:>7.4f} {cn_acc:>12.0f} {1-F2:>10.2e} {err_vqe:>11.1e}")
+print("Pairing-only reference (Section 13): 296 / 416 CNOTs per step, 47360 + ~23000 ≈ 7.1e4 per accepted prep, 1-F = 5.5e-4.")
+print("The UCCSD-VQE circuit (1312 CNOTs, 26 parameters) is unchanged by V_ph; only its floor moves.")
+"""
+
 md_close = MARK + r"""
 ### What the particle-hole term teaches us
 
@@ -312,11 +444,13 @@ md_close = MARK + r"""
   number of cycles.
 * **The price on hardware is in the Hamiltonian, not in the state preparation.**  The
   number of Pauli strings grows from $61$ to $325$ at $k=4$ and their largest weight from
-  four to eight (the $1p$--$1h$ strings drag a parity chain across the register), so a
-  Trotterised controlled evolution of $\hat H$ costs roughly five times more per step than
-  for the pure pairing force; the pair-breaking strings do not fall into the two commuting
-  groups of Section~13, and extending the circuit-level budget of Section~13 to $f\neq0$
-  is the natural next step.
+  four to eight (the $1p$--$1h$ strings drag a parity chain across the register).  Compiled
+  block by block, one Trotter step costs $2728$ CNOTs instead of $296$ --- a factor
+  $9.2$ --- while the product-formula error at fixed step count grows only by a factor
+  two to four, because the new blocks carry the small coefficient $f/2$.  The same
+  operating point ($n_s=80$, $M=2$, $\delta t=0.25$) therefore still works at $f=0.2$ and
+  the budget per accepted preparation scales essentially with the step cost; at $f=0.5$
+  the rodeo needs $\delta t=0.125$ to keep its acceptance, doubling the rodeo share.
 """
 
 nb = nbf.read(NB, as_version=4)
@@ -330,6 +464,8 @@ new_cells = [nbf.v4.new_markdown_cell(md_intro), nbf.v4.new_code_cell(code_bench
              nbf.v4.new_code_cell(code_fig_scan), nbf.v4.new_markdown_cell(md_refine),
              nbf.v4.new_code_cell(code_refine), nbf.v4.new_markdown_cell(md_rodeo),
              nbf.v4.new_code_cell(code_rodeo_scan), nbf.v4.new_code_cell(code_rodeo_track),
+             nbf.v4.new_markdown_cell(md_trot), nbf.v4.new_code_cell(code_trot_terms),
+             nbf.v4.new_code_cell(code_trot_fig), nbf.v4.new_code_cell(code_trot_budget),
              nbf.v4.new_markdown_cell(md_close)]
 for c in new_cells:
     if c.cell_type == "code" and c.source in kept:
@@ -346,7 +482,8 @@ addition = r"""
    seniority-zero space.  The same four stages run unchanged: the refinement time grows
    only through the lower initial overlap (the path gap is still set by the shift), the
    rodeo filter converges geometrically for every $f$, and the hardware cost appears in
-   the Hamiltonian ($61\to325$ Pauli strings at $k=4$) rather than in the pipeline.
+   the Hamiltonian ($61\to325$ Pauli strings, $296\to2728$ CNOTs per Trotter step at
+   $k=4$) rather than in the pipeline, whose circuit-level operating point survives.
 """
 anchor = "   acceptance holding at $\\approx p$.\n"
 if anchor in summ.source and "Beyond seniority (Section 16)" not in summ.source:

@@ -26,7 +26,8 @@ from scipy.sparse import csr_matrix
 from ._pairlib import _bit, _flip, _jw_sign, build_sector, E_HF
 
 __all__ = ["H_ph_sparse", "build_H_ph_full", "E_ref", "seniority_of",
-           "seniority_weight", "seniority_zero_mask", "ph_coupling_table"]
+           "seniority_weight", "seniority_zero_mask", "ph_coupling_table",
+           "ph_term_sector", "ph_term_full"]
 
 
 def _apply_ph_string(I, nq, p, q, r):
@@ -42,6 +43,28 @@ def _apply_ph_string(I, nq, p, q, r):
     if _bit(t, o4, nq): return None, 0
     s4 = _jw_sign(t, o4, nq); J = _flip(t, o4, nq)
     return J, s1*s2*s3*s4
+
+
+def ph_term_sector(k, f, N, states, index, p, q, r):
+    """Dense sector matrix of ONE piece of V_ph, -(f/2)(a+_{p up} a+_{p dn}
+    a_{q dn} a_{r up} + h.c.), for given (p, q, r).  q = r is a pairing term;
+    q = p != r or r = p != q is a 1p-1h term; p, q, r distinct is a
+    pair-breaking 2p-2h term.  Each piece is exactly exponentiable: its Pauli
+    strings mutually commute (see `trotter.ph_terms`)."""
+    nq = 2*k; M = len(states); T = np.zeros((M, M))
+    for I in states:
+        J, s = _apply_ph_string(I, nq, p, q, r)
+        if J is not None: T[index[J], index[I]] += -0.5*f*s
+    return T + T.T
+
+
+def ph_term_full(k, f, p, q, r):
+    """Dense FULL-space (2^(2k)) matrix of one piece of V_ph (for Pauli counts)."""
+    nq = 2*k; dim = 2**nq; T = np.zeros((dim, dim))
+    for I in range(dim):
+        J, s = _apply_ph_string(I, nq, p, q, r)
+        if J is not None: T[J, I] += -0.5*f*s
+    return T + T.T
 
 
 def H_ph_sparse(k, f, N, states, index):

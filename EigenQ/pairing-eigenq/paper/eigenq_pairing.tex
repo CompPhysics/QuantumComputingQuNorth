@@ -74,7 +74,9 @@ the one-particle--one-hole channel and destroys the seniority symmetry of the
 pairing model, leaves the pipeline and its convergence intact --- the
 refinement time grows only through the lower initial overlap, and the rodeo
 filter still converges geometrically --- while the variational floor degrades
-by a factor of twenty.  The construction provides a
+by a factor of twenty; at the circuit level the extra term raises the depth of
+a Trotter step ninefold but barely moves the product-formula error or the
+operating point.  The construction provides a
 concrete template for eigenstate preparation in nuclear-structure applications on
 mid-circuit-measurement hardware.
 \end{abstract}
@@ -121,6 +123,32 @@ algorithm needs to converge exponentially.  This is the core idea of the present
 approach: (i) prepare a low-resolution eigenstate; (ii) prolong and adiabatically
 refine to a final time $T^\ast$; (iii) apply the rodeo algorithm to reach the target
 fidelity and observables with exponential convergence.
+
+The pairing problem has become a standard target for quantum algorithms, and
+the programme of Lacroix and collaborators is the closest in spirit to ours.
+Its common thread is the deliberate use of symmetry breaking and
+restoration: a symmetry-breaking (BCS-like) trial state is cheap and
+correlated, and the symmetry is restored afterwards by a projective step ---
+quantum phase estimation used as a projector~\cite{Lacroix2020}, Grover-type
+oracles~\cite{RuizGuzman2023}, spin filters~\cite{Siwach2021} or classical
+shadows~\cite{RuizGuzman2024} --- with the restored state then handed to a
+spectral post-processing stage such as phase estimation or a Krylov
+expansion~\cite{RuizGuzman2022,RuizGuzman2021}; Refs.~\cite{Lacroix2023EPJA,Lacroix2023}
+review this viewpoint and Ref.~\cite{Ayral2023} the broader many-body landscape.  More
+recently the same group has used ADAPT-VQE on pairing Hamiltonians with
+symmetry-conserving and symmetry-breaking operator pools~\cite{Zhang2024},
+extracted excited states from the subspace spanned along the ADAPT convergence
+path~\cite{Zhang2025}, obtained Lipkin spectra with a quantum
+equation-of-motion approach~\cite{Hlatshwayo2022} and with a two-qubit
+generator-coordinate scheme~\cite{BeaujeaultTaudiere2024}, and
+built one-body Green's functions of small superfluid systems from a
+variational even-$N$ ground state and a quantum subspace expansion for its
+$N\pm1$ neighbors~\cite{AychetClaisse2026}.  Our pipeline addresses the step
+that all of these share --- obtaining a high-fidelity eigenstate of the
+fine-resolution Hamiltonian from a cheap approximate one --- with a different
+mechanism: not symmetry projection or subspace diagonalization, but an
+adiabatic path across resolutions followed by an energy filter; the relation
+is taken up in Sec.~\ref{sec:discussion}.
 
 In this work we realize the full pipeline end to end on a transparent and exactly
 solvable testbed, the constant-pairing Hamiltonian familiar from nuclear and
@@ -821,8 +849,9 @@ excitation.  $V_{\rm ph}$ still conserves $N_\uparrow$ and $N_\downarrow$
 separately, so $S_z$ remains a good quantum number, but the seniority does not:
 at $k=4$ the $S_z=0$ sector has $36$ determinants instead of the six pair
 configurations, and the compact one-qubit-per-pair encoding of the pairing
-model is no longer available --- the $2k$-qubit Jordan--Wigner register used
-throughout this work becomes the only option.  Acting once on the reference
+model~\cite{Lacroix2020,AychetClaisse2026} is no longer available --- the
+$2k$-qubit Jordan--Wigner register used throughout this work becomes the only
+option.  Acting once on the reference
 determinant at $k=4$, the Hamiltonian now reaches eight $1p$--$1h$ and eight
 seniority-two $2p$--$2h$ determinants with matrix elements $\pm f/2$, in
 addition to the four seniority-zero $2p$--$2h$ states whose coupling grows from
@@ -996,7 +1025,7 @@ acceptance converges to the input overlap $p$ (dotted).}
 \label{fig:phconv}
 \end{figure*}
 
-\subsection{What the particle-hole term costs on hardware}
+\subsection{The circuit-level budget with the particle-hole term}
 \label{sec:ph-cost}
 The pipeline itself is unchanged by $V_{\rm ph}$ --- prolongation, the adiabatic
 path, the shift rule and the rodeo cycle were all written for the $2k$-qubit
@@ -1006,17 +1035,87 @@ The particle-hole term multiplies the number of strings by a factor that
 grows with the resolution ($1.8$, $3.5$ and $5.3$ at $k=2,3,4$; $61\to325$ at
 $k=4$) and raises the largest Pauli weight from four to $2k$ ($8$ at $k=4$),
 because a $1p$--$1h$ string drags a Jordan--Wigner parity chain across the
-register.  The pair-breaking strings do not fall into the two commuting groups
-of Sec.~\ref{sec:trotterized}, so the per-step cost of
-Eq.~\eqref{eq:trottercost} no longer applies; by string count alone a
-controlled Trotter step of the full Hamiltonian is about five times more
-expensive at $k=4$, and more once the longer parity chains are compiled.  The
-price of a more realistic interaction thus appears in the Hamiltonian
-evolution, not in the structure or the convergence of the pipeline.  Extending the circuit-level
-budget of Sec.~\ref{sec:depth} to $f\neq0$ --- grouping the $325$ strings into
-commuting families and re-measuring the Trotter error of the refinement and of
-the controlled evolution --- is the natural next step, and the counts of
-Table~\ref{tab:pauli} are its starting point.
+register.
+
+To extend the circuit-level analysis of Sec.~\ref{sec:trotterized} we
+decompose $V_{\rm ph}$ into exactly exponentiable blocks in the same spirit as
+the pair-hopping terms.  Its $q=r$ pieces are pairing terms and only rescale
+the rotation angles of the existing blocks ($g\to g+2f$), at no cost.  The
+remaining pieces, one per $(p,q,r)$ with $q\neq r$, fall into two families:
+$2k(k-1)$ one-particle--one-hole blocks
+($a^\dagger_{p\uparrow}n_{p\downarrow}a_{r\uparrow}+{\rm h.c.}$ and the
+spin-flipped partner), each a sum of four Pauli strings, and $k(k-1)(k-2)$
+pair-breaking blocks (eight strings each, like a double excitation).  Within
+each block the strings mutually commute, so every factor $e^{-i\hat T\delta t}$
+is realized exactly by its rotations and the product-formula error again comes
+only from the non-commutativity \emph{between} blocks: $55$ of them at $k=4$
+instead of seven.  Two things follow, both quantified in
+Fig.~\ref{fig:phtrotter} and Table~\ref{tab:phdepth}.  First, the Trotter
+error at fixed step count grows only modestly --- at $t=1$, $k=4$ the
+second-order error with sixteen steps is $2.1\times10^{-3}$, $3.8\times10^{-3}$
+and $7.5\times10^{-3}$ for $f=0$, $0.2$, $0.5$ --- because the new blocks carry
+the small coefficient $f/2$.  The Trotterized refinement reaches its
+exact-slice value with the same $n_s=80$ second-order steps at $f=0.2$ (overlap
+$0.9961$ against $0.9969$), and the rodeo cycle at $\delta t=0.25$ keeps an
+acceptance of $0.96$ with an infidelity of $3.8\times10^{-4}$ after six cycles,
+essentially the pairing-model operating point.  At $f=0.5$ the step
+$\delta t=0.25$ begins to fail --- acceptance $0.84$, the symptom identified in
+Sec.~\ref{sec:trotterized} --- and $\delta t=0.125$ restores it to $0.97$ with
+an infidelity of $6\times10^{-4}$ against $5\times10^{-4}$ for exact evolution.
+Second, the depth of one step grows ninefold: compiled block by block with
+the ladder rule of Eq.~\eqref{eq:trottercost}, a first-order step costs $2728$
+CNOTs instead of $296$ ($348$ rotations instead of $60$; $3424$ against $416$
+once controlled), the $1p$--$1h$ family contributing $640$ and the
+pair-breaking family $1792$ CNOTs.  The budget per accepted preparation
+therefore scales almost exactly with the step cost: at the pairing-model
+operating point ($n_s=80$, $M=2$, $\delta t=0.25$) it is $6.4\times10^{5}$
+CNOTs at $f=0.2$ against $7.1\times10^{4}$ for the pure pairing force, for an
+infidelity of $1.0\times10^{-3}$ --- eight times below the UCCSD--VQE floor of
+$8.2\times10^{-3}$ at this $f$ --- and at $f=0.5$ the finer rodeo step brings
+the total to $8.3\times10^{5}$ CNOTs for $5.3\times10^{-3}$, six times below the
+floor of $3.2\times10^{-2}$.  The price of a more realistic interaction thus
+appears exactly where it should, in the depth of each Trotter step of the
+Hamiltonian evolution, and not in the structure, the operating point or the
+convergence of the pipeline; the gap to the variational floor, which the
+particle-hole term widens, is what the extra depth buys.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig16.png}
+\caption{The pipeline at the circuit level with the particle-hole term
+($k=4$, $N=4$, $g=1$).  Left: infidelity of the Trotterized refinement
+$k=2\to4$ ($T=30$) versus the number of product-formula steps $n_s$ for
+first- and second-order formulas at $f=0.2$ (solid) and $f=0.5$ (dashed);
+horizontal lines mark the exact-slice refinement.  Right: rodeo infidelity
+versus cycles at $f=0.5$ on the circuit-level refined input ($n_s=80$,
+second order, $p=0.9785$) with the controlled evolution Trotterized at fixed
+step sizes $\delta t$; the legend gives the mean number of steps per cycle and
+the six-cycle acceptance.}
+\label{fig:phtrotter}
+\end{figure*}
+
+\begin{table*}[t]
+\caption{\label{tab:phdepth}Circuit-depth budget at $k=4$ ($N=4$, $g=1$) with
+the particle-hole term, per accepted preparation, at the operating point of
+Table~\ref{tab:depth} ($n_s=80$ second-order refinement steps at $T=30$, $M=2$
+rodeo cycles, $\sigma=4$) for two rodeo step sizes $\delta t$.  Step costs are
+the block-by-block CNOT counts (uncontrolled / controlled); the rodeo column
+uses the mean number of Trotter steps over the two cycles, doubled for the
+symmetric formula.  The UCCSD--VQE circuit ($1312$ CNOTs, $26$ parameters) is
+the same for every $f$; only its ansatz floor moves (Table~\ref{tab:ph}).  The
+first row is the pure pairing model of Table~\ref{tab:depth}.}
+\begin{ruledtabular}
+\begin{tabular}{ccccccccc}
+$f$ & $\delta t$ & step (unctrl./ctrl.) & refinement & rodeo & per run & $P_M$ & per accepted & $1-\mathcal{F}$ (UCCSD floor)\\
+\colrule
+$0$   & $0.25$  & $296$ / $416$   & $47\,360$  & $\approx23\,000$ & $\approx7.1\times10^{4}$ & $0.99$ & $\approx7.1\times10^{4}$ & $5\times10^{-4}$ ($1.4\times10^{-3}$)\\
+$0.2$ & $0.25$  & $2728$ / $3424$ & $436\,480$ & $190\,603$ & $627\,083$ & $0.972$ & $6.4\times10^{5}$ & $1.0\times10^{-3}$ ($8.2\times10^{-3}$)\\
+$0.2$ & $0.125$ & $2728$ / $3424$ & $436\,480$ & $375\,499$ & $811\,979$ & $0.996$ & $8.2\times10^{5}$ & $8.1\times10^{-4}$ ($8.2\times10^{-3}$)\\
+$0.5$ & $0.25$  & $2728$ / $3424$ & $436\,480$ & $190\,603$ & $627\,083$ & $0.891$ & $7.0\times10^{5}$ & $6.1\times10^{-3}$ ($3.2\times10^{-2}$)\\
+$0.5$ & $0.125$ & $2728$ / $3424$ & $436\,480$ & $375\,499$ & $811\,979$ & $0.979$ & $8.3\times10^{5}$ & $5.3\times10^{-3}$ ($3.2\times10^{-2}$)\\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
 
 \begin{table}[t]
 \caption{\label{tab:pauli}Pauli-string content of the Hamiltonian on $2k$
@@ -1059,7 +1158,42 @@ strength $g+2f$, and the rodeo filter converges geometrically for every
 strength studied, whereas the UCCSD floor degrades twentyfold.  The cost of
 the more realistic interaction shows up where it should --- in the Pauli-string
 content of the Hamiltonian ($61\to325$ strings at $k=4$) and hence in the depth
-of each Trotter step --- and not in the structure of the pipeline.
+of each Trotter step ($296\to2728$ CNOTs) --- and not in the structure of the
+pipeline, whose operating point and product-formula error barely move.
+
+\paragraph{Relation to symmetry-restoration and subspace approaches.}
+The results invite a comparison with the pairing-model work of Lacroix and
+collaborators summarized in the Introduction.  Both programmes start from a
+cheap, imperfect trial state and sharpen it; the difference is what is
+sharpened and how.  In the symmetry-restoration route the trial state breaks a
+symmetry on purpose and the projector --- phase estimation on the symmetry
+operator~\cite{Lacroix2020}, an oracle~\cite{RuizGuzman2023} or a
+measurement-side projection~\cite{RuizGuzman2024} --- removes the unwanted
+sectors, after which a Krylov or phase-estimation stage refines the
+energy~\cite{RuizGuzman2022}.  Our coarse state conserves particle number and
+spin by construction; what it lacks is \emph{resolution}, and the refinement
+supplies it along a gapped path while the rodeo cycle filters in
+\emph{energy} rather than in a symmetry quantum number.  The two filters are
+structurally the same resource --- one ancilla, a controlled unitary and a
+post-selected measurement --- and they compose: a symmetry-projected input
+would enter our pipeline exactly as the UCCSD state does.  The quantum
+subspace methods of Refs.~\cite{Zhang2025,AychetClaisse2026,BeaujeaultTaudiere2024}
+are complementary in a different way: they trade coherent depth for
+measurements and a classical generalized eigenvalue problem, and their
+accuracy is bounded by the quality of the states that span the subspace,
+whereas the rodeo filter converges geometrically in depth but requires the
+controlled evolution.  Two observations of that work bear directly on ours.
+Ref.~\cite{Zhang2024} documents that ADAPT-VQE with a symmetry-breaking pool
+can collapse to unphysical energies on degenerate pairing systems --- a failure
+mode of the coarse stage that a downstream filter agnostic to how the trial
+state was prepared is designed to absorb --- and Ref.~\cite{AychetClaisse2026}
+shows that the accuracy of the Green's function of a small superfluid system,
+across the normal-to-superfluid transition, is controlled by the quality of the
+even-$N$ ground state; the resolution-refined and rodeo-filtered state of
+Sec.~\ref{sec:ph} is precisely such an input, and the particle-hole term
+studied there is the ingredient that drives the system across that transition
+once the pair-to-qubit encoding of Refs.~\cite{Lacroix2020,AychetClaisse2026}
+can no longer be used.
 
 Moving to hardware, the Trotterized pipeline of Sec.~\ref{sec:trotterized} already
 quantifies the dominant coherent error: the rodeo algorithm filters the eigenstates
@@ -1258,6 +1392,61 @@ Lecture Notes in Physics \textbf{936}, Springer (2017).
 M.~Hjorth-Jensen,
 \textit{Quantum Mechanics for Many-Particle Systems},
 lecture notes, University of Oslo (2026), Chapter~4.
+
+\bibitem{Lacroix2020}
+D.~Lacroix,
+\textit{Symmetry assisted preparation of entangled many-body states on a quantum computer},
+Phys.\ Rev.\ Lett.\ \textbf{125}, 230502 (2020).
+
+\bibitem{RuizGuzman2021}
+E.~A.~Ruiz~Guzman, D.~Lacroix,
+\textit{Calculation of generating function in many-body systems with quantum computers: technical challenges and use in hybrid quantum-classical methods},
+arXiv:2104.08181 (2021).
+
+\bibitem{Siwach2021}
+P.~Siwach, D.~Lacroix,
+\textit{Filtering states with total spin on a quantum computer},
+Phys.\ Rev.\ A \textbf{104}, 062435 (2021).
+
+\bibitem{RuizGuzman2022}
+E.~A.~Ruiz~Guzman, D.~Lacroix,
+\textit{Accessing ground-state and excited-state energies in a many-body system after symmetry restoration using quantum computers},
+Phys.\ Rev.\ C \textbf{105}, 024324 (2022).
+
+\bibitem{Lacroix2023EPJA}
+D.~Lacroix, E.~A.~Ruiz~Guzman, P.~Siwach,
+\textit{Symmetry breaking/symmetry preserving circuits and symmetry restoration on quantum computers: A quantum many-body perspective},
+Eur.\ Phys.\ J.\ A \textbf{59}, 3 (2023).
+
+\bibitem{RuizGuzman2023}
+E.~A.~Ruiz~Guzman, D.~Lacroix,
+\textit{Restoring broken symmetries using quantum search ``oracles''},
+Phys.\ Rev.\ C \textbf{107}, 034310 (2023).
+
+\bibitem{Ayral2023}
+T.~Ayral, P.~Besserve, D.~Lacroix, E.~A.~Ruiz~Guzman,
+\textit{Quantum computing with and for many-body physics},
+Eur.\ Phys.\ J.\ A \textbf{59}, 227 (2023).
+
+\bibitem{BeaujeaultTaudiere2024}
+Y.~Beaujeault-Taudi\`ere, D.~Lacroix,
+\textit{Solving the Lipkin model using quantum computers with two qubits only with a hybrid quantum-classical technique based on the generator coordinate method},
+Phys.\ Rev.\ C \textbf{109}, 024327 (2024).
+
+\bibitem{RuizGuzman2024}
+E.~A.~Ruiz~Guzman, D.~Lacroix,
+\textit{Restoring symmetries in quantum computing using Classical Shadows},
+Eur.\ Phys.\ J.\ A \textbf{60}, 112 (2024).
+
+\bibitem{Zhang2025}
+J.~Zhang, D.~Lacroix,
+\textit{Excited states from ADAPT-VQE convergence path in many-body problems: application to nuclear pairing problem and H$_4$ molecule dissociation},
+Phys.\ Lett.\ B \textbf{869}, 139841 (2025).
+
+\bibitem{AychetClaisse2026}
+S.~Aychet-Claisse, D.~Lacroix, V.~Som\`a, J.~Zhang,
+\textit{Quantum simulations of Green's functions for small superfluid systems},
+Phys.\ Rev.\ C \textbf{113}, 044324 (2026); arXiv:2509.02272.
 
 \bibitem{RingSchuck}
 P.~Ring, P.~Schuck,

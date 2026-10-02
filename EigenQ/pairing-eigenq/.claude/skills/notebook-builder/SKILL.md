@@ -39,6 +39,16 @@ in sync.
 - Do not use `localStorage`/browser APIs; this is a Python kernel notebook.
 - After any change, re-run execute + check before declaring done.
 
+## Tagged extension sections
+Sections added after the original build live in `scripts/extend_notebook_*.py`
+(each tags its cells with an HTML-comment marker, e.g. `<!-- EXT:TROTTER -->`,
+`<!-- EXT:PH -->`) and are executed in-process with
+`scripts/run_new_cells.py --mark "<marker>"`, which attaches real stdout/PNG
+outputs without re-running the whole notebook.  Tagged code cells must be
+self-contained (import `pairinglib as pl`, define their own N, G).  The extend
+scripts are idempotent and keep the stored outputs of unchanged code cells.
+A full clean run (`make notebook`) remains the reference build.
+
 ## Common entry points
 - "add a section X to the notebook" -> append cells, execute, check.
 - "rebuild the notebook from scratch" -> run the full builder, execute, check.

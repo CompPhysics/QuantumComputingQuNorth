@@ -66,3 +66,47 @@ def test_cnot_counts_match_paper():
     assert c["step_uncontrolled"] == 296     # 24 k(k-1) + 2k at k=4
     assert c["rotations"] == 60
     assert c["step_controlled"] == 416       # + 2 CNOTs per controlled rotation
+
+
+# ---- particle-hole term at the circuit level ----
+def test_model_terms_sum_to_H_with_ph():
+    N = 4
+    for k, f in ((3, 0.2), (4, 0.5)):
+        nq, st, ix = pl.build_sector(k, N)
+        H = pl.H_pairing_sparse(k, 1.0, N, st, ix, f=f).toarray()
+        tm = pl.model_terms(k, 1.0, N, f)
+        assert len(tm) == 1 + k*(k-1)//2 + 2*k*(k-1) + k*(k-1)*(k-2)
+        assert np.max(np.abs(sum(tm) - H)) < 1e-12
+    assert len(pl.model_terms(4, 1.0, N, 0.0)) == 7          # f=0: pairing blocks only
+
+
+def test_ph_blocks_are_exactly_exponentiable():
+    # every V_ph block is a sum of mutually commuting Pauli strings
+    from pairinglib._exc import pauli_mat
+    k = 3; n = 2*k
+    for (p, q, r) in ((0, 0, 1), (1, 2, 1), (0, 1, 2), (2, 0, 1)):
+        dec = pl.pauli_decompose(pl.ph_term_full(k, 0.3, p, q, r))
+        mats = [pauli_mat({i: c for i, c in enumerate(s) if c != "I"}, n) for s in dec]
+        assert len(dec) in (4, 8)
+        assert max(np.abs(A @ B - B @ A).max() for A in mats for B in mats) < 1e-12
+
+
+def test_trotter_error_with_ph_decreases():
+    e = [pl.trotter_error(4, 1.0, 4, 1.0, n, order=2, f=0.2) for n in (1, 4, 16)]
+    assert e[0] > e[1] > e[2] and e[2] < 5e-3
+
+
+def test_cnot_counts_with_ph():
+    c0, c1 = pl.cnot_counts(4), pl.cnot_counts(4, f=0.2)
+    assert (c0['step_uncontrolled'], c0['step_controlled']) == (296, 416)
+    assert (c1['step_uncontrolled'], c1['step_controlled'], c1['rotations']) == (2728, 3424, 348)
+    pc = pl.ph_pauli_costs(4)
+    assert pc['1p1h']['terms'] == 24 and pc['2p2h']['terms'] == 24
+    assert pc['1p1h']['rotations'] == 96 and pc['2p2h']['rotations'] == 192
+
+
+def test_refine_state_trotter_with_ph():
+    N = 4; nq, st, ix = pl.build_sector(4, N)
+    H = pl.H_pairing_sparse(4, 1.0, N, st, ix, f=0.2).toarray(); GS = np.linalg.eigh(H)[1][:, 0]
+    psi, _ = pl.refine_state_trotter(N, 4, 30.0, 80, order=2, f=0.2)
+    assert abs(np.vdot(GS, psi))**2 > 0.99

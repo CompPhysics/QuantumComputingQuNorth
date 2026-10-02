@@ -11,7 +11,8 @@ for i, c in enumerate(nb["cells"]):
         if o.get("output_type") == "display_data" and "image/png" in o.get("data", {}): figs += 1
         if "text" in o: text.append("".join(o["text"]))
 blob = "\n".join(text)
-anchors = ["0.794697", "0.635548", "acceptance"]   # FCI(k=3), FCI(k=4), rodeo
+anchors = ["0.794697", "0.635548", "acceptance",   # FCI(k=3), FCI(k=4), rodeo
+           "0.450582", "-1.691737"]                # FCI(k=4) with V_ph, f=0.05 / 0.5
 missing = [a for a in anchors if a not in blob]
 ok = not errs and figs >= min_figs and not missing
 print(f"errors={errs or 'none'}  figures={figs} (min {min_figs})  missing_anchors={missing or 'none'}")
