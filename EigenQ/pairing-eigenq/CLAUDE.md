@@ -40,7 +40,10 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   `scripts/run_new_cells.py --mark`); see the notebook-builder skill.  Sections:
   EXT:TROTTER, EXT:PH, EXT:BASELINES (matched-observable baselines, sizes,
   observables; cell code is read from `scripts/baselines_rodeo.py` and
-  `scripts/sizes_observables.py`, which also run standalone).
+  `scripts/sizes_observables.py`, which also run standalone), EXT:BOUND
+  (sufficient adiabatic-time / Trotter-step conditions of the nucleation paper,
+  arXiv:2609.37527, evaluated on the 2->4 path; code from
+  `scripts/adiabatic_bound.py`; paper Sec. IV.E, Table tab:bound, fig18).
 - Compare like with like: an energy error is NOT an infidelity
   (<H>-E0 >= gap*(1-F)).  UCCSD k=4, g=1 infidelities: 1.78e-4 (f=0),
   1.01e-3 (f=0.2), 3.72e-3 (f=0.5).  Every comparison with the pipeline uses the
@@ -49,6 +52,8 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   refinement path (2->4: 4-qubit conditional phase, 14 CNOTs/application;
   3->4: doubly-conditioned k=3 step, ~350 CNOTs).  `cnot_counts` counts the
   high-space step only.
+- Bounds vs. practice (k=2->4, N=4, g=1): T_bound(eps=1e-2)=5.1e3 vs T*=16;
+  first-order step bound 3.4e4 at T* vs 160 (order 1) / 40 (order 2) in practice.
 - Review history: `paper/revisions.txt` (external review) and
   `paper/response_to_revisions.md` (what was verified/changed/open).
 

@@ -134,7 +134,20 @@ changes the low-energy spectrum only mildly, the interpolation path can be
 kept gapped, and under the additional assumption that the first-order
 perturbative correction to the tracked state stays bounded~\cite{Bogner2026}
 the required adiabatic time scales as the inverse gap times a slowly growing
-system-size factor rather than as the inverse gap squared.  The present work
+system-size factor rather than as the inverse gap squared.  The same
+bootstrapping idea applied along the other axis is \emph{nucleation}, proposed
+recently by some of us~\cite{Sadia2026}: the exact ground state of a small
+lattice (the seed) is compiled into a circuit, and the lattice is then grown
+in stages, each stage a Trotterized adiabatic interpolation that couples newly
+added qubits to the existing bulk, until the target size is reached.
+Refinement keeps the domain fixed and raises the resolution; nucleation keeps
+the resolution fixed and grows the domain.  Both replace one hard global
+preparation by a sequence of local, gapped adiabatic steps that start from an
+exactly solved problem, both are compiled as Trotterized adiabatic circuits,
+and Ref.~\cite{Sadia2026} supplies for such circuits sufficient conditions on
+the evolution time and on the number of Trotter steps, together with a
+variational variant that reuses the Trotterized circuit as a warm-started
+ansatz.  The present work
 implements this chain --- (i) prepare a low-resolution eigenstate; (ii) prolong
 and adiabatically refine for a time $T$; (iii) apply the rodeo algorithm ---
 for a hierarchy of fermionic single-particle bases, and asks the question that
@@ -315,6 +328,36 @@ theorem~\cite{Albash2018}.  We test this empirically in
 Sec.~\ref{sec:res-gscan} and treat the overlap
 $p=\abs{\braket{\Psi_{\rm high}}{\Phi(T)}}^2$ as the figure of merit of the
 stage.
+
+The interpolation~\eqref{eq:path} is the $\sin^2(\pi s/2)$ schedule, whose
+vanishing derivatives at both ends remove the boundary terms of the adiabatic
+bound of Jansen, Ruskai and Seiler~\cite{Jansen2007}; it is also the schedule
+of the nucleation method~\cite{Sadia2026}, where each growth stage couples
+newly added qubits to a bulk lattice in the way the second term of
+Eq.~\eqref{eq:path} couples the appended levels to the coarse space.
+Ref.~\cite{Sadia2026} turns that bound into explicit sufficient conditions
+for a Trotterized adiabatic stage: a total time
+\begin{equation}
+  T\;\ge\;\frac{1}{\sqrt{\epsilon}}\int_0^1
+  \left[\frac{\norm{\ddot H}}{\Delta^2}+7\,\frac{\norm{\dot H}^2}{\Delta^3}\right]ds
+  \label{eq:Tbound}
+\end{equation}
+guarantees a final infidelity at most $\epsilon$, with derivatives taken with
+respect to $s$ and $\Delta(s)$ the instantaneous gap, and
+$n_s\ge\eta^{-1}(T\Lambda_1/4+T^2\Lambda_2/2)$ first-order Trotter steps keep
+the operator error of the digitized evolution below $\eta$, with
+$\Lambda_1=\max_s\norm{\dot H}$ and $\Lambda_2$ the largest commutator norm
+between the groups into which the Hamiltonian is split.  Both conditions
+apply verbatim to Eq.~\eqref{eq:path}, since the path is twice differentiable
+and the compilation of Sec.~\ref{sec:trotterized} partitions $H(s)$ into
+groups of commuting terms; but they are sufficient, not necessary, and
+Ref.~\cite{Sadia2026} documents for a twelve-site transverse-field Ising
+chain that they overestimate the time and the step count actually needed by
+several orders of magnitude --- in part because the Trotter error of a
+digitized adiabatic sweep partly heals itself~\cite{Kovalsky2023}.  The
+refinement times $T^{*}$ extracted below are therefore empirical, read off
+the computed overlap rather than from a bound; Sec.~\ref{sec:res-bound}
+evaluates both conditions for our path and quantifies the overshoot.
 
 \subsection{The rodeo algorithm}
 \label{sec:rodeo}
@@ -602,6 +645,98 @@ $\mu_{\rm buf}=0.3$--$1.5$ at $g=1$; the linear fit confirms
 $T^{*}\sim1/\Delta E_{\min}$.}
 \label{fig:gapscan}
 \end{figure*}
+
+\subsection{Sufficient conditions versus practice}
+\label{sec:res-bound}
+The conditions quoted in Sec.~\ref{sec:refine} can be evaluated exactly for
+the path of Eq.~\eqref{eq:path}.  Writing $A=P(\Hlow-\mu)P^\dagger$ and
+$B=\Hhigh-\mu$, the schedule gives
+$\dot H=\tfrac{\pi}{2}\sin(\pi s)\,(B-A)$ and
+$\ddot H=\tfrac{\pi^2}{2}\cos(\pi s)\,(B-A)$, so the integrand of
+Eq.~\eqref{eq:Tbound} is fixed by the single number $\norm{B-A}$ and by the
+instantaneous gap $\Delta(s)$, both taken in the $N=4$ sector in which the
+evolution takes place.  Figure~\ref{fig:bound} shows the two along the
+$k=2\to4$ path: the gap rises from the shift-controlled $0.600$ at $s=0$ to
+the physical gap of $\Hhigh$ at $s=1$, and the integrand peaks near
+$s\simeq0.2$, where $\sin(\pi s)$ is already sizable while the gap is still
+close to its minimum; the term $7\norm{\dot H}^2/\Delta^3$ supplies $94\%$ of
+the integral.  Table~\ref{tab:bound} collects the numbers.  For the pure
+pairing model, $\norm{B-A}=7.62$ and $\int_0^1[\cdots]\,ds=511$, so
+Eq.~\eqref{eq:Tbound} demands $T\ge5.1\times10^{3}$ for an infidelity of
+$10^{-2}$ (and $1.6\times10^{4}$ for $10^{-3}$), whereas the computed overlap
+reaches $0.99$ at $T^{*}=16$: the sufficient condition overshoots the
+practical time by a factor $3\times10^{2}$.  The step-count condition is
+looser still.  With $\Lambda_1=\max_s\norm{\dot H}=12.0$ and, for the term
+partition of the gate compilation of Sec.~\ref{sec:trotterized} (the
+conditioned coarse term, the diagonal term and the six pair-hopping terms),
+$\Lambda_2=\max_s\sum_{i<j}\norm{[H_i(s),H_j(s)]}=13.0$, the first-order
+bound at $\eta=\sqrt{\epsilon}/2$ requires $3.4\times10^{4}$ steps along the
+$T^{*}=16$ path --- and $3.4\times10^{9}$ along the path of length $T_{\rm b}$
+--- while $160$ first-order or $40$ second-order steps already reproduce the
+exact-slice overlap at $T^{*}$ to within the adiabatic error of the path
+itself.  The rows with $f\neq0$ anticipate the particle-hole extension of
+Sec.~\ref{sec:ph}: the time bound hardly moves ($4.4$--$5.1\times10^{3}$),
+because the minimum gap is set by the shift and $\norm{B-A}$ changes little,
+while $T^{*}$ doubles, so the overshoot falls to $1.4\times10^{2}$ at
+$f=0.5$; the commutator sum $\Lambda_2$, by contrast, grows from $13$ to
+$184$ with the additional Trotter groups of $V_{\rm ph}$, and the step bound
+at $T^{*}$ rises to $1.9\times10^{6}$ against $640$ first-order steps in
+practice.
+
+These ratios --- a few hundred for the time and $2\times10^{2}$ to
+$3\times10^{3}$ for the step count --- are the fermionic counterpart of what
+Ref.~\cite{Sadia2026} reports for nucleation of a twelve-site Ising chain
+($6\times10^{1}$ and $10^{7}$, respectively), and they carry the same
+message: the conditions certify convergence but do not predict cost.  The
+reason is visible in the integrand.  The bound pays for the full operator
+norm $\norm{B-A}$, which is dominated by the highest-lying states of $\Hhigh$
+that the tracked state never couples to, whereas the actual adiabatic error
+is governed by the matrix elements of $dH/ds$ between the tracked state and
+the few states it does couple to, relative to their gaps --- precisely the
+quantity whose boundedness underlies the inverse-gap scaling of
+Ref.~\cite{Bogner2026} and the linear trend of Fig.~\ref{fig:gapscan}.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig18.png}
+\caption{The ingredients of the adiabatic-time bound, Eq.~\eqref{eq:Tbound},
+along the $k=2\to4$ refinement path at $N=4$, $g=1$, $\mu=E_{\rm low}+0.6$,
+for the pure pairing model and the three particle-hole strengths of
+Sec.~\ref{sec:ph}.  Left: instantaneous gap $\Delta(s)$ in the $N=4$ sector,
+from the shift-controlled $0.600$ at $s=0$ to the physical gap of $\Hhigh$ at
+$s=1$.  Right: the integrand
+$\norm{\ddot H}/\Delta^2+7\norm{\dot H}^2/\Delta^3$ (logarithmic scale),
+which peaks near $s\simeq0.2$ and integrates to $435$--$511$
+(Table~\ref{tab:bound}).}
+\label{fig:bound}
+\end{figure*}
+
+\begin{table*}[t]
+\caption{\label{tab:bound}Sufficient conditions of Ref.~\cite{Sadia2026}
+evaluated for the $k=2\to4$ refinement path ($N=4$, $g=1$,
+$\mu=E_{\rm low}+0.6$; spectral norms in the $N=4$ sector) against the
+empirical cost.  $\Delta_{\min}$: minimum instantaneous gap; $I$: the
+integral in Eq.~\eqref{eq:Tbound}; $T_{\rm b}$: the time bound for infidelity
+$\epsilon=10^{-2}$, $T_{\rm b}=I/\sqrt{\epsilon}$; $T^{*}$: time for overlap
+$0.99$ (grid of Fig.~\ref{fig:gapscan}); $\Lambda_1=\max_s\norm{\dot H}$ and
+$\Lambda_2=\max_s\sum_{i<j}\norm{[H_i,H_j]}$ over the Trotter groups of the
+gate compilation; $n_{\rm b}(T^{*})$: first-order Trotter steps required by
+the bound along the $T^{*}$ path at $\eta=\sqrt{\epsilon}/2$; $n_1$, $n_2$:
+first- and second-order steps (from the sequence $5,10,20,\ldots$) that
+reproduce the exact-slice overlap at $T^{*}$ to within the adiabatic error
+$1-p(T^{*})$ of the path.  The rows with $f\neq0$ refer to the particle-hole
+model of Sec.~\ref{sec:ph}.}
+\begin{ruledtabular}
+\begin{tabular}{cccccccccccc}
+$f$ & $\Delta_{\min}$ & $\norm{B-A}$ & $I$ & $T_{\rm b}$ & $T^{*}$ & $T_{\rm b}/T^{*}$ & $\Lambda_1$ & $\Lambda_2$ & $n_{\rm b}(T^{*})$ & $n_1$ & $n_2$\\
+\colrule
+0    & $0.600$ & $7.62$ & $511$ & $5.1\times10^{3}$ & $16$ & $3.2\times10^{2}$ & $12.0$ & $13.0$ & $3.4\times10^{4}$ & $160$ & $40$\\
+0.05 & $0.600$ & $7.66$ & $480$ & $4.8\times10^{3}$ & $20$ & $2.4\times10^{2}$ & $12.0$ & $21.6$ & $8.8\times10^{4}$ & $320$ & $40$\\
+0.2  & $0.600$ & $7.85$ & $435$ & $4.3\times10^{3}$ & $26$ & $1.7\times10^{2}$ & $12.3$ & $58.7$ & $4.0\times10^{5}$ & $320$ & $80$\\
+0.5  & $0.600$ & $8.42$ & $446$ & $4.5\times10^{3}$ & $32$ & $1.4\times10^{2}$ & $13.2$ & $184$  & $1.9\times10^{6}$ & $640$ & $160$\\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
 
 \subsection{Rodeo filtering of the refined state}
 \label{sec:res-rodeo}
@@ -1044,7 +1179,10 @@ followed by two rodeo cycles would be the cheapest route of all at this system
 size.  We have not implemented ADAPT-VQE here; its inclusion as a comparator is
 the natural next step of the assessment.  Conversely, no variational
 compression by itself supplies the geometric, optimizer-free convergence that
-the rodeo filter provides once the overlap is large.
+the rodeo filter provides once the overlap is large.  A different route to a
+shallower circuit --- keeping the Trotterized refinement path as the ansatz
+structure and optimizing a few of its layers, as in the optimized nucleation
+of Ref.~\cite{Sadia2026} --- is taken up in Sec.~\ref{sec:discussion}.
 
 \subsection{Other model-space sizes, particle numbers, and observables}
 \label{sec:sizes}
@@ -1274,7 +1412,11 @@ the pure pairing model at $g=2$ --- the value of $g+2f$ at $f=0.5$ --- had
 ${\rm ov}_0=0.617$ and $T^{*}=32$, almost exactly the numbers found here at
 $f=0.5$.  The refinement cost of the seniority-breaking model is thus governed
 by the renormalized pairing strength, and the genuinely new $1p$--$1h$ and
-pair-breaking channels add only a small correction to it.  The $k=3\to4$ chain
+pair-breaking channels add only a small correction to it.  The sufficient
+conditions of Table~\ref{tab:bound} see the same picture from the other side:
+the time bound is insensitive to $f$ because the minimum gap is set by the
+shift, while the Trotter-step bound grows with the number of Trotter groups
+that $V_{\rm ph}$ adds, from $\Lambda_2=13$ to $184$.  The $k=3\to4$ chain
 of Sec.~\ref{sec:res-k34}, started from the gate-level UCCSD state whose singles
 now carry non-zero angles, buys the degradation back: it starts at overlap
 $0.851$ even at $f=0.5$ and reaches $0.99$ at $T^{*}=26$ instead of $32$.
@@ -1565,6 +1707,58 @@ construction, and the particle-hole term of Sec.~\ref{sec:ph} --- which is
 not part of the model of Ref.~\cite{AychetClaisse2026} --- is the ingredient
 that forces one out of the pair-to-qubit encoding used there.
 
+\paragraph{Relation to nucleation.}
+The nucleation method of Ref.~\cite{Sadia2026} is the closest relative of the
+refinement stage, and the comparison is instructive in both directions.  Both
+start from a small problem solved exactly on a classical computer and compiled
+into a circuit, and both reach the target through a sequence of Trotterized
+adiabatic interpolations with the $\sin^2(\pi s/2)$ schedule of
+Eq.~\eqref{eq:path}, each of which changes the Hamiltonian only locally:
+nucleation switches on the couplings of newly added lattice sites, initialized
+in $\ket{+}$, to the existing bulk; refinement switches off the conditioned
+coarse term $A$ of Eq.~\eqref{eq:Aterm} and switches on the matrix elements of
+$\Hhigh$ that connect the occupied coarse levels to the appended ones,
+initialized empty in $\ket{0}$.  Nucleation grows the domain at fixed
+resolution, refinement the resolution at fixed domain, and the two compose in
+principle: a lattice or shell-model problem could be nucleated to its physical
+size in a coarse basis and then refined to the full basis, or the reverse,
+with the same Trotterized machinery and the same filter at the end.
+
+What Ref.~\cite{Sadia2026} adds to the present assessment is twofold.  First,
+it provides the rigorous sufficient conditions on the total time and on the
+Trotter step count of each stage quoted in Sec.~\ref{sec:refine}, and shows on
+a twelve-site transverse-field Ising chain that they overestimate the
+resources actually needed by orders of magnitude: an overlap of $0.997$ is
+reached with $T\simeq40$ and some $2\times10^{3}$ Trotter steps in total,
+against bounds of $T\ge2.6\times10^{3}$ and $N\ge2\times10^{10}$.  Section~\ref{sec:res-bound} makes the same comparison for the refinement
+path: the time bound of Eq.~\eqref{eq:Tbound} overshoots the empirical
+$T^{*}$ by a factor $1.4$--$3.2\times10^{2}$ and the step bound overshoots
+the steps actually needed by a factor $2\times10^{2}$--$3\times10^{3}$
+(Table~\ref{tab:bound}), because the bound charges the full norm of $B-A$
+where the dynamics only pays for the matrix elements that couple the tracked
+state to its neighbors; the distance between bound and practice is the room
+in which the inverse-gap scaling of Ref.~\cite{Bogner2026} operates.  Second, and more directly
+relevant to our negative finding, Ref.~\cite{Sadia2026} introduces
+\emph{optimized nucleation}: the Trotterized growth circuit is kept as the
+ansatz structure and its Trotter angles as the initial parameters, and a
+small number $L$ of layers per stage --- far below the Trotter step count of
+the non-variational version --- is then optimized layer by layer to minimize
+the energy.  On a $5\times5$ transverse-field Ising model this reaches a
+lower energy error at fewer two-qubit gates than converting a matrix-product
+state to a circuit, even when the latter is itself re-optimized.  The same
+construction is available for refinement: the $n_s$ slices of
+Eq.~\eqref{eq:path} compiled in Sec.~\ref{sec:trotterized} form a
+parameterized circuit whose angles are fixed by $(s,\delta t)$, and an
+\emph{optimized refinement} with a few layers per stage would trade the one
+asset the adiabatic path has over the UCCSD input in Table~\ref{tab:depth}
+--- freedom from classical optimization and training measurements --- for a
+gate count that could fall well below the $4.96\times10^{4}$ CNOTs of the
+$T=30$ path.  Whether a warm-started, physically structured ansatz of this
+kind escapes the trainability problems of a generic one is the question
+Ref.~\cite{Sadia2026} raises for lattices; the pairing model, whose optimum
+is known exactly at every resolution, is the place to settle it, and we list
+it among the extensions below.
+
 \paragraph{Hardware requirements.}
 The Trotterized pipeline of Sec.~\ref{sec:trotterized} quantifies the dominant
 coherent error of an ideal device, and the requirements it implies are
@@ -1614,10 +1808,12 @@ what it is worth: it prepares the correlated ground state to the accuracy of
 the Trotterized evolution without any variational optimization, at a gate
 cost that, for the pairing model at these sizes, exceeds that of filtering a
 cheap variational input.  Three extensions would sharpen the assessment.
-First, comparators: an ADAPT-VQE or pair-adapted input, and a jointly
-optimized choice of refinement time and cycle number along the cost--fidelity
-curves of Fig.~\ref{fig:baselines}, with statistical uncertainties from
-larger time-set ensembles.  Second, Hamiltonians for which single-reference
+First, comparators: an ADAPT-VQE or pair-adapted input, an optimized
+refinement in the sense of Ref.~\cite{Sadia2026} --- the Trotterized path of
+Eq.~\eqref{eq:path} as a warm-started variational circuit with a few layers
+per stage --- and a jointly optimized choice of refinement time and cycle
+number along the cost--fidelity curves of Fig.~\ref{fig:baselines}, with
+statistical uncertainties from larger time-set ensembles.  Second, Hamiltonians for which single-reference
 variational inputs fail --- shell-model interactions with competing
 deformations, or the strong-coupling regime of Sec.~\ref{sec:res-gscan}
 treated with a nontrivial coarse space --- which is where the trainability
@@ -1689,6 +1885,23 @@ Phys.\ Lett.\ B \textbf{875}, 140363 (2026); arXiv:2511.14732.
 M.~Patkowski, O.~Ayyildiz, M.~Kebri\v{c}, K.~L.~C.~Hunt, D.~Lee,
 \textit{Hierarchical fusion method for scalable quantum eigenstate preparation},
 Phys.\ Rev.\ A \textbf{113}, 052442 (2026); arXiv:2510.19039.
+
+\bibitem{Sadia2026}
+J.~P.~Sadia, M.~Hjorth-Jensen, D.~Lee, R.~LaRose,
+\textit{Digital quantum state preparation by nucleation},
+arXiv:2609.37527 (2026).
+
+\bibitem{Jansen2007}
+S.~Jansen, M.-B.~Ruskai, R.~Seiler,
+\textit{Bounds for the adiabatic approximation with applications to quantum
+computation},
+J.\ Math.\ Phys.\ \textbf{48}, 102111 (2007).
+
+\bibitem{Kovalsky2023}
+L.~K.~Kovalsky, F.~A.~Calderon-Vargas, M.~D.~Grace, A.~B.~Magann,
+J.~B.~Larsen, A.~D.~Baczewski, M.~Sarovar,
+\textit{Self-healing of Trotter error in digital adiabatic state preparation},
+Phys.\ Rev.\ Lett.\ \textbf{131}, 060602 (2023).
 
 \bibitem{LeeReview2023}
 D.~Lee,
