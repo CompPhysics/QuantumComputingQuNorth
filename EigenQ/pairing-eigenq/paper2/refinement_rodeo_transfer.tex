@@ -1,0 +1,683 @@
+\documentclass[
+  aps,
+  prc,
+  reprint,
+  superscriptaddress,
+  floatfix,
+  nofootinbib
+]{revtex4-2}
+
+% ---------------------------------------------------------------------------
+%  DRAFT SKELETON (no calculations yet) -- 2026-10-10
+%  Resolution refinement + rodeo algorithm applied to the two-fragment
+%  pairing model of the companion draft paper2/twontransfer.pdf.
+%  Everything marked \todo{...} is a placeholder to be filled from the
+%  notebook once the calculations exist.  Numbers quoted without a \todo
+%  are taken from the companion draft or from the first paper
+%  (paper/eigenq_pairing.tex) or are pure combinatorics.
+% ---------------------------------------------------------------------------
+
+\usepackage{amsmath,amssymb}
+\usepackage{physics}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\newcommand{\todo}[1]{\textcolor{red}{[#1]}}
+\newcommand{\Hlow}{H_{\mathrm{low}}}
+\newcommand{\Hhigh}{H_{\mathrm{high}}}
+\newcommand{\Eobj}{E_{\mathrm{obj}}}
+\newcommand{\HP}{\hat H_{P}}
+\newcommand{\HT}{\hat H_{T}}
+\newcommand{\HPT}{\hat H_{PT}}
+\newcommand{\Snum}{S_{\mathrm{num}}}
+\newcommand{\Scfg}{S_{\mathrm{cfg}}}
+\newcommand{\Sdiag}{S_{\mathrm{diag}}}
+\newcommand{\Sn}{^{116}\mathrm{Sn}}
+\newcommand{\Ni}{^{60}\mathrm{Ni}}
+\newcommand{\Zr}{^{96}\mathrm{Zr}}
+\newcommand{\Ca}{^{40}\mathrm{Ca}}
+
+\begin{document}
+
+\title{Optimizer-free quantum simulation of sub-barrier neutron-pair transfer:
+resolution refinement and rodeo spectroscopy in the two-fragment pairing model}
+
+% \todo{Author list: union of the companion-draft authors and the
+% refinement/rodeo paper authors, order to be agreed.}
+\author{Morten Hjorth-Jensen}
+\email{mhjensen@uio.no}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{\todo{Co-authors}}
+\affiliation{\todo{Affiliations}}
+\date{\today}
+
+\begin{abstract}
+The number-conserving two-fragment pairing model of
+Ref.~\cite{TwoFragment2026} reduces sub-barrier neutron-pair transfer between
+superfluid nuclei to a time-dependent quasi-spin Hamiltonian that maps
+exactly onto longitudinal fields and number-conserving $XY$ couplings on one
+qubit per pair slot.  Running that model on a quantum device requires three
+things that the classical benchmark of Ref.~\cite{TwoFragment2026} supplies
+for free: the correlated ground states of the two isolated fragments as the
+entrance state, a digital propagation through the collision pulse, and a
+readout that resolves the exit channel in pair number \emph{and} in
+fragment excitation energy.  We show how the first and the third of these
+can be done without any variational optimization by the two primitives that
+we implemented and assessed on the constant-pairing Hamiltonian in
+Ref.~\cite{EigenQPairing2026}: \emph{resolution refinement}, the adiabatic
+transport of an eigenstate from a small to a larger active orbital space,
+and the \emph{rodeo algorithm}, a projective spectral filter.  Each fragment
+ground state is grown orbital by orbital from a single filled pair-slot
+configuration, so the entrance state of $\Sn+\Ni$ (and the exit-channel
+reference states) are prepared with zero classical parameters; the same
+Trotterized $XY$ evolution that implements the refinement path implements the
+collision; and a rodeo filter run with the two commuting fragment
+Hamiltonians after the pulse measures the exclusive, state-resolved transfer
+probabilities $P_{\kappa ab}$ from which the inclusive $P_{2n}$ compared with
+experiment, the ground-state-to-ground-state channel, and a rigorous
+two-sided bracket $\Snum\le S_{T|P}\le\Sdiag$ on the interfragment
+entanglement entropy follow.  \todo{Results sentence(s): refinement times,
+fidelities, gate budgets for 11, 19 and 30 qubits; comparison of the
+projector and the orbital-lowering refinement paths; rodeo resolution of
+the $0^+$ strength in $^{42}$Ca for the inclusive $\Zr+\Ca$ data.}  All
+stages are verified against the exact finite-space propagation of
+Ref.~\cite{TwoFragment2026}.
+\end{abstract}
+
+\maketitle
+
+% ===========================================================================
+\section{Introduction}
+% ===========================================================================
+\todo{Paragraph 1: pairing, pair transfer, sub-barrier regime; one paragraph
+condensed from the companion draft.}
+
+\todo{Paragraph 2: why quantum simulation of transfer; the two-fragment
+pairing model as the compact, number-conserving, classically verifiable
+benchmark; 30 qubits for $\Sn+\Ni$, 26 for $\Zr+\Ca$; the model reproduces
+the measured $D$ dependence with two calibrated parameters.}
+
+Paragraph 3 (what is missing between the model and a device).  The
+classical benchmark of Ref.~\cite{TwoFragment2026} starts from the exact
+ground states of the isolated fragments, propagates every amplitude in the
+5554-dimensional seniority-zero space, and reads off the complete transfer
+distribution and the reduced density matrix of the target.  A device has
+none of this.  It must (i) \emph{prepare} the correlated entrance state
+$\ket{\mathrm{GS}_T(2)}\otimes\ket{\mathrm{GS}_P(5)}$ on 11 and 19 qubits;
+(ii) \emph{propagate} it with a product formula through the Gaussian
+coupling pulse; and (iii) \emph{read out} more than the pair-number
+partition, because the quantities that carry the physics --- the
+ground-state-to-ground-state channel compared with exclusive data, the
+excited $0^+$ strength lumped into inclusive data, and the entanglement
+entropy --- live in the energy distribution within each transfer sector.
+
+Paragraph 4 (what we bring from Ref.~\cite{EigenQPairing2026}).  In
+Ref.~\cite{EigenQPairing2026} we implemented, on the constant-pairing
+Hamiltonian, a pipeline in which an eigenstate is transported adiabatically
+from a coarse to a fine single-particle basis along a shift-controlled,
+gapped path (resolution refinement~\cite{Bogner2026}) and then cleaned by
+the rodeo algorithm~\cite{Choi2021,Qian2024}.  The assessment was sober:
+at eight qubits refinement did not beat a cheap UCCSD input on gate count;
+its merits were the absence of a classical optimization loop and of
+training measurements, and the fact that it is built from the same
+Trotterized evolution a device runs anyway.  The two-fragment transfer
+model is a setting in which exactly those merits matter: the ``coarse''
+states are \emph{single computational basis states} (filled pair slots), the
+refinement, the collision and the rodeo controlled evolutions are all
+exponentials of one and the same two-local $XY$ Hamiltonian, and the
+observable of interest is not a ground-state energy but a distribution over
+product eigenstates, which is precisely what a spectral filter measures.
+
+Paragraph 5 (contributions and outline).  \todo{List: (a) orbital-by-orbital
+refinement chains for $\Ni$ and $\Sn$ from a filled configuration, two path
+variants (projector path of Ref.~\cite{EigenQPairing2026} and a two-local
+``orbital-lowering'' path); (b) rodeo filtering of the refined fragment
+states; (c) the collision as the same Trotterized primitive, with an
+interaction-picture split that removes the large single-particle energies
+from the Trotter error; (d) two-fragment rodeo spectroscopy of the exit
+channel and the entropy bracket; (e) gate budgets per accepted preparation,
+collision and readout, verified against exact evolution.  Outline of
+sections.}
+
+% ===========================================================================
+\section{The two-fragment pairing model}
+\label{sec:model}
+% ===========================================================================
+We summarize the model of Ref.~\cite{TwoFragment2026} in the notation used
+there.  Each fragment $X\in\{P,T\}$ is a set of active neutron orbitals $p$
+with single-particle energy $\epsilon_{pX}$ and pair degeneracy
+$\Omega_{pX}=(2j_{pX}+1)/2$.  Restricted to seniority zero, the isolated
+fragment is the constant-strength pairing Hamiltonian
+\begin{equation}
+  \hat H_X=\sum_{p\in X}2\epsilon_{pX}\hat n_{pX}
+  -G_X\sum_{p,p'\in X}\hat P^\dagger_{pX}\hat P_{p'X},
+  \qquad G_X=\frac{20.5}{A_X}\,\mathrm{MeV},
+  \label{eq:HX}
+\end{equation}
+with $M_X$ active pairs, and the collision is
+\begin{equation}
+  \hat H(t,D)=\HP+\HT+\HPT(t,D),\quad
+  \HPT=-G_{PT}(t,D)\sum_{p\in P,\,q\in T}
+  \big(\hat P^\dagger_{qT}\hat P_{pP}+\mathrm{h.c.}\big),
+  \label{eq:Hcoll}
+\end{equation}
+with a Gaussian pulse $G_{PT}(t,D)=G_{\rm pk}(D)e^{-(t/\tau(D))^2}$ and
+$\tau(D)$ fixed by the Coulomb curvature.  For $\Sn+\Ni$ the active spaces
+are those of Table~I of Ref.~\cite{TwoFragment2026}: $\Ni$ has
+$\Omega=(2,1,3,5)$ for $(2p_{3/2},2p_{1/2},1f_{5/2},1g_{9/2})$ with $M_T=2$,
+and $\Sn$ has $\Omega=(4,1,2,6,4,2)$ for
+$(1g_{7/2},3s_{1/2},2d_{3/2},1h_{11/2},2f_{7/2},3p_{3/2})$ with $M_P=5$; the
+fixed-number dimensions are $d_T(2)=9$, $d_P(5)=154$, and the $M=7$ collision
+space has dimension 5554.
+
+\paragraph{Pair-slot encoding.}
+Resolving every orbital into $\Omega_{pX}$ hard-core pair slots
+$i=(X,p,\lambda)$, with $\hat P^\dagger_{pX}=\sum_\lambda\hat b^\dagger_{i}$,
+is an exact representation of the seniority-zero space on the
+permutation-symmetric subspace of each orbital
+(Appendix~B of Ref.~\cite{TwoFragment2026}), and gives
+\begin{equation}
+  \hat H(t,D)=E_c+\sum_i\zeta_iZ_i+\sum_{i<j}J_{ij}(t,D)\,(X_iX_j+Y_iY_j),
+  \label{eq:HXY}
+\end{equation}
+with $\zeta_i=-\epsilon_i+G_{ii}/2$ and $J_{ij}=-G_{ij}/2$, where
+$G_{ij}=G_X$ inside a fragment and $G_{PT}(t,D)$ across.  For $\Sn+\Ni$ this
+is $N_q=11+19=30$ qubits, seven of which are occupied, and the Hamiltonian
+has 30 single-qubit $Z$ terms and $\binom{11}{2}+\binom{19}{2}+11\cdot19
+=55+171+209=435$ two-local $XY$ terms, of which the 209 interfragment
+terms are switched on only during the pulse.  Two features of
+Eq.~\eqref{eq:HXY} drive everything below.  First, the encoding is
+\emph{two-local}: no Jordan--Wigner strings appear, in contrast to the
+eight-qubit pairing model of Ref.~\cite{EigenQPairing2026} where a Trotter
+step of $k=4$ levels required 325 Pauli strings of weight up to eight.
+Second, the total pair number $\hat M=\sum_i\hat n_i$ and each fragment's
+pair number $\hat M_X$ (outside the pulse) are conserved, so every stage
+stays in a fixed-$M$ sector and the sector partition $\kappa$ is read out by
+$Z$ measurements on the target register alone.
+
+\paragraph{Observables.}
+After the pulse the state is analyzed in the product eigenbasis of
+$\HP+\HT$,
+\begin{equation}
+  \ket{\Psi(t_f,D)}=\sum_{\kappa}\sum_{a,b}c_{\kappa ab}(D)\,
+  \ket{E^{a}_{T}(M_T{+}\kappa)}\otimes\ket{E^{b}_{P}(M_P{-}\kappa)},
+  \label{eq:final}
+\end{equation}
+where $a,b=0$ label the fragment ground states.  Ref.~\cite{TwoFragment2026}
+compares $P_{+1}/P_0$ with $P_\kappa=\sum_{ab}\abs{c_{\kappa ab}}^2$ to the
+measured $P_{2n}(D)$, and splits the target entanglement entropy as
+$S_{T|P}=\Snum+\Scfg$ with $\Snum=-\sum_\kappa P_\kappa\log_2P_\kappa$.  At
+the reference distance $D=13.4669$~fm the exact values are $P_0=0.97209$,
+$P_{+1}=0.02206$, $P_{-1}=0.00566$, $P_{+2}=1.96\times10^{-4}$ and
+$S_{T|P}=0.20622$ bits of which $\Scfg=4.31\times10^{-4}$ bits.  These are
+the targets every stage below is checked against.
+
+% ===========================================================================
+\section{The optimizer-free pipeline}
+\label{sec:pipeline}
+% ===========================================================================
+Figure~\ref{fig:pipeline} summarizes the three stages: entrance-state
+preparation by refinement and rodeo (Secs.~\ref{sec:refine},
+\ref{sec:rodeo-prep}), the Trotterized collision (Sec.~\ref{sec:collision}),
+and exit-channel rodeo spectroscopy (Sec.~\ref{sec:rodeo-exit}).  All three
+are exponentials of Eq.~\eqref{eq:HXY} with different coefficient schedules.
+
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox{0.95\columnwidth}{\centering\vspace{2.5cm}\todo{Fig.~1:
+  pipeline schematic.  Left: two registers (11 target slots, 19 projectile
+  slots) grown orbital by orbital from filled configurations; rodeo ancilla.
+  Middle: Gaussian pulse $G_{PT}(t)$, interfragment $XY$ terms switched on.
+  Right: $Z$ readout of $\hat M_T$ plus two-fragment rodeo scan in
+  $(E_T,E_P)$.}\vspace{2.5cm}}}
+  \caption{Schematic of the optimizer-free pipeline.  \todo{caption}}
+  \label{fig:pipeline}
+\end{figure}
+
+% ---------------------------------------------------------------------------
+\subsection{Resolution refinement of the fragment ground states}
+\label{sec:refine}
+% ---------------------------------------------------------------------------
+In Ref.~\cite{EigenQPairing2026} ``resolution'' meant the number $k$ of
+doubly degenerate levels at fixed particle number.  Here it means the set of
+active orbitals of a fragment at fixed pair number $M_X$, which is exactly
+the ``larger active spaces'' extension anticipated in the conclusions of
+Ref.~\cite{TwoFragment2026}, and, read backwards, the frozen-orbital
+approximation being released adiabatically.  Choose a chain of orbital sets
+\begin{equation}
+  \mathcal A_0\subset\mathcal A_1\subset\cdots\subset\mathcal A_R=X,
+\end{equation}
+and let $\mathcal S_r$ be the slots of $\mathcal A_r$.  The prolongation
+$P_r$ embeds a state on $\mathcal S_r$ into $\mathcal S_{r+1}$ by appending
+the new slots in $\ket{0}$; in the pair-slot encoding this is gate-free, as
+it was in canonical Jordan--Wigner order in Ref.~\cite{EigenQPairing2026},
+and the prolonged state satisfies
+$\expval{\hat H_{\mathcal A_{r+1}}}{P_r\psi_r}=\expval{\hat H_{\mathcal A_r}}{\psi_r}$
+exactly.
+
+\paragraph{Chains.}
+The occupations of Table~I of Ref.~\cite{TwoFragment2026} suggest the chains
+of Table~\ref{tab:chains}.  Both start from a \emph{filled} configuration,
+i.e.\ a single computational basis state: $\Ni$ with two pairs in the two
+slots of $2p_{3/2}$, and $\Sn$ with five pairs in the $4+1$ slots of
+$1g_{7/2}$ and $3s_{1/2}$.  No variational or classical preprocessing of any
+kind is needed to start the chain, which is the analogue of the
+$k=2\to4$ bootstrap of Ref.~\cite{EigenQPairing2026} where the $k=2$ coarse
+state was the single filled determinant.  \todo{The exact overlaps of the
+filled states with the full ground states are to be computed; the mean
+occupations $\langle\hat n\rangle/\Omega$ of $3s_{1/2}$ (0.48) and
+$2d_{3/2}$ (0.29) in $\Sn$ suggest that the first projectile step carries
+most of the correlation, whereas for $\Ni$ the depletion of $2p_{3/2}$
+(1.79 of 2 pairs) is mild.}
+
+\begin{table}[t]
+  \caption{Candidate refinement chains for the $\Sn+\Ni$ entrance channel.
+  $|\mathcal S_r|$ is the number of pair slots (qubits), $d_r$ the dimension
+  of the seniority-zero (permutation-symmetric) space at fixed $M_X$,
+  $\binom{|\mathcal S_r|}{M_X}$ the dimension of the fixed-number slot
+  sector in which a gate-level simulation lives, and $n_{XY}$ the number of
+  $XY$ terms of $\hat H_{\mathcal A_r}$.  Overlaps $p_r$ of the prolonged
+  state $P_{r-1}\ket{\mathrm{GS}_{r-1}}$ with $\ket{\mathrm{GS}_r}$, minimum
+  path gaps and extracted refinement times $T^*_r$ are \todo{to be
+  computed}.}
+  \label{tab:chains}
+  \begin{ruledtabular}
+  \begin{tabular}{llcccccc}
+  $X$ & $\mathcal A_r$ & $|\mathcal S_r|$ & $d_r$ & $\binom{|\mathcal S_r|}{M_X}$ & $n_{XY}$ & $p_r$ & $T^*_r$\\
+  \hline
+  $T$ & $\{2p_{3/2}\}$                      & 2  & 1   & 1     & 1   & --- & --- \\
+      & $+\{2p_{1/2},1f_{5/2}\}$            & 6  & 5   & 15    & 15  & \todo{} & \todo{} \\
+      & $+\{1g_{9/2}\}$                     & 11 & 9   & 55    & 55  & \todo{} & \todo{} \\
+  \hline
+  $P$ & $\{1g_{7/2},3s_{1/2}\}$             & 5  & 1   & 1     & 10  & --- & --- \\
+      & $+\{2d_{3/2}\}$                     & 7  & 5   & 21    & 21  & \todo{} & \todo{} \\
+      & $+\{1h_{11/2}\}$                    & 13 & 26  & 1287  & 78  & \todo{} & \todo{} \\
+      & $+\{2f_{7/2},3p_{3/2}\}$            & 19 & 154 & 11628 & 171 & \todo{} & \todo{} \\
+  \end{tabular}
+  \end{ruledtabular}
+\end{table}
+
+\paragraph{Path A: the projector path of Ref.~\cite{EigenQPairing2026}.}
+Each step follows
+\begin{equation}
+  H_r(s)=\cos^2\!\big(\tfrac{\pi s}{2}\big)\,P_r\big(\hat H_{\mathcal A_r}-\mu_r\big)P_r^\dagger
+        +\sin^2\!\big(\tfrac{\pi s}{2}\big)\,\big(\hat H_{\mathcal A_{r+1}}-\mu_{r+1}\big),
+  \label{eq:pathA}
+\end{equation}
+with the shifts $\mu$ controlling the minimum gap as in
+Ref.~\cite{EigenQPairing2026}.  Because the new slots are empty in the
+coarse space, the coarse term is the fine Hamiltonian projected onto the
+empty-new-slot subspace,
+$P_r\hat H_{\mathcal A_r}P_r^\dagger=\Pi_0\hat H_{\mathcal A_{r+1}}\Pi_0$
+with $\Pi_0=\prod_{i\in\mathcal S_{r+1}\setminus\mathcal S_r}\ket{0_i}\!\bra{0_i}$.
+This is the term whose circuit cost dominated the $3\to4$ chain in
+Ref.~\cite{EigenQPairing2026} (a multi-controlled phase on the new qubits,
+$\approx350$ CNOTs per application for two new qubits); here a step adds up
+to six new slots ($1h_{11/2}$), so the multi-controlled structure is
+correspondingly deeper and Path~A is expected to be the expensive option.
+\todo{Give the exact decomposition and CNOT count of $\Pi_0 H\Pi_0$ for the
+$XY$ form: every $XY$ term and $Z$ term acquires the control string
+$\Pi_0$.}
+
+\paragraph{Path B: orbital lowering (a two-local path).}
+The same end points are connected by keeping the full two-local Hamiltonian
+and sweeping the single-particle energies of the new orbitals down from a
+large value,
+\begin{equation}
+  H^{\Lambda}_r(s)=\hat H_{\mathcal A_{r+1}}
+  +\Lambda\,\cos^2\!\big(\tfrac{\pi s}{2}\big)\sum_{i\in\mathcal S_{r+1}\setminus\mathcal S_r}\hat n_i ,
+  \label{eq:pathB}
+\end{equation}
+i.e.\ $\epsilon_{p}(s)=\epsilon_p+\tfrac12\Lambda\cos^2(\pi s/2)$ for the new
+orbitals.  At $s=0$ and $\Lambda\gg G_X\Omega$ the ground state of
+Eq.~\eqref{eq:pathB} is the prolonged coarse state up to corrections of
+order $(G_X\Omega/\Lambda)^2$ (second-order perturbation theory in the
+pair-scattering into the penalized slots eliminates them and reproduces
+$\Pi_0\hat H\Pi_0$ to leading order), so Path~B is a two-local relaxation
+of Path~A.  Along Path~B every Trotter step costs exactly what a collision
+step costs, and the path has a direct physical reading: the frozen orbitals
+of the fragment are lowered adiabatically from infinity to their physical
+position.  \todo{Compute gap, overlap and $T^*$ along both paths for every
+chain step; the comparison of $T^*\times$(cost per step) between A and B is
+one of the new results of this paper.  Check the $\Lambda$ dependence of
+the initial infidelity and of $T^*$; a schedule with $\Lambda\to\infty$
+at $s=0$, e.g.\ $\Lambda\cot^2(\pi s/2)$ regularized, may be preferable.}
+
+\paragraph{Refinement time and sufficient conditions.}
+We extract $T^*$ as in Ref.~\cite{EigenQPairing2026}: the smallest $T$ at
+which the overlap of the transported state with the exact fine ground state
+has reached a stated target, with the $\sin^2$ schedule and the
+Jansen--Ruskai--Seiler bound~\cite{Jansen2007} as the reference whose
+over-estimation we again quantify.  New here is that the fragment
+Hamiltonians are Richardson-type with realistic, non-uniform level spacings
+and degeneracies $\Omega_p>1$; the ratios $G_X/\Delta\epsilon$ are
+$\approx0.1$--$0.3$ ($G_{\Sn}=0.177$~MeV, $G_{\Ni}=0.342$~MeV), i.e.\ the
+fragments are on the weak-coupling side of the $g=1$, $\delta=1$ model of
+Ref.~\cite{EigenQPairing2026}, and the minimum path gaps are set by the
+lowest seniority-zero excitation of each fragment, which in turn is set
+by the orbital spacings rather than by the pairing.  Times are in units of
+$\hbar/\mathrm{MeV}=6.58\times10^{-22}$~s; the collision pulse lasts
+$10\tau=3.42\,\hbar/$MeV for $\Sn+\Ni$, which is the natural yardstick
+for $T^*$.  \todo{Table or figure of spectra along each path; discuss
+whether the orbital-spacing-dominated gaps make refinement \emph{faster}
+than in the $g=1$ model.}
+
+% ---------------------------------------------------------------------------
+\subsection{Rodeo filtering of the refined fragment states}
+\label{sec:rodeo-prep}
+% ---------------------------------------------------------------------------
+Each refined fragment state is cleaned by the rodeo algorithm with
+$\Eobj=E^{(0)}_X(M_X)$, exactly as in Sec.~III.D of
+Ref.~\cite{EigenQPairing2026}: $M$ cycles of a Hadamard, the controlled
+evolution $e^{-i\hat H_Xt_k}$, the phase $e^{i\Eobj t_k}$ and a measurement
+of a single reused ancilla; the ensemble infidelity obeys
+\begin{equation}
+  1-\mathcal F_M=\frac{\sum_{k\neq0}\abs{c_k}^2q_k^M}{p+\sum_{k\neq0}\abs{c_k}^2q_k^M},
+  \qquad q_k=\tfrac12\big(1+e^{-(E_k-E_0)^2\sigma^2/2}\big).
+  \label{eq:fid}
+\end{equation}
+Three things differ from the first paper.  (i) The two fragments are
+uncoupled at $t_i$, so the entrance state is prepared as two independent
+problems on 11 and 19 qubits, each with its own $\Eobj$, and the ancilla can
+be shared.  (ii) $\Eobj$ is known classically for the benchmark
+($d_P(5)=154$), but a rodeo \emph{scan} on the refined state locates it on a
+device as well and doubles as a verification that the refinement reached the
+right state --- the energy-scan mode of the algorithm that
+Ref.~\cite{EigenQPairing2026} used only for illustration.  (iii) The
+controlled evolution is two-local: a controlled $XY$ rotation costs a fixed
+small number of CNOTs, and the controlled-reversal-gate construction of
+Ref.~\cite{BeeLindgren2022} applies directly to $Z$ and $XY$ terms.  The
+width $\sigma$ is chosen from the fragment spectrum so that
+$\Delta_{\min}\sigma\gtrsim5$ as before; \todo{quote $\Delta_{\min}$ of
+each fragment at fixed $M_X$ once computed}.
+
+\todo{Decide whether to keep a variational comparator.  The natural one in
+the $XY$ encoding is pair-UCCD (pUCCD), a product of $XY$ rotations acting
+on the filled configuration; it is cheap and would play the role UCCSD
+played in Ref.~\cite{EigenQPairing2026}.  Given the main finding there,
+the honest framing is: report the matched-observable comparison, but the
+selling point of the present pipeline is that no optimizer is needed
+anywhere between the filled configuration and the final readout.}
+
+% ---------------------------------------------------------------------------
+\subsection{The collision as the same Trotterized primitive}
+\label{sec:collision}
+% ---------------------------------------------------------------------------
+The pulse is propagated with a second-order product formula in the midpoint
+rule for the time dependence of $G_{PT}$,
+\begin{equation}
+  U(t_f,t_i)\approx\prod_{n}
+  e^{-i\hat H_Z\delta t/2}\,e^{-i\hat H_{XY}(\bar t_n)\delta t}\,e^{-i\hat H_Z\delta t/2},
+  \label{eq:trotter}
+\end{equation}
+where $\hat H_Z$ collects the 30 longitudinal terms (which commute and are
+exponentiated exactly by single-qubit rotations) and $\hat H_{XY}(t)$ the 435
+exchange terms, grouped into layers of commuting pairs.  Two observations
+specific to this model.
+
+\paragraph{Interaction picture with respect to $\hat H_Z$.}
+The single-particle energies are $\sim10$~MeV while the couplings are
+$\lesssim0.35$~MeV, so the Trotter error of Eq.~\eqref{eq:trotter} is
+dominated by $[\hat H_Z,\hat H_{XY}]$.  Since $\hat H_Z$ is a sum of
+commuting single-qubit terms, the rotating frame
+$\tilde H_{XY}(t)=e^{i\hat H_Zt}\hat H_{XY}(t)e^{-i\hat H_Zt}$ is still
+two-local --- each $X_iX_j+Y_iY_j$ becomes
+$\cos(\Delta_{ij}t)(X_iX_j+Y_iY_j)+\sin(\Delta_{ij}t)(X_iY_j-Y_iX_j)$ with
+$\Delta_{ij}=2(\zeta_i-\zeta_j)$ --- and its Trotter error is governed by
+$G^2$ rather than $G\epsilon$.  Over the pulse duration $3.4\,\hbar/$MeV
+and with $G_{\rm pk}\le0.3$~MeV this suggests that a modest number of steps
+suffices; \todo{quantify: $P_\kappa(D)$ and $S_{T|P}$ versus $\delta t$ in
+both frames against the DOP853 reference of Ref.~\cite{TwoFragment2026};
+report the step count at which the three-order-of-magnitude fall of
+$P_{2n}(D)$ in Fig.~2 of that paper is reproduced to within the
+experimental scatter}.  The same observation applies to the refinement
+paths, whose Trotterization in Ref.~\cite{EigenQPairing2026} was found to
+be far more forgiving than the sufficient conditions suggest.
+
+\paragraph{Trotter leakage out of the symmetric subspace.}
+The exact evolution preserves the permutation-symmetric subspace of every
+orbital, but an individual $XY$ term between two slots of the same orbital
+does not, so a product formula leaks weight at $O(\delta t^2)$ into
+configurations that are not seniority-zero states of the model.  These
+configurations have different pairing energies (the diagonal term
+$G_Xn(\Omega-n+1)$ is specific to the symmetric irrep), so the leakage is
+energetically resolvable: it shows up as extra weight in a rodeo scan and
+is removed by the exit-channel filter.  \todo{Measure the leaked weight
+versus $\delta t$; it is a cheap and specific Trotter diagnostic for
+this encoding.  Consider ordering the within-orbital terms so that the
+collective exponential $e^{-i\theta\hat P^\dagger_p\hat P_p}$ is applied as
+one block.}
+
+\paragraph{Pulse truncation.}
+Ref.~\cite{TwoFragment2026} integrates over $\pm5\tau$ where the coupling
+is $e^{-25}$ of its peak.  On a device one truncates to $\pm3\tau$
+($e^{-9}\approx10^{-4}$) or less; \todo{report the effect on $P_\kappa$}.
+
+\paragraph{An adiabatic bound on the non-elastic probability.}
+The pulse returns $\hat H(t,D)$ to $\HP+\HT$, so the entrance state is the
+instantaneous ground state at both ends and $1-P_{000}$, the probability of
+having left it, is bounded by the adiabatic theorem with the pulse as the
+schedule --- the same Jansen--Ruskai--Seiler expression we evaluated for
+the refinement path in Sec.~IV.E of Ref.~\cite{EigenQPairing2026}.  Since
+those bounds overestimated the actual leakage by two to three orders of
+magnitude, we expect the bound on $1-P_{000}\approx0.03$ to be loose;
+\todo{evaluate it anyway, as a link between the two papers and as a
+statement about how non-adiabatic sub-barrier transfer is in this model}.
+
+% ---------------------------------------------------------------------------
+\subsection{Rodeo spectroscopy of the exit channel}
+\label{sec:rodeo-exit}
+% ---------------------------------------------------------------------------
+This is the stage where the rodeo algorithm does something the first paper
+did not ask of it.  After the pulse $\hat H=\HP+\HT$ with $[\HP,\HT]=0$, so
+the two fragment Hamiltonians can be filtered \emph{jointly}: $M_T$ rodeo
+cycles with $e^{-i\HT t_k}$ and energy $E_T$, followed by $M_P$ cycles with
+$e^{-i\HP t_k'}$ and energy $E_P$, with one shared ancilla or two.  For the
+state of Eq.~\eqref{eq:final} the all-zero acceptance probability averaged
+over Gaussian time sets is
+\begin{equation}
+  P_{0^{M}}(E_T,E_P)=\sum_{\kappa ab}\abs{c_{\kappa ab}}^2\,
+  q^{M_T}\!\big(E^{a}_{T}(M_T{+}\kappa)-E_T\big)\,
+  q^{M_P}\!\big(E^{b}_{P}(M_P{-}\kappa)-E_P\big),
+  \label{eq:scan2d}
+\end{equation}
+with $q(\Delta)=\tfrac12(1+e^{-\Delta^2\sigma^2/2})$.  A scan in the
+$(E_T,E_P)$ plane therefore displays the final state as peaks at the
+product energies, with heights that converge geometrically to the
+exclusive probabilities $\abs{c_{\kappa ab}}^2$.  Reading out $\hat M_T$ on
+the target register in the same shot assigns each peak its sector $\kappa$
+and removes accidental degeneracies between products belonging to
+different sectors.  Three uses follow.
+
+\paragraph{Exclusive versus inclusive transfer.}
+The quantity compared with the $\Sn+\Ni$ data in Ref.~\cite{TwoFragment2026}
+is $P_{+1}/P_0$, the full one-pair-pickup sector.  The filter with
+$E_T=E^{(0)}_T(3)$, $E_P=E^{(0)}_P(4)$ measures the ground-state-to-ground-state
+channel $\abs{c_{+1,00}}^2$ alone, and the residual
+$P_{+1}-\abs{c_{+1,00}}^2$ is the excited $0^+$ strength of
+$^{62}$Ni$\otimes{}^{114}$Sn populated in the model.  For $\Zr+\Ca$ the
+situation is reversed: the data are inclusive and
+Ref.~\cite{TwoFragment2026} had to place the centroid of the $+1$ sector at
+$Q=0$ by hand; the two-fragment scan resolves the $0^+$ strength in
+$^{42}$Ca orbital by orbital and makes the inclusive-channel approximation
+explicit.  Note that the entrance space of $\Ca$ is empty, so for this
+reaction only $\Zr$ (three pairs in five orbitals, \todo{slot count})
+needs to be prepared, and the target register starts in
+$\ket{0\cdots0}$: $\Zr+\Ca$ is the simplest complete end-to-end case and
+the natural first calculation.
+
+\paragraph{Measuring a small-weight channel.}
+The filter does not need to \emph{prepare} the transferred state with high
+fidelity to \emph{measure} its weight: the acceptance probability obeys
+$P_M=p+\sum_{k\neq0}\abs{c_k}^2q_k^M$ and $p$ is read off the plateau in
+$M$.  For $p=\abs{c_{+1,00}}^2\approx0.02$ the background $2^{-M}(1-p)$
+falls below $p$ at $M\approx6$ and below $10^{-2}p$ at $M\approx13$; for the
+two-pair channel $P_{+2}\approx2\times10^{-4}$ one needs $M\approx19$.
+These cycle counts, times the controlled-evolution cost of
+Sec.~\ref{sec:rodeo-prep}, set the readout budget; the acceptance rate is of
+course $\approx p$ itself, so the shot overhead is $1/p$, as for any
+measurement of a rare channel.  \todo{Table of $M$, $\sigma$, acceptance
+and CNOT count per accepted shot for $\kappa=0,\pm1,+2$.}
+
+\paragraph{A two-sided bracket on the entanglement entropy.}
+Because $[\rho_T,\hat M_T]=0$, Ref.~\cite{TwoFragment2026} writes
+$S_{T|P}=\Snum+\Scfg$ with $\Scfg\ge0$, so $\Snum\le S_{T|P}$; $\Snum$ needs
+only the $Z$ readout of $\hat M_T$.  On the other side, the Shannon entropy
+of the diagonal of $\rho_T$ in any orthonormal basis is an upper bound on
+its von Neumann entropy, and the rodeo scan with $\HT$ alone measures
+exactly that diagonal in the eigenbasis of $\HT$,
+$P_{\kappa a}=\sum_b\abs{c_{\kappa ab}}^2=\mel{E^a_T}{\rho_T}{E^a_T}$.
+Hence
+\begin{equation}
+  \Snum=-\sum_\kappa P_\kappa\log_2P_\kappa\;\le\;S_{T|P}\;\le\;
+  \Sdiag=-\sum_{\kappa,a}P_{\kappa a}\log_2P_{\kappa a},
+  \label{eq:bracket}
+\end{equation}
+and both ends are measured by the same circuit.  Since
+Ref.~\cite{TwoFragment2026} finds $\Scfg/S_{T|P}<0.3\%$ at the reference
+distance and $\le2\%$ at the smallest, the bracket is expected to be tight
+across the whole $D$ range; where it is not, its width is itself a measure
+of the coherence within a transfer sector that the diagonal distribution
+misses.  \todo{Compute $\Sdiag(D)$ from the exact final states and plot the
+bracket against $S_{T|P}(D)$ for both reactions.  The bracket is, to our
+knowledge, the first proposal for a device-level estimate of the
+interfragment entanglement of Ref.~\cite{TwoFragment2026}; check the
+literature on diagonal/``observational'' entropy bounds and cite.}
+
+% ---------------------------------------------------------------------------
+\subsection{Optional: the static di-nuclear ground state}
+\label{sec:static}
+% ---------------------------------------------------------------------------
+\todo{Freeze the coupling at its peak value $G_{\rm pk}(D)$ and ask for the
+ground state of the coupled 30-qubit Hamiltonian.  The refinement path
+$H(s)=\HP+\HT+s\,G_{\rm pk}\hat V_{PT}$ connects the product entrance state to
+it (``coupling refinement'', $P=\mathbb 1$, two-local throughout), and the
+rodeo filter finishes it.  Its interfragment entropy and pair-number
+distribution are the static counterparts of the dynamical ones and give an
+adiabatic reference for the sub-barrier transfer.  Decide whether this
+belongs in this paper or in a follow-up; it is cheap once the pipeline
+exists.}
+
+% ===========================================================================
+\section{What carries over from the pairing-model study}
+\label{sec:inherit}
+% ===========================================================================
+\begin{table*}[t]
+  \caption{Ingredients of Ref.~\cite{EigenQPairing2026} and their status in
+  the present work.}
+  \label{tab:inherit}
+  \begin{ruledtabular}
+  \begin{tabular}{p{0.3\textwidth}p{0.32\textwidth}p{0.32\textwidth}}
+  Ingredient & In Ref.~\cite{EigenQPairing2026} & Here \\
+  \hline
+  Model & constant pairing, $k$ equispaced doubly degenerate levels, $N=4$, $g=1$; optional particle-hole term & two Richardson-type fragments with realistic $\epsilon_p$, $\Omega_p\le6$, $M_P=5$, $M_T=2$; time-dependent interfragment coupling \\
+  Encoding & Jordan--Wigner, $2k$ qubits, Pauli strings of weight up to $2k$ & pair slots, one qubit per slot, strictly two-local $Z$/$XY$ \\
+  Coarse state & UCCSD--VQE or the filled $k=2$ determinant & filled slot configuration (no parameters) \\
+  Prolongation & gate-free in JW order & gate-free \\
+  Refinement path & shift-controlled projector path, Eq.~\eqref{eq:pathA} & Path~A unchanged; Path~B (orbital lowering) new \\
+  $T^*$ protocol, JRS bound & Sec.~III.C, IV.E & reused unchanged \\
+  Rodeo filter & ground-state preparation, Eqs.~\eqref{eq:fid} & reused for fragments; new use as two-fragment spectroscopy, Eq.~\eqref{eq:scan2d} \\
+  Comparators & prolonged, UCCSD, refined inputs to the same filter & \todo{pUCCD?}; main comparison is Path~A vs Path~B and prep/collision/readout budgets \\
+  Cost accounting & CNOTs per accepted preparation, coarse term included & same, plus collision and readout per accepted shot \\
+  Verification & Richardson exact solution, exact sector evolution & exact fragment diagonalization and DOP853 propagation of Ref.~\cite{TwoFragment2026} \\
+  Code & \texttt{pairinglib}, notebook, 26 tests & \todo{generalize to $\Omega_p>1$, non-uniform $\epsilon_p$, two registers, time-dependent $J_{ij}$; fixed-$M$ slot-sector simulator ($\binom{30}{7}=2.0\times10^6$ amplitudes for the full collision)} \\
+  \end{tabular}
+  \end{ruledtabular}
+\end{table*}
+
+\todo{Short prose around Table~\ref{tab:inherit}.  Emphasize the two
+lessons of the first paper that shaped the design here: (1) the coarse
+projector term is the cost driver, hence Path~B; (2) refinement earns its
+place where it replaces an optimizer rather than where it saves gates,
+hence the filled-configuration bootstrap.}
+
+% ===========================================================================
+\section{Results}
+\label{sec:results}
+% ===========================================================================
+\todo{To be written from the notebook.  Planned subsections and figures:}
+\begin{enumerate}
+  \item \textbf{Fragment spectra and path gaps.}  Low-lying seniority-zero
+  spectra of $\Ni$ and $\Sn$ at each chain step; minimum gaps along Paths A
+  and B versus $\mu$ and $\Lambda$.  (Fig.~2)
+  \item \textbf{Refinement: overlap and energy versus $T$} for every chain
+  step and both paths; $T^*$; comparison with the single-shot
+  $\mathcal A_0\to\mathcal A_R$ refinement.  (Fig.~3, Table~\ref{tab:chains})
+  \item \textbf{Rodeo filtering of the fragments:} $1-\mathcal F_M$ versus
+  $M$ for refined inputs at $T^*$ and at a longer $T$; energy scans as a
+  self-check.  (Fig.~4)
+  \item \textbf{Trotterized collision:} $P_\kappa(D)$ and $S_{T|P}(D)$ versus
+  step size, laboratory versus interaction picture, symmetric-subspace
+  leakage, pulse truncation; overlay on Fig.~2 of
+  Ref.~\cite{TwoFragment2026}.  (Fig.~5)
+  \item \textbf{Exit-channel spectroscopy:} the $(E_T,E_P)$ scan at
+  $D=13.4669$~fm; exclusive g.s.-to-g.s.\ probability versus $D$ against
+  the inclusive $P_{+1}/P_0$; the $^{42}$Ca $0^+$ strength for $\Zr+\Ca$.
+  (Fig.~6)
+  \item \textbf{Entropy bracket} $\Snum\le S_{T|P}\le\Sdiag$ versus $D$ for
+  both reactions.  (Fig.~7)
+  \item \textbf{Gate budgets:} CNOTs for preparation (per fragment, per
+  path), collision (per Trotter step and total) and readout (per accepted
+  shot, per channel); total per accepted exclusive event on 30 qubits;
+  verification of every stage against exact evolution.  (Fig.~8, Table~III)
+  \item \textbf{Sufficient conditions versus practice} for the refinement
+  paths and the adiabatic bound on $1-P_{000}$ for the pulse.
+\end{enumerate}
+
+% ===========================================================================
+\section{Discussion and outlook}
+\label{sec:discussion}
+% ===========================================================================
+\todo{Points to make: the pipeline is a single Trotterized $XY$ evolution
+with three coefficient schedules and one ancilla; what the two-local
+encoding buys relative to the JW pairing model; the price of 30 qubits and
+of the rare-channel shot overhead; where refinement could lose (long $T^*$
+if the first projectile step has a low overlap or a small gap --- here a
+longer chain or a pUCCD warm start are the fallbacks, and ``optimized
+refinement'' in the sense of the nucleation paper~\cite{Sadia2026} is the
+variational one); extensions listed in Ref.~\cite{TwoFragment2026} ---
+larger spaces, broken pairs, orbital-dependent couplings --- and which of
+them the present primitives survive (broken pairs: yes, cf.\ the
+particle-hole section of Ref.~\cite{EigenQPairing2026}, at the price of
+leaving the two-local pair-slot encoding); hardware: the 11-qubit $\Ni$
+preparation and the 26-qubit $\Zr+\Ca$ collision as device targets.}
+
+\begin{acknowledgments}
+\todo{Funding, QONTROL, FRIB, EIGEN-Q/QuNorth, computing.}
+\end{acknowledgments}
+
+\section*{Code availability}
+\todo{Repository, notebook, tests.}
+
+% ===========================================================================
+\begin{thebibliography}{99}
+\bibitem{TwoFragment2026} \todo{Authors}, ``Two-fragment pairing model for
+sub-barrier neutron pair transfer reactions between superfluid nuclei,''
+draft (2026), \texttt{paper2/twontransfer.pdf}.
+\bibitem{EigenQPairing2026} S.~Bogner, C.~Glittum, H.~Hergert,
+M.~Hjorth-Jensen, G.~Lange, R.~LaRose, D.~Lee, F.~P.~Massel, and J.~P.~Sadia,
+``Resolution refinement followed by the rodeo algorithm for eigenstate
+preparation: implementation and assessment on the pairing Hamiltonian,''
+submitted to Phys.\ Rev.\ C (2026).
+\bibitem{Bogner2026} \todo{resolution-refinement reference as cited in
+paper 1}.
+\bibitem{Choi2021} K.~Choi, D.~Lee, J.~Bonitati, Z.~Qian, and J.~Watkins,
+Phys.\ Rev.\ Lett.\ \textbf{127}, 040505 (2021).
+\bibitem{Qian2024} Z.~Qian \emph{et al.}, Eur.\ Phys.\ J.\ A \textbf{60},
+151 (2024).
+\bibitem{Jansen2007} S.~Jansen, M.-B.~Ruskai, and R.~Seiler, J.\ Math.\
+Phys.\ \textbf{48}, 102111 (2007).
+\bibitem{BeeLindgren2022} M.~Bee-Lindgren \emph{et al.}, Eur.\ Phys.\ J.\ A
+\textbf{61}, 263 (2025).
+\bibitem{Sadia2026} J.~P.~Sadia, M.~Hjorth-Jensen, D.~Lee, and R.~LaRose,
+arXiv:2609.37527 (2026).
+\bibitem{Corradi2011} L.~Corradi \emph{et al.}, Phys.\ Rev.\ C \textbf{84},
+034603 (2011).
+\bibitem{Montanari2014} D.~Montanari \emph{et al.}, Phys.\ Rev.\ Lett.\
+\textbf{113}, 052501 (2014).
+\bibitem{Potel2013} G.~Potel, A.~Idini, F.~Barranco, E.~Vigezzi, and
+R.~A.~Broglia, Rep.\ Prog.\ Phys.\ \textbf{76}, 106301 (2013).
+\end{thebibliography}
+
+\end{document}
