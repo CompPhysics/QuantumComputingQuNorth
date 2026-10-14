@@ -22,6 +22,19 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   Both are generated from the notebook's results and figures. Every number in
   either paper must trace to a notebook output.  Keep the two consistent:
   the f=0 row of paper II's tables is paper I's result.
+- Paper III, `paper3/eigenq_hubbard.tex` (RevTeX, PRC): LATTICE refinement of
+  the Hubbard model (chain 2->4->8->16, square 2x2->4x4), same authors and
+  pipeline.  It has its OWN notebook, `notebooks/ResolutionRefHubbard.ipynb`,
+  built from scratch by `scripts/build_notebook_hubbard.py` (nbformat, 28 cells,
+  8 figures, ~25 min clean run) on the module `src/pairinglib/hubbard.py`
+  (`import pairinglib.hubbard as hb`; tests in `tests/test_hubbard.py`).  Figures
+  are `paper3/figs/fig1-8.png` (`make figures-hubbard`); `make check-hubbard`
+  asserts the anchors (chain 4->8 U=4: E_low -4.976573, E_high -5.634427;
+  16 sites: -7.209813; 4x4 (2,2): -10.4197).  The ED reference and its
+  conventions are `paper3/Hubbard.ipynb` (unchanged); `paper3/prototype/` is the
+  superseded sector-exact prototype whose numbers the notebook reproduces;
+  `paper3/NOTES.md` is the running status; the first draft is
+  `paper3/eigenq_hubbard_v1_backup.tex`.
 
 ## Skills (in `.claude/skills/`) — read the matching one before working
 - `pairing-model`  — Hamiltonian conventions, encoding, benchmark anchors, API.
@@ -37,7 +50,11 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 5. `make figures`   — extract notebook PNGs into `paper/figs/`.
 6. `make paper`     — compile `paper/eigenq_pairing.tex` to PDF (paper I).
 7. `make paper-ph`  — copy the V_ph figures and compile paper II; `make papers` builds both.
-8. `make all`       — the whole chain end to end.
+8. `make all`       — the whole chain end to end (papers I and II).
+9. `make hubbard`   — paper III: build+execute the Hubbard notebook, check it, extract
+   figures, compile `paper3/eigenq_hubbard.tex` (needs `texlive-publishers` for
+   revtex4-2; the individual targets are notebook-hubbard / check-hubbard /
+   figures-hubbard / paper-hubbard).
 
 ## Conventions
 - Python: import `pairinglib as pl`. Keep new physics in the package + a test.
@@ -69,7 +86,28 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   first-order step bound 3.4e4 at T* vs 160 (order 1) / 40 (order 2) in practice.
 - Review history: `paper/revisions.txt` (external review) and
   `paper/response_to_revisions.md` (what was verified/changed/open).
+- Hubbard conventions (`hubbard.py`): t=1, OBC, block JW ordering (up orbitals
+  then down), sorted uint64 masks, H = K_up (x) 1 + 1 (x) K_dn + U diag; block
+  prolongation = bonding combination; Galerkin coarse model chain (t/2, U/2) - tN,
+  square (t/2, U/4) - 2tN; Path A = projector path with mu = E_low + 2t; Path B =
+  un-dimerisation with extra intra-block hopping Lambda cos^2 (ceiling
+  1-p ~ (t/Lambda)^2); rodeo width sigma = 5/Delta_eff with Delta_eff the lowest
+  excitation carrying weight (symmetry-protected gap, NOT the sector gap);
+  symmetry labels from `total_spin` (S^+ map), `site_permutation` (reflection) and
+  `c4v_weights` (character projection).  Key lesson: the (2,2) 4x4 fine ground
+  state is an (A2, S=1) TRIPLET, the coarse plaquette ground state a (B1, S=0)
+  singlet -> zero overlap; refine the lowest coarse state in the target's sector.
+- Hubbard circuit level: fine chain L=8 has 52 weight-<=2 strings; step CNOTs
+  72 (order 1) / 144 (order 2) / 352 (controlled order 2); Path-A coarse term
+  1088 CNOTs/application (Toffoli-ladder convention; 12272 with the Gray-code
+  convention of paper I); T=16 needs n_s = 128 (A) / 256 (B, Lambda=8) / 512
+  (B, Lambda=16) second-order steps.  Trotterised rodeo: fixed step dt=0.1
+  diagonalised once (`trotter_evolution`), E_obj = Trotter-effective ground
+  energy, floor 5.8e-5 (dt=0.25 gives 2.6e-3 — too coarse for Hubbard norms).
+  Verdict at U=4: Path B (Lambda=8) 3.7e4 CNOTs ~ UCCSD L=8 3.1e4; Path A 3.0e5.
 
 ## Definition of done
 A change is done only when `make test` and `make check` pass and (if a paper
-changed) `make paper` / `make paper-ph` builds without unresolved references.
+changed) `make paper` / `make paper-ph` / `make paper-hubbard` builds without
+unresolved references; a change to `hubbard.py` or the Hubbard notebook also
+needs `make check-hubbard` to pass.

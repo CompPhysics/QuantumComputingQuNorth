@@ -2,9 +2,10 @@
 
 Reproducible pipeline for **resolution refinement + the rodeo algorithm** applied
 to the constant-pairing Hamiltonian — a controlled demonstration of the EIGEN-Q
-eigenstate-preparation workflow, producing a Jupyter notebook and two LaTeX
-articles: paper I on the pure pairing model and paper II on the pairing model
-with a seniority-breaking particle-hole interaction.
+eigenstate-preparation workflow, producing Jupyter notebooks and three LaTeX
+articles: paper I on the pure pairing model, paper II on the pairing model
+with a seniority-breaking particle-hole interaction, and paper III on the
+lattice refinement of the Hubbard model.
 
 ```
 pairing-eigenq/
@@ -12,9 +13,10 @@ pairing-eigenq/
 ├── .claude/skills/           # 4 Agent Skills (pairing-model, vqe-circuits,
 │                             #   notebook-builder, physics-paper)
 ├── src/pairinglib/           # tested Python package (single source of truth)
-├── notebooks/                # ResolutionRefPairing.ipynb (build artifact)
+├── notebooks/                # ResolutionRefPairing.ipynb, ResolutionRefHubbard.ipynb (build artifacts)
 ├── paper/                    # paper I: eigenq_pairing.tex + figs/ (generated)
 ├── paper_ph/                 # paper II: eigenq_pairing_ph.tex + figs/ (copied from paper/figs)
+├── paper3/                   # paper III: eigenq_hubbard.tex (RevTeX) + figs/, Hubbard.ipynb (ED reference)
 ├── tests/                    # pytest: API + benchmark anchors
 ├── scripts/pipeline.py       # one-command orchestration
 ├── Makefile                  # install / test / notebook / check / figures / paper / paper-ph / all
@@ -27,6 +29,7 @@ make install        # pip install -e . + jupyter/latex deps
 make test           # library + benchmark anchors
 make all            # notebook -> check -> figures -> both paper PDFs
 make paper-ph       # paper II only (copies the V_ph figures first)
+make hubbard        # paper III: Hubbard notebook -> check -> figures -> PDF (revtex4-2)
 ```
 
 ## Working with Claude Code

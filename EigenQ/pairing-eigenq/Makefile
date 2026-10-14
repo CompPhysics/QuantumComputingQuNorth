@@ -4,10 +4,14 @@ FIGS   := paper/figs
 TEXPH  := paper_ph/eigenq_pairing_ph.tex
 FIGSPH := paper_ph/figs
 PHFIGS := fig12 fig13 fig14 fig15 fig16 fig18
+NBH    := notebooks/ResolutionRefHubbard.ipynb
+TEXH   := paper3/eigenq_hubbard.tex
+FIGSH  := paper3/figs
 SKILLS := .claude/skills
 PY     := python3
 
-.PHONY: install test notebook check figures figures-ph paper paper-ph papers all clean
+.PHONY: install test notebook check figures figures-ph paper paper-ph papers all clean \
+        notebook-hubbard check-hubbard figures-hubbard paper-hubbard hubbard
 
 install:
 	$(PY) -m pip install -e ".[notebook,dev]"
@@ -38,7 +42,23 @@ paper-ph: figures-ph
 
 papers: paper paper-ph
 
+# ---- paper III: lattice refinement of the Hubbard model (own notebook, built by scripts/build_notebook_hubbard.py)
+notebook-hubbard:
+	$(PY) scripts/build_notebook_hubbard.py
+	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NBH) 3600
+
+check-hubbard:
+	$(PY) scripts/check_notebook_hubbard.py $(NBH) 8
+
+figures-hubbard:
+	$(PY) $(SKILLS)/physics-paper/scripts/extract_figures.py $(NBH) $(FIGSH)
+
+paper-hubbard: figures-hubbard
+	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXH)
+
+hubbard: notebook-hubbard check-hubbard paper-hubbard
+
 all: test notebook check papers
 
 clean:
-	rm -rf paper/*.aux paper/*.log paper/*.out paper_ph/*.aux paper_ph/*.log paper_ph/*.out __pycache__ src/*.egg-info
+	rm -rf paper/*.aux paper/*.log paper/*.out paper_ph/*.aux paper_ph/*.log paper_ph/*.out paper3/*.aux paper3/*.log paper3/*.out paper3/*.bbl paper3/*Notes.bib __pycache__ src/*.egg-info
