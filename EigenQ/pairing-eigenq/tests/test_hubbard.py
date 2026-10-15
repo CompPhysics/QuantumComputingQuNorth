@@ -113,3 +113,17 @@ def test_rodeo_formula_and_trotter():
     r = hb.uccsd_hubbard(N, bonds, 2, 2, 4.0, maxiter=300)
     assert r["E_hf"] > r["E"] > w[0] - 1e-9
     assert r["E"] - w[0] < 0.05 and abs(hb.total_spin(r["psi"], N, 2, 2)[0]) < 1e-5
+
+
+def test_uccsd_pruning_and_seed():
+    # keep= restricts the pool (labels and CNOT count follow), theta0= seeds the optimizer
+    N, bonds = hb.chain(4)
+    H, _ = hb.H_hubbard(N, bonds, 2, 2, 4.0); Hd = H.toarray()
+    full = hb.uccsd_hubbard(N, bonds, 2, 2, 4.0, maxiter=300, H=Hd)
+    keep = [i for i, th in enumerate(full["theta"]) if abs(th) > 1e-3]
+    pr = hb.uccsd_hubbard(N, bonds, 2, 2, 4.0, maxiter=300, H=Hd, keep=keep, theta0=full["theta"][keep])
+    assert pr["n_params"] == len(keep) < full["n_params"]
+    assert len(pr["singles"]) + len(pr["doubles"]) == len(keep)
+    assert hb.uccsd_cnots(N, pr["singles"], pr["doubles"])["total"] < hb.uccsd_cnots(N, full["singles"], full["doubles"])["total"]
+    assert abs(pr["E"] - full["E"]) < 1e-4                       # the dropped amplitudes were negligible
+    assert abs(np.linalg.norm(pr["psi"]) - 1.0) < 1e-10

@@ -1,16 +1,59 @@
 # Paper 3 — refinement + rodeo on the Hubbard model
 
-## Status 2026-10-14: second draft, all numbers from the project notebook
+## Status 2026-10-15: third draft (revision after the paper-I assessment), US spelling
 
-Files: `eigenq_hubbard.tex` / `.pdf` (RevTeX, 12 pp., same author list as paper I;
-red `[...]` = open items), `figs/fig1-8.png` (extracted from the notebook),
-`eigenq_hubbard_v1_backup.tex` (the 2026-10-11 first draft), `Hubbard.ipynb` (ED
-reference, unchanged), `prototype/` (superseded sector-exact prototype; the
-notebook reproduces its numbers).
+Files: `eigenq_hubbard.tex` / `.pdf` (RevTeX, 15 pp., structured PRC abstract, same
+author list as paper I; red `[...]` = open items), `figs/fig1-10.png` (extracted from
+the notebook; the paper uses 1–7, 9, 10 — fig8 is superseded by fig10),
+`eigenq_hubbard_v1_backup.tex` (2026-10-11 first draft), `eigenq_hubbard_v2_backup.tex`
+(2026-10-14 second draft), `Hubbard.ipynb` (ED reference, unchanged), `prototype/`
+(superseded sector-exact prototype; the notebook reproduces its numbers).
+
+### Revision 2026-10-15 (the points of `paper/article_correctness_assessment.md` that apply)
+Notebook Section 11 (cells 28–29, figs 9–10), all at U = 4, chain 4→8:
+- Path A counted with the coarse term SPLIT into its three conditioned coarse groups
+  [P(Dc−μ)P†, P Kc_even P†, P Kc_odd P†]: n_s = 64/128/256/512 → 0.997299/0.999818/
+  0.999941/0.999943 (one block: 0.997456/0.999831/0.999941/0.999943); n_s = 128 and the
+  296 976-CNOT cost unchanged.  The split state is the one in the comparison.
+- Pruned UCCSD: 72 of 198 amplitudes > 1e-2, 98 > 1e-3; keeping those 98 (12 singles,
+  86 doubles) and re-optimizing (`uccsd_hubbard(keep=, theta0=)`): E = −5.618755,
+  1−F = 3.145e-3 (full: −5.618758, 3.143e-3), 15 120 CNOTs vs 30 864.
+- Ordinary adiabatic ramp H(s) = K + sin²(πs/2) D from the free-fermion determinant
+  (Givens network 112 CNOTs): p0 = 0.7804, Δ_eff = 0.588; exact slices p(4) = 0.96878,
+  p(8) = 0.99686, p(12) = 0.99960, p(16) = 0.99989, p(24) = 0.99999 (as fast as Path A,
+  Fig. 9 right).  Trotterized: T=8 n_s=64 → 0.996891 (9 328 CNOTs); T=16 n_s=128 →
+  0.999659 (18 544 CNOTs).
+- Response norm χ_u(s) of Path A: χ_u(0) = 0.375/0.527/0.715/0.874 (U = 0/2/4/8),
+  maximum at s = 0 for every U; at U=8 it rises again to 0.45 at s=1 (Fig. 9 left).
+- Fixed-step filter (quantized times, E_obj = E_eff): long-run state = the step
+  eigenvector closest to the ground state (floor 5.8e-5), acceptance tends to the
+  input weight on it (does not decay).
+- Matched comparison (Table VI/VII, Fig. 10): eight inputs, M = 0..6, CNOTs per attempt
+  and per accepted, bootstrap rse (≤ 18 % unrefined at M=6, < 10 % refined; mean 68
+  steps = 2.4e4 CNOTs per cycle).  Minimum cost per accepted preparation at targets
+  1e-3 / 3e-4 / 1e-4: ramp T=16 1.9e4 (M=0) / 4.0e4 (M=1) / 9.1e4 (M=3); ramp T=8
+  5.6e4 / 1.1e5 / 1.5e5; UCCSD pruned 6.2e4 / 1.2e5 / –; UCCSD full 7.8e4 / 1.3e5 / –;
+  Path B Λ=8 1.4e5 (M=4) / 1.6e5 (M=5) / –; Path A 3.0e5 / 3.0e5 / 3.4e5 (M=2);
+  prolonged and determinant reach none.  Only the ramp T=16 and Path A reach the floor
+  within six cycles (others a factor 1.5–80 above it at M=6).
+- VERDICT CHANGED vs the second draft: the ordinary adiabatic ramp from the
+  free-fermion determinant is the cheapest route at every target (×3 vs pruned UCCSD,
+  ×4–7 vs Path B, ×16 vs Path A) because at this size the determinant has the same p0
+  (0.78 vs 0.80) and the same Δ_eff as the prolonged coarse state.  The case for
+  refinement is the regime where the coarse eigenstate beats the determinant (larger
+  L, stronger U) — to be demonstrated (8→16 at circuit level).
+- Text: structured abstract; error budget (√ε_low + a_ad + η)²; "calibrated against
+  the exact answer"; Eq. (fid) = exact ensemble on resonance, 2^−M a lower bound,
+  sampled values carry errors; UCCSD ordering stated; isolated-branch condition
+  verified by Fig. 3; JRS bound vs T* = different criteria; paper I's inverse-gap
+  statement no longer "re-read" (it was withdrawn there); fig:budget caption
+  corrected ("refined inputs reach the floor; unrefined do not"); setup costs /
+  amortization / unoptimized parameters qualifications; bibliography in citation
+  order (HubbardNotebook before Jansen2007).
 
 Pipeline: `src/pairinglib/hubbard.py` (library, `tests/test_hubbard.py`) →
 `scripts/build_notebook_hubbard.py` → `notebooks/ResolutionRefHubbard.ipynb`
-(28 cells, 8 figures, ~25 min clean run) → `scripts/check_notebook_hubbard.py`
+(31 cells, 10 figures, ~45 min clean run) → `scripts/check_notebook_hubbard.py`
 (anchors) → `make figures-hubbard` → `make paper-hubbard` (needs revtex4-2, i.e.
 `texlive-publishers`).  `make hubbard` runs the chain.
 
@@ -49,13 +92,13 @@ Pipeline: `src/pairinglib/hubbard.py` (library, `tests/test_hubbard.py`) →
 - Circuits: L=8 chain 52 strings weight ≤ 2 (verified by full-space Pauli
   decomposition at L=4); step CNOTs 72/144/352 (order 1 / order 2 / controlled 2);
   prolongation 16; Path-A coarse term 1088 (Toffoli ladder) or 12272 (Gray code)
-  per application.  Trotterised refinement T=16, U=4: n_s = 128 (A), 256 (B Λ=8),
+  per application.  Trotterized refinement T=16, U=4: n_s = 128 (A), 256 (B Λ=8),
   512 (B Λ=16) second-order steps for |p−p_exact| ≤ 1e-3; first order not converged
-  at 512.  Trotterised rodeo: fixed step diagonalised once, E_obj = Trotter-effective
+  at 512.  Trotterized rodeo: fixed step diagonalized once, E_obj = Trotter-effective
   eigenphase, δt = 0.1 (floor 5.8e-5; δt = 0.25 gives 2.6e-3 and E_eff−E0 = 0.09).
-  Matched comparison (Table VI/Fig. 8): Path B Λ=8 3.7e4 CNOTs (p 0.9921) ~ UCCSD
+  Matched comparison (second draft, Fig. 8): Path B Λ=8 3.7e4 CNOTs (p 0.9921) ~ UCCSD
   3.1e4 (p 0.9969); Path A 3.0e5 (p 0.9998, coarse term dominates); prolonged needs
-  6 cycles/1.5e5 for 5e-3.  Same verdict as paper I: not a gate saver, optimizer-free.
+  6 cycles/1.5e5 for 5e-3.  Superseded by the eight-input comparison above.
 
 ## Still open (red in the tex)
 
@@ -70,3 +113,7 @@ Pipeline: `src/pairinglib/hubbard.py` (library, `tests/test_hubbard.py`) →
    paper I (check).
 6. Possible: UCCSD coarse solver with the target's quantum numbers imposed; optimized
    refinement (nucleation-style) to cut the 1e2–1e3 Trotter steps.
+7. From the assessment: device-level calibration protocol for (T, μ_buf, n_s, δt,
+   E_obj); ADAPT-VQE proper and a matched shot budget; the 8→16 chain at the circuit
+   level (does the coarse eigenstate beat the free-fermion determinant at larger L?);
+   joint search over (T, μ_buf, Λ, n_s, δt) for the minimum-cost curves.

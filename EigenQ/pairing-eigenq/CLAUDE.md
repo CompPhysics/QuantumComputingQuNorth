@@ -25,16 +25,19 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 - Paper III, `paper3/eigenq_hubbard.tex` (RevTeX, PRC): LATTICE refinement of
   the Hubbard model (chain 2->4->8->16, square 2x2->4x4), same authors and
   pipeline.  It has its OWN notebook, `notebooks/ResolutionRefHubbard.ipynb`,
-  built from scratch by `scripts/build_notebook_hubbard.py` (nbformat, 28 cells,
-  8 figures, ~25 min clean run) on the module `src/pairinglib/hubbard.py`
+  built from scratch by `scripts/build_notebook_hubbard.py` (nbformat, 31 cells,
+  10 figures, ~45 min clean run) on the module `src/pairinglib/hubbard.py`
   (`import pairinglib.hubbard as hb`; tests in `tests/test_hubbard.py`).  Figures
-  are `paper3/figs/fig1-8.png` (`make figures-hubbard`); `make check-hubbard`
-  asserts the anchors (chain 4->8 U=4: E_low -4.976573, E_high -5.634427;
+  are `paper3/figs/fig1-10.png` (`make figures-hubbard`; the paper uses 1-7, 9, 10);
+  `make check-hubbard` (10 figures) asserts the anchors (chain 4->8 U=4: E_low -4.976573, E_high -5.634427;
   16 sites: -7.209813; 4x4 (2,2): -10.4197).  The ED reference and its
   conventions are `paper3/Hubbard.ipynb` (unchanged); `paper3/prototype/` is the
   superseded sector-exact prototype whose numbers the notebook reproduces;
-  `paper3/NOTES.md` is the running status; the first draft is
-  `paper3/eigenq_hubbard_v1_backup.tex`.
+  `paper3/NOTES.md` is the running status; drafts are kept as
+  `paper3/eigenq_hubbard_v1_backup.tex` (prototype numbers) and `_v2_backup.tex`
+  (2026-10-14, before the assessment revision).  Paper III was revised on
+  2026-10-15 against the paper-I assessment (notebook Section 11, US spelling,
+  structured PRC abstract).
 
 ## Skills (in `.claude/skills/`) — read the matching one before working
 - `pairing-model`  — Hamiltonian conventions, encoding, benchmark anchors, API.
@@ -79,9 +82,35 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   `scripts/extend_notebook_assess.py`, which ALSO patches three original cells:
   the fine energy scan is centred on the coarse-scan maximum, the rodeo
   convergence cell resets seed 7 per input and plots exact-ensemble curves with
-  standard errors, the shift-scan panel shows both affine fits; figs 19-20;
-  `make check` now expects 20 figures).  `scripts/verify_assessment.py`
-  recomputes every number claimed in the assessment.
+  standard errors, the shift-scan panel shows both affine fits; figs 19-20),
+  EXT:LARGE (2026-10-15: four pairs on eight levels, N=8, k=8, 16 qubits,
+  seniority zero; code from `scripts/large_space_checks.py`, inserted by
+  `scripts/extend_notebook_large.py`; figs 21-22; paper I Sec. V.F, Tables
+  tab:large/tab:shift/tab:largebudget; `make check` now expects 22 figures).
+  `scripts/verify_assessment.py` recomputes every number claimed in the assessment.
+- Seniority-zero pair basis: `pairinglib.seniority` (`import pairinglib.seniority as sz`;
+  `pair_basis`, `H_pair`, `pair_terms` = [D, h_pq] (the seniority-zero blocks of
+  `model_terms`, verified), `prolong_pair`, `refine_pair`/`refine_pair_overlaps`,
+  `ramp_terms`, `pair_double_ansatz` (the restricted P(k-P)-parameter UCCSD, 48
+  CNOTs per rotation), `coarse_term_cnots` (Gray-code convention: 2->4 14,
+  3->4 348, 4->8 (P=4) 254, 6->8 4872), `pair_encoding_cnots` (one qubit per
+  level: step 112/240 at k=8)); tests in `tests/test_seniority.py`.  Use it for
+  any pure-pairing study with k > 4 (70 states at k=8, P=4 instead of 12 870).
+- k=8, N=8, g=1 anchors (paper I Sec. V.F): E0 = 8.889170, E_HF = 10, gap 2.592,
+  p_HF = 0.690; 16-pair ansatz 1-F 3.1e-3 (768 CNOTs); chi_u(0) = P(k-P) g^2/(4 b^2)
+  (= 11.1 at b=0.6); T*(1e-3) = 50/25/8/6/8/10 for mu_buf = 0.6/1/2/4/8/16 (n_s =
+  -/160/40/40/40/80); HF ramp exact p(6) = 0.99993, min gap 2 at all g; step
+  1360/1856 CNOTs; digital filter: dt=0.25 REJECTED (map eigenvalue 0.96, floor 1),
+  dt=0.1 floor 4.6e-5 (eigenvalue 0.9933), dt=0.05 3.1e-6; cycle 1.2e5 CNOTs
+  (sigma=4); g=2: sigma=1.5, dt=0.05 (floor 2.5e-5), cycle 9.0e4.  Min cost per
+  accepted prep at 1e-3/3e-4/1e-4 (g=1): ramp T=6 1.1e5/2.2e5/4.8e5; refined
+  mu_buf=4 T=6 1.3e5/2.4e5/5.0e5; 16-pair ansatz 2.4e5/5.1e5/7.4e5; determinant
+  none (1.0e-2 at M=6).  g=2: ramp T=8 2.2e5/4.0e5/6.0e5; refined mu_buf=8 T=8
+  2.6e5/4.4e5/6.4e5; ansatz 5.5e5/-/-.  VERDICT: at 16 qubits refinement+filter
+  beats the variational route (x1.5-2) and the filtered determinant, but the
+  HF ramp stays cheaper by the coarse-term overhead (4-19%) at g=1 and g=2 once
+  the shift is scaled with the size (mu_buf=0.6 of k=4 is 6x too slow at k=8).
+  Pair encoding: all adiabatic costs /12, cycles /8, same ranking.
 - Compare like with like: an energy error is NOT an infidelity
   (<H>-E0 >= gap*(1-F)).  UCCSD k=4, g=1 infidelities: 1.78e-4 (f=0),
   1.01e-3 (f=0.2), 3.72e-3 (f=0.5).  Every comparison with the pipeline uses the
@@ -114,13 +143,16 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 - Review history: `paper/revisions.txt` + `paper/response_to_revisions.md`
   (2026-10-02) and `paper/article_correctness_assessment.md` +
   `paper/response_to_assessment.md` (2026-10-14; previous tex kept as
-  `paper/eigenq_pairing_v4_backup.tex`).  Paper II has NOT been re-audited
+  `paper/eigenq_pairing_v4_backup.tex`; v5 = before the reference/abstract/US
+  pass; v6 = before the N=8, k=8 section of 2026-10-15).  Paper II has NOT been re-audited
   against the 2026-10-14 points (fixed-cycle comparisons, "never couples").
+- Spelling: US English in all three papers (Trotterized, diagonalized, centered,
+  neighbor, un-dimerization, analog, ...).
 - Hubbard conventions (`hubbard.py`): t=1, OBC, block JW ordering (up orbitals
   then down), sorted uint64 masks, H = K_up (x) 1 + 1 (x) K_dn + U diag; block
   prolongation = bonding combination; Galerkin coarse model chain (t/2, U/2) - tN,
   square (t/2, U/4) - 2tN; Path A = projector path with mu = E_low + 2t; Path B =
-  un-dimerisation with extra intra-block hopping Lambda cos^2 (ceiling
+  un-dimerization with extra intra-block hopping Lambda cos^2 (ceiling
   1-p ~ (t/Lambda)^2); rodeo width sigma = 5/Delta_eff with Delta_eff the lowest
   excitation carrying weight (symmetry-protected gap, NOT the sector gap);
   symmetry labels from `total_spin` (S^+ map), `site_permutation` (reflection) and
@@ -131,10 +163,24 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   72 (order 1) / 144 (order 2) / 352 (controlled order 2); Path-A coarse term
   1088 CNOTs/application (Toffoli-ladder convention; 12272 with the Gray-code
   convention of paper I); T=16 needs n_s = 128 (A) / 256 (B, Lambda=8) / 512
-  (B, Lambda=16) second-order steps.  Trotterised rodeo: fixed step dt=0.1
-  diagonalised once (`trotter_evolution`), E_obj = Trotter-effective ground
-  energy, floor 5.8e-5 (dt=0.25 gives 2.6e-3 — too coarse for Hubbard norms).
-  Verdict at U=4: Path B (Lambda=8) 3.7e4 CNOTs ~ UCCSD L=8 3.1e4; Path A 3.0e5.
+  (B, Lambda=16) second-order steps.  Trotterized rodeo: fixed step dt=0.1
+  diagonalized once (`trotter_evolution`), E_obj = Trotter-effective ground
+  energy, floor 5.8e-5 (dt=0.25 gives 2.6e-3 — too coarse for Hubbard norms);
+  quantized times => long-run state is the step eigenvector, acceptance does
+  not decay.  Path A is COUNTED with the coarse term split into its three
+  conditioned coarse groups (n_s=128 unchanged, 296 976 CNOTs).  Baselines
+  that must appear in every paper-III budget statement (U=4, chain 4->8):
+  the ordinary U-ramp K -> K+D from the free-fermion determinant (Givens 112
+  CNOTs; exact p(8)=0.99686, p(16)=0.99989; Trotterized T=8 n_s=64 9 328
+  CNOTs p=0.99689, T=16 n_s=128 18 544 CNOTs p=0.99966) and the PRUNED UCCSD
+  (98 of 198 amplitudes > 1e-3, `uccsd_hubbard(keep=, theta0=)`, 15 120 CNOTs,
+  same 1-F 3.1e-3).  Minimum cost per accepted preparation at 1e-3/3e-4/1e-4:
+  ramp T=16 1.9e4/4.0e4/9.1e4; pruned UCCSD 6.2e4/1.2e5/-; Path B (Lambda=8)
+  1.4e5/1.6e5/-; Path A 3.0e5/3.0e5/3.4e5.  VERDICT: the U-ramp is the
+  cheapest at every target (x3 pruned UCCSD, x4-7 Path B, x16 Path A) because
+  the determinant has the same p0 and Delta_eff as the prolonged state at this
+  size; refinement's case is larger L / stronger U, not demonstrated.  Response
+  norm chi_u(0) = 0.375/0.527/0.715/0.874 (U=0/2/4/8), max at s=0.
 
 ## Definition of done
 A change is done only when `make test` and `make check` pass and (if a paper

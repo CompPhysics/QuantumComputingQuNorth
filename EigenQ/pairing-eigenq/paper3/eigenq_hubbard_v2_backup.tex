@@ -1,0 +1,1026 @@
+\documentclass[
+  aps,
+  prc,
+  reprint,
+  superscriptaddress,
+  floatfix,
+  nofootinbib
+]{revtex4-2}
+
+% ---------------------------------------------------------------------------
+%  SECOND DRAFT -- 2026-10-14
+%  Resolution refinement + rodeo algorithm on the Hubbard model (paper III).
+%  Companion to paper/eigenq_pairing.tex (paper I) and
+%  paper_ph/eigenq_pairing_ph.tex (paper II); same authors, same pipeline.
+%  Every number below traces to an output of
+%  notebooks/ResolutionRefHubbard.ipynb (built by scripts/build_notebook_hubbard.py
+%  from src/pairinglib/hubbard.py); figures are figs/fig1-8.png extracted from it
+%  (make figures-hubbard).  The first draft (prototype numbers) is kept as
+%  eigenq_hubbard_v1_backup.tex.  \todo{...} marks what is still open.
+% ---------------------------------------------------------------------------
+
+\usepackage{amsmath,amssymb}
+\usepackage{physics}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\newcommand{\todo}[1]{\textcolor{red}{[#1]}}
+\newcommand{\Hlow}{H_{\mathrm{low}}}
+\newcommand{\Hhigh}{H_{\mathrm{high}}}
+\newcommand{\Eobj}{E_{\mathrm{obj}}}
+\newcommand{\Deff}{\Delta_{\mathrm{eff}}}
+
+\begin{document}
+
+\title{Resolution refinement followed by the rodeo algorithm for
+eigenstate preparation: lattice refinement of the Hubbard model}
+
+\author{Scott Bogner}
+\affiliation{Facility for Rare Isotope Beams and Department of Physics and Astronomy, Michigan State University, East Lansing, MI 48824, USA}
+\author{Cecilie Glittum}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{Heiko Hergert}
+\affiliation{Facility for Rare Isotope Beams and Department of Physics and Astronomy, Michigan State University, East Lansing, MI 48824, USA}
+\author{Morten Hjorth-Jensen}
+\email{mhjensen@uio.no}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{Gunnar Lange}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{Ryan LaRose}
+\affiliation{Department of Computational Mathematics, Science and Engineering and Facility for Rare Isotope Beams, Michigan State University, East Lansing, MI 48824, USA}
+\author{Dean Lee}
+\affiliation{Facility for Rare Isotope Beams and Department of Physics and Astronomy, Michigan State University, East Lansing, MI 48824, USA}
+\author{Francesco Pietro Massel}
+\affiliation{Department of Science and Industry Systems, University of South-Eastern Norway, N-3616 Kongsberg, Norway}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{Jean Paul Sadia}
+\affiliation{Department of Computational Mathematics, Science, and Engineering, Michigan State University, East Lansing, MI 48823, USA}
+\affiliation{Center for Quantum Computing, Science, and Engineering, Michigan State University, East Lansing, MI 48823, USA}
+\date{\today}
+
+\begin{abstract}
+We extend the resolution-refinement-plus-rodeo pipeline implemented and
+assessed on the pairing Hamiltonian in Refs.~\cite{EigenQPairing2026,PHcompanion}
+to the Hubbard model and to the form of refinement for which the method was
+proposed: a \emph{lattice} refinement in which every coarse site is resolved
+into a block of fine sites and the prolongation maps each coarse orbital onto
+the bonding combination of its block.  The Galerkin projection of the fine
+Hubbard Hamiltonian onto the prolonged subspace is again a Hubbard model, with
+$(t,U)\to(t/2,U/2)$ in one dimension, so that the hierarchy of resolutions is
+self-similar at fixed $U/t$, and $(t,U)\to(t/2,U/4)$ in two dimensions.  All
+stages are benchmarked against exact diagonalization in the conserved
+$(N_\uparrow,N_\downarrow)$ sector with the same matched-observable methodology
+as before.  For the open chain refined from four to eight sites with two
+particles per spin the prolonged state has ground-state weight
+$p_0=0.75$--$0.81$ for $U/t=0$--$8$, and the shift-controlled refinement path
+brings it to $p>0.9999$ by $T=16/t$ at every $U$, although the sector gap of
+the fine Hamiltonian falls from $0.53t$ to $0.14t$: the path conserves total
+spin and the lattice symmetry, the low excitations carry no weight, and the
+gap that controls the transport is the lowest excitation in the symmetry sector
+of the target, $\Deff=0.88t$--$0.37t$.  The same protection lets the
+$8\to16$ refinement succeed at $T=16/t$ with a sector gap of $0.05t$, and makes
+$\Deff$ the right width for the rodeo filter.  The converse is sharp: for the
+$2\times2\to4\times4$ plaquette refinement at $(2,2)$ the coarse ground state
+is a $B_1$ singlet while the fine ground state is an $A_2$ triplet, the overlap
+is exactly zero, and refining the lowest coarse state in the target's sector
+instead gives $p=0.99997$ at $T=16/t$.  A two-local alternative to the
+projector path, adiabatic un-dimerization of the fine lattice, refines as fast
+but is capped by the finite-penalty ceiling $1-p\simeq(t/\Lambda)^2$, which
+two rodeo cycles remove.  Chains that start from the filled dimer, a single
+computational basis state, reach the eight- and sixteen-site ground states
+with $p>0.999$ in two and three refinement steps without any variational input.
+At the circuit level the fine chain has $52$ Pauli strings of weight two on
+sixteen qubits, a second-order Trotter step costs $144$ CNOTs, and the same
+Trotterized filter applied to every input gives the verdict of
+Ref.~\cite{EigenQPairing2026} again: the two-local path costs the same as a
+unitary coupled-cluster preparation of the fine chain ($3.7\times10^4$ versus
+$3.1\times10^4$ CNOTs) with a somewhat worse starting infidelity, the projector
+path is ten times more expensive because its coarse term is conditioned on all
+antibonding qubits, and the merit of refinement is that it needs no classical
+optimization and no training measurements.
+\end{abstract}
+
+\maketitle
+
+% ===========================================================================
+\section{Introduction}
+% ===========================================================================
+In Ref.~\cite{EigenQPairing2026} we implemented, end to end and at the gate
+level, a pipeline for eigenstate preparation in which an eigenstate of a
+coarse Hamiltonian is lifted by a prolongation operator into a finer model
+space, transported adiabatically along a shift-controlled, gapped path
+(\emph{resolution refinement}~\cite{Bogner2026}) and then cleaned by the
+rodeo algorithm~\cite{Choi2021,Qian2024}, a projective spectral filter.  The
+testbed there was the constant-pairing Hamiltonian, exactly solvable by the
+Richardson ansatz, with ``resolution'' meaning the number of single-particle
+levels at fixed particle number, and the assessment was sober: at eight
+qubits the refinement stage did not beat a cheap unitary coupled-cluster
+input on gate count, and its merits were the absence of a classical
+optimization loop and of training measurements.  A seniority-breaking
+particle-hole interaction, studied in the companion paper~\cite{PHcompanion},
+left the structure and convergence of the pipeline unchanged while raising the
+depth of a Trotter step ninefold.
+
+The present paper carries the same pipeline, the same benchmarks and the
+same cost accounting to the Hubbard model~\cite{Hubbard1963,Arovas2022},
+\begin{equation}
+  H=-\sum_{\langle ij\rangle\sigma}t_{ij}\big(c^\dagger_{i\sigma}c_{j\sigma}+\mathrm{h.c.}\big)
+   +U\sum_i n_{i\uparrow}n_{i\downarrow},
+  \label{eq:hubbard}
+\end{equation}
+for three reasons.  First, the Hubbard model is the canonical strongly
+correlated fermion problem and the most frequently used benchmark for
+quantum simulation of
+fermions~\cite{Wecker2015,Cade2020,Cai2020,Stanisic2022}; it contains the
+one-body particle-hole channel (hopping) that the pairing model lacks and
+the two-body on-site term in their simplest forms, so it tests the lesson of
+Ref.~\cite{PHcompanion} on a model where the seniority symmetry is absent from
+the outset.  Second, it is the setting for which resolution refinement was
+proposed~\cite{Bogner2026}: a \emph{lattice} refinement in which every coarse
+site is resolved into a block of fine sites, the prolongation is a product of
+Givens rotations rather than the gate-free embedding of the basis refinement,
+and the fine lattice is the natural discretization of a continuum problem.
+Third, the model is not exactly solvable in general, so the
+exact-diagonalization (ED) reference that anchored every number in
+Ref.~\cite{EigenQPairing2026} must now be produced numerically; we keep that
+discipline and benchmark every stage against ED in the conserved
+$(N_\uparrow,N_\downarrow)$ sector with the dense and Lanczos solvers of our ED
+code~\cite{HubbardNotebook}, which also covers the $t$--$J$ model and the
+chain, square and checkerboard lattices.
+
+Two structural results make the lattice refinement of the Hubbard model
+particularly clean.  The Galerkin projection of the fine Hubbard Hamiltonian
+onto the prolonged subspace is itself a Hubbard model, with $(t,U)\to(t/2,U/2)$
+in one dimension --- so the hierarchy of resolutions is self-similar at
+fixed $U/t$ --- and $(t,U)\to(t/2,U/4)$ in two dimensions
+(Sec.~\ref{sec:galerkin}).  And the interpolation path conserves total spin
+and the point-group symmetry of the lattice, so the gap that controls the
+adiabatic transport is the distance to the next state \emph{in the symmetry
+sector of the target}, which stays of order $t$ while the sector gap of the
+fine Hamiltonian collapses with $U$ and with system size
+(Sec.~\ref{sec:symmetry}); the converse is that a coarse ground state in the
+wrong representation cannot be refined at all (Sec.~\ref{sec:2d}).
+
+The paper follows the structure of Ref.~\cite{EigenQPairing2026}.
+Section~\ref{sec:model} fixes the model, the sector encoding, the ED
+reference and the symmetry diagnostics.  Section~\ref{sec:pipeline} defines
+the lattice prolongation, the Galerkin coarse Hamiltonian, the two refinement
+paths, the rodeo filter and the variational comparator.
+Section~\ref{sec:results} reports the sector-exact results for the open chain
+($2\to4\to8\to16$ sites) and the square plaquette ($2\times2\to4\times4$).
+Section~\ref{sec:circuits} gives the Pauli structure of the Hubbard chain in
+the Jordan--Wigner encoding, the cost of the prolongation and of the embedded
+coarse term, the Trotterized refinement and the matched-observable gate budgets.
+Section~\ref{sec:discussion} discusses the results and the outlook.  All
+numbers are produced by a reproducible notebook built on a tested library
+(Sec.~\ref{sec:code}).
+
+% ===========================================================================
+\section{The Hubbard model, its ED reference and the symmetry diagnostics}
+\label{sec:model}
+% ===========================================================================
+We use $t_{ij}=t=1$ on nearest-neighbor bonds, open boundary conditions
+throughout, the chain of $L$ sites and the $L\times L$ square lattice with
+site index $i=xL+y$.  The Hamiltonian conserves $N_\uparrow$ and
+$N_\downarrow$ separately, and all calculations are done in one such sector
+of dimension $\binom{N}{N_\uparrow}\binom{N}{N_\downarrow}$.
+
+\paragraph{Encoding and ED.}
+Spin-orbitals are Jordan--Wigner ordered in two blocks, the $N$ up orbitals
+followed by the $N$ down orbitals.  With this ordering a down hop picks up
+the parity of all up electrons twice, which cancels, so the sector
+Hamiltonian factorizes exactly as
+\begin{equation}
+  H=K_\uparrow\otimes\mathbb 1+\mathbb 1\otimes K_\downarrow
+   +U\,\mathrm{diag}(\text{double occupancy}),
+  \label{eq:kron}
+\end{equation}
+where $K_\sigma$ is the one-species hopping matrix on the sorted occupation
+masks of that species.  Reference energies and eigenvectors are obtained
+with dense diagonalization up to a few thousand states and with ARPACK
+Lanczos beyond.  The builder is validated against free fermions at $U=0$,
+the analytic dimer $E_0=\tfrac12(U-\sqrt{U^2+16t^2})$, and the term
+decomposition used for product formulas in Sec.~\ref{sec:circuits}; the
+sector dimensions encountered below range from $1$ (the filled dimer) to
+$14\,400$ (four particles on sixteen sites).
+
+\paragraph{Symmetry diagnostics.}
+Three operators are built in the same sector basis and used to label every
+eigenstate.  The total spin follows from
+$\expval{\mathbf S^2}=S_z(S_z+1)+\|S^+\psi\|^2$, with
+$S^+=\sum_ic^\dagger_{i\uparrow}c_{i\downarrow}$ applied as a map from the
+$(N_\uparrow,N_\downarrow)$ to the $(N_\uparrow+1,N_\downarrow-1)$ sector with
+the Jordan--Wigner signs of the block ordering.  A lattice symmetry is a
+fermionic site permutation $c^\dagger_i\to c^\dagger_{\pi(i)}$, i.e.\ a signed
+permutation matrix on each spin species; for the open chain this gives the
+reflection parity, and for the open square the eight elements of $C_{4v}$,
+from which the weight of a state in each irreducible representation follows
+from the character formula
+$w_\Gamma=(d_\Gamma/8)\sum_g\chi_\Gamma(g)^*\expval{g}{\psi}$.
+
+\paragraph{Why the Hubbard model after the pairing model.}
+In the pairing model the seniority symmetry confines the ground state to a
+subspace in which the UCCSD solver is a doubles theory and the refinement
+path has large gaps; the particle-hole term of Ref.~\cite{PHcompanion} broke
+that symmetry by hand.  In Eq.~\eqref{eq:hubbard} the hopping term is a
+one-body particle-hole operator from the outset, single excitations do not
+vanish, and the only symmetries left to the pipeline are the ones it inherits
+from the lattice: particle number per spin, total spin $S$, and the point
+group.  These are exactly the symmetries that, as we show, decide which gap
+governs the refinement.
+
+% ===========================================================================
+\section{The pipeline for lattice refinement}
+\label{sec:pipeline}
+% ===========================================================================
+
+\subsection{Prolongation: coarse sites to blocks of fine sites}
+\label{sec:prolong}
+A refinement step maps a coarse lattice of $N_c$ sites onto a fine lattice of
+$N_f=bN_c$ sites by resolving every coarse site $c$ into a block $B(c)$ of
+$b$ fine sites, $b=2$ for the chain (sites $2c,2c+1$) and $b=4$ for the
+square lattice ($2\times2$ plaquettes).  The prolongation sends the coarse
+orbital to the normalized symmetric (bonding) combination of its block,
+\begin{equation}
+  c^\dagger_{c\sigma}\;\longmapsto\;
+  s^\dagger_{c\sigma}=\frac{1}{\sqrt b}\sum_{f\in B(c)}c^\dagger_{f\sigma},
+  \label{eq:bonding}
+\end{equation}
+and a coarse Slater determinant to the corresponding product of
+$s^\dagger$ operators; particle numbers are unchanged, so the filling halves
+(quarters) at each step, as it must for a sequence of lattices approaching
+the continuum at fixed particle number~\cite{Bogner2026}.  The map
+$P$ is an isometry, $P^\dagger P=\mathbb 1$, from the coarse sector of
+dimension $\binom{N_c}{N_\uparrow}\binom{N_c}{N_\downarrow}$ into the fine
+sector; its complement is spanned by configurations in which at least one
+antibonding block mode (and, for $b=4$, one of the two further orthogonal
+block modes) is occupied.  On a quantum register in which the fine qubits of a
+block are adjacent, $P$ is implemented by preparing the coarse state on one
+qubit per block per spin and applying one Givens rotation per block per spin
+--- two CNOTs each, i.e.\ $16$ CNOTs for $4\to8$ --- in contrast to the
+gate-free embedding of the basis refinement.  In the sector basis $P$ is built
+explicitly: for each coarse occupation pattern the fine amplitudes are
+$b^{-n_\sigma/2}$ on every choice of one fine site per occupied block, with
+the sign of the permutation that sorts the chosen fine indices.  Both
+$P^\dagger P=\mathbb1$ and the identities below are verified to machine
+precision in the notebook.
+
+\subsection{The Galerkin coarse Hamiltonian}
+\label{sec:galerkin}
+The coarse Hamiltonian whose eigenstate is to be refined is the fine
+Hamiltonian seen at coarse resolution, $\Hlow=P^\dagger\Hhigh P$.  This
+choice makes the prolonged state satisfy $\expval{\Hhigh}{P\psi_{\rm low}}
+=E_{\rm low}$ exactly, as in Ref.~\cite{EigenQPairing2026}, and it has a
+closed form.  Projecting the fine hopping term with Eq.~\eqref{eq:bonding}:
+an intra-block bond contributes $-t(n_s-n_a)$, i.e.\ a constant $-t$ per
+particle on the prolonged subspace, and each inter-block bond contributes
+$\tfrac12 s^\dagger_c s_{c'}$; projecting the on-site term,
+$n_{f\sigma}\to n_{s_c\sigma}/b$ for every $f\in B(c)$, gives
+$U\sum_{f\in B(c)}n_{f\uparrow}n_{f\downarrow}\to(U/b)\,n_{s_c\uparrow}n_{s_c\downarrow}$.
+Hence
+\begin{align}
+  \text{chain:}\quad &\Hlow=H_{\rm Hubbard}\!\big(L;\,t/2,\,U/2\big)-tN, \label{eq:gal1d}\\
+  \text{square:}\quad&\Hlow=H_{\rm Hubbard}\!\big(L\times L;\,t/2,\,U/4\big)-2tN, \label{eq:gal2d}
+\end{align}
+with $N=N_\uparrow+N_\downarrow$, and with the same boundary conditions as the
+fine lattice.  In one dimension the ratio $U/t$ is preserved, so a chain of
+refinements $L\to2L\to4L\to\cdots$ is a sequence of Hubbard chains with the
+same interaction strength and a hopping scale that doubles at each step: the
+hierarchy is self-similar, and the coarsest member can be the two-site dimer
+or, for $N=2L$, the filled dimer, a single computational basis state.  In
+two dimensions the effective interaction of the coarse model is weaker by a
+factor of two relative to its hopping.  We note that the Galerkin pair
+$(\Hlow,\Hhigh)$ is a choice; a continuum-scaling pair ($t\propto a^{-2}$,
+$U\propto a^{-1}$ in one dimension) would start the path from a different
+coarse ground state and change only the initial overlap $p_0$, not the
+construction.
+
+\subsection{Two refinement paths}
+\label{sec:paths}
+\paragraph{Path A: the shift-controlled projector path.}
+As in Ref.~\cite{EigenQPairing2026},
+\begin{align}
+  H_A(s)={}&\cos^2\!\big(\tfrac{\pi s}{2}\big)P(\Hlow-\mu)P^\dagger
+        +\sin^2\!\big(\tfrac{\pi s}{2}\big)(\Hhigh-\mu),\nonumber\\
+        &s=t/T,
+  \label{eq:pathA}
+\end{align}
+with the shift $\mu=E_{\rm low}+\mu_{\rm buf}$ placing the complement of the
+prolonged subspace (where $P(\Hlow-\mu)P^\dagger$ vanishes) at energy
+$\mu_{\rm buf}$ above the tracked state at $s=0$.  Because
+$P(\Hlow-\mu)P^\dagger=\Pi_a(\Hhigh-\mu)\Pi_a$ with $\Pi_a$ the projector onto
+empty antibonding modes, the coarse term is, on a device, the fine
+Hamiltonian in the rotated (bonding/antibonding) frame conditioned on all
+antibonding qubits being in $\ket{0}$ --- the multi-controlled structure whose
+cost dominated the $3\to4$ chain of Ref.~\cite{EigenQPairing2026}, now with
+$2N_c$ control qubits.
+
+\paragraph{Path B: adiabatic un-dimerization.}
+The same end points are connected by a path that stays two-local in the
+laboratory frame: add to the fine Hamiltonian an extra hopping $\Lambda$ on
+the intra-block bonds and switch it off,
+\begin{equation}
+  H_B(s)=\Hhigh-\Lambda\cos^2\!\big(\tfrac{\pi s}{2}\big)
+  \sum_{\langle ff'\rangle\in\mathrm{intra}}\sum_\sigma
+  \big(c^\dagger_{f\sigma}c_{f'\sigma}+\mathrm{h.c.}\big).
+  \label{eq:pathB}
+\end{equation}
+At $s=0$ the antibonding modes are pushed up by $2\Lambda$, and for
+$\Lambda\to\infty$ the ground state of $H_B(0)$ is the prolonged Galerkin
+ground state; at finite $\Lambda$ it differs from it by an admixture of
+order $t/\Lambda$, so a transport that starts from the prolonged state
+carries a residual $1-p\simeq c\,(t/\Lambda)^2$ to the end.  Path~B is the
+dimerized Hubbard chain (the plaquette Hubbard model in two dimensions)
+being adiabatically made uniform; every Trotter step along it costs what a
+step of the fine Hamiltonian costs, with no conditioning, and the extra term
+only rescales the angles of the intra-block blocks.
+
+\paragraph{Refinement time.}
+The exact evolution along either path is computed as in
+Ref.~\cite{EigenQPairing2026}: the $s$ interval is split into $M_s=96$
+slices, the Hamiltonian at the slice midpoint is diagonalized once, and the
+slice propagators are reused for every $T$.  We report the overlap
+$p(T)=|\langle\Psi_{\rm high}|\psi(T)\rangle|^2$ with the exact fine ground
+state on a grid of $T$ and quote $T^*$ as the first grid value with
+$1-p(T)<10^{-3}$.  For the $14\,400$-dimensional sectors the slice
+propagators are applied with a sparse Krylov exponential (48 slices).
+
+\subsection{The rodeo filter}
+\label{sec:rodeo}
+The filter is unchanged from Ref.~\cite{EigenQPairing2026}: $M$ cycles of
+the controlled evolution $e^{-i\Hhigh t_k}$ on one reused ancilla with the
+phase $e^{i\Eobj t_k}$, Gaussian cycle times of RMS width $\sigma$, and
+post-selection on the ancilla.  For an input
+$\ket\psi=\sum_kc_k\ket{E_k}$ and $\Eobj=E_0$ the fidelity of the ensemble
+of accepted runs obeys exactly
+\begin{align}
+  1-\mathcal F_M&=\frac{\sum_{k\neq0}|c_k|^2q_k^M}{p+\sum_{k\neq0}|c_k|^2q_k^M},\nonumber\\
+  q_k&=\tfrac12\big(1+e^{-(E_k-E_0)^2\sigma^2/2}\big),
+  \label{eq:fid}
+\end{align}
+which we evaluate from the ED spectrum.  The width is set by the smallest
+excitation energy that carries weight in the input,
+$\sigma=5/\Deff$ (Sec.~\ref{sec:symmetry}); choosing it from the bare sector
+gap would lengthen the controlled evolutions by a factor of up to three for
+no gain.
+
+\subsection{The variational comparator}
+\label{sec:uccsd}
+As in Ref.~\cite{EigenQPairing2026} the pipeline is compared with a unitary
+coupled-cluster singles-and-doubles (UCCSD) preparation.  The reference is
+the free-fermion determinant (the $N_\sigma$ lowest orbitals of the hopping
+matrix of the lattice), the pool contains the spin-resolved singles and
+doubles from it, and the state is the product of exponentials
+$\prod_\mu e^{\theta_\mu(\tau_\mu-\tau_\mu^\dagger)}\ket{\rm HF}$ in a fixed
+order, optimized by L-BFGS with the analytic gradient.  The simulation is
+exact for the ansatz: the sector is transformed to the orbital occupation
+basis, where every generator connects pairs of determinants and its
+exponential is the Givens-type rotation
+$1+\sin\theta\,K+(\cos\theta-1)\Pi$, $\Pi=-K^2$, the same structure as the
+compiled excitation blocks of Ref.~\cite{EigenQPairing2026}.  On a device the
+reference and the excitations live on the site register after a Givens
+network ($N(N-1)/2$ rotations per spin), and we count the circuit with the
+Pauli-rotation primitive of Sec.~\ref{sec:circuits}: a single compiles into
+two strings, a double into eight, and a weight-$w$ string costs $2(w-1)$ CNOTs.
+The comparator is used in two ways, as the coarse solver on the four-site
+chain (26 parameters, 8 qubits), whose state is then prolonged and refined,
+and as the direct competitor on the eight-site chain (198 parameters, 16
+qubits).
+
+% ===========================================================================
+\section{Results}
+\label{sec:results}
+% ===========================================================================
+
+\subsection{The open chain refined from four to eight sites}
+\label{sec:chain48}
+Table~\ref{tab:chain48} and Fig.~\ref{fig:chain48} summarize the refinement
+of the four-site chain with $N_\uparrow=N_\downarrow=2$ (half filling, 36
+states) to the eight-site chain (quarter filling, 784 states) for
+$U/t=0,2,4,8$.  Three features stand out.  (i) The prolonged state is a good
+start at every coupling, $p_0=0.75$--$0.81$, with a weak maximum at $U=2t$;
+unlike the pairing model, the free-fermion case is not trivial, because the
+bonding modes are not the lowest fine single-particle orbitals.  (ii) The
+sector gap of the fine Hamiltonian falls by a factor of four over the range
+of $U$, from $0.53t$ to $0.14t$, but the refinement time does not move: with
+$\mu_{\rm buf}=2t$ the overlap reaches $p>0.997$ at $T=8/t$,
+$1-p<10^{-3}$ at $T^*=10/t$ and $p>0.9999$ at $T=16/t$ for all four
+couplings, and with $\mu_{\rm buf}=t$ the same values are reached at roughly
+twice the time.  The minimum of the sector gap along Path~A sits at $s=1$
+(it is the fine-sector gap itself) in every case, so the global path gap
+cannot be the quantity that controls the transport; the reason is the symmetry
+protection discussed next.  (iii) Path~B refines at a comparable rate but
+saturates at the finite-$\Lambda$ ceiling: at $T=64/t$,
+$1-p=4.8$--$7.3\times10^{-3}$ for $\Lambda=8t$ and $1.7$--$3.7\times10^{-3}$
+for $\Lambda=16t$, with a weak and non-monotonic $U$ dependence, consistent
+with the $(t/\Lambda)^2$ scaling of the admixture (the overlap of the
+prolonged state with the exact ground state of $H_B(0)$ is $0.9944$--$0.9953$
+at $\Lambda=8t$ and $0.9983$--$0.9986$ at $\Lambda=16t$).  The ceiling, not
+the transport, limits Path~B; a schedule with $\Lambda\to\infty$ at $s=0$ or
+a final filter removes it.
+
+\begin{table*}[t]
+  \caption{Refinement of the open Hubbard chain from $L=4$ to $L=8$ sites at
+  $N_\uparrow=N_\downarrow=2$ ($t=1$; 36 and 784 states).  $E_{\rm low}$ is the
+  ground-state energy of the Galerkin coarse model, Eq.~\eqref{eq:gal1d},
+  $E_{\rm high}$ the ED ground-state energy of the fine chain, $p_0$ the
+  weight of the prolonged coarse ground state on the fine ground state,
+  $\Delta$ the sector gap of the fine Hamiltonian and $\Deff$ the lowest
+  excitation energy carrying weight in the prolonged state.  $p(T)$ is the
+  overlap after refinement along Path~A ($\mu_{\rm buf}=2t$) and Path~B
+  ($\Lambda=16t$); the last columns give the ensemble infidelity,
+  Eq.~\eqref{eq:fid}, of the rodeo filter with $\sigma=5/\Deff$ applied to
+  the prolonged state and to the Path-A state refined for $T=16/t$.}
+  \label{tab:chain48}
+  \begin{ruledtabular}
+  \begin{tabular}{cccccccccccccc}
+  $U/t$ & $E_{\rm low}$ & $E_{\rm high}$ & $p_0$ & $\Delta$ & $\Deff$ &
+  $p_A(8)$ & $p_A(16)$ & $p_B(16)$ & $p_B(32)$ &
+  \multicolumn{2}{c}{$1-\mathcal F_M$, prolonged} & \multicolumn{2}{c}{$1-\mathcal F_M$, refined $T{=}16$}\\
+  & & & & & & & & & & $M=2$ & $M=6$ & $M=2$ & $M=6$\\
+  \hline
+  0 & $-6.236068$ & $-6.822948$ & 0.777 & 0.532 & 0.879 & 0.99718 & 0.99997 & 0.99660 & 0.99838 & $6.7\times10^{-2}$ & $4.5\times10^{-3}$ & $8.6\times10^{-6}$ & $5.4\times10^{-7}$\\
+  2 & $-5.437971$ & $-6.032090$ & 0.814 & 0.319 & 0.780 & 0.99876 & 0.99996 & 0.99594 & 0.99849 & $5.4\times10^{-2}$ & $3.6\times10^{-3}$ & $9.4\times10^{-6}$ & $5.9\times10^{-7}$\\
+  4 & $-4.976573$ & $-5.634427$ & 0.797 & 0.223 & 0.588 & 0.99837 & 0.99994 & 0.99316 & 0.99769 & $6.0\times10^{-2}$ & $4.0\times10^{-3}$ & $1.5\times10^{-5}$ & $9.2\times10^{-7}$\\
+  8 & $-4.558586$ & $-5.277973$ & 0.750 & 0.137 & 0.366 & 0.99761 & 0.99991 & 0.99205 & 0.99731 & $7.7\times10^{-2}$ & $5.2\times10^{-3}$ & $2.2\times10^{-5}$ & $1.4\times10^{-6}$\\
+  \end{tabular}
+  \end{ruledtabular}
+\end{table*}
+
+\begin{figure*}[t]
+  \includegraphics[width=\textwidth]{figs/fig1.png}
+  \caption{Refinement of the open chain $4\to8$ at $(2,2)$: $1-p(T)$ along
+  Path~A (left; solid $\mu_{\rm buf}=2t$, dashed $\mu_{\rm buf}=t$) and along
+  Path~B (right; solid $\Lambda=16t$, dashed $\Lambda=8t$) for $U/t=0,2,4,8$.
+  Path~A reaches $1-p<10^{-4}$ by $T=16/t$ at every coupling; Path~B
+  saturates at the finite-$\Lambda$ ceiling of a few $10^{-3}$.}
+  \label{fig:chain48}
+\end{figure*}
+
+\subsection{Which gap controls the refinement: symmetry protection}
+\label{sec:symmetry}
+Both terms of Eq.~\eqref{eq:pathA} commute with the total spin and with
+the point group of the fine lattice (the block structure respects the
+reflection of the chain and the $C_{4v}$ group of the square), and the
+prolongation maps irreducible representations onto themselves.  The
+transported state therefore never leaves the symmetry sector of the coarse
+ground state --- a spin singlet, even under reflection, for the cases of
+Table~\ref{tab:chain48} --- and the states that can be excited along the
+path are only those of the same sector.  Figure~\ref{fig:weights} makes this
+explicit with the symmetry labels of Sec.~\ref{sec:model}: for $U=4t$ the
+lowest fine excitations at $0.223t$ (a reflection-odd triplet) and $0.459t$
+(an even triplet) carry weights of order $10^{-31}$, and the first state with
+nonzero weight ($4.6\times10^{-5}$), an even singlet, lies at $\Deff=0.588t$;
+at $U=8t$ the corresponding numbers are $0.137t$ and $0.286t$ (triplets,
+zero weight) and $\Deff=0.366t$ (weight $3\times10^{-7}$), with the bulk of
+the excited weight lying still higher.  The weight of the prolonged state in
+the even-singlet sector is one to twelve digits for every $U>0$.  $\Deff$
+falls with $U$ much more slowly than $\Delta$, which explains the
+$U$-independent $T^*$ of Table~\ref{tab:chain48}.
+
+\begin{figure*}[t]
+  \includegraphics[width=\textwidth]{figs/fig2.png}
+  \caption{Spectral decomposition of the prolonged coarse ground state over
+  the eigenstates of the eight-site chain at $U=4t$ (left) and $8t$ (right),
+  each eigenstate labelled by its total spin and reflection parity.  Only
+  even singlets carry weight; the triplets and odd states, including the ones
+  that define the sector gap $\Delta$ (dotted), sit at round-off level.  The
+  lowest state with weight defines $\Deff$ (dashed).}
+  \label{fig:weights}
+\end{figure*}
+
+Figure~\ref{fig:gaps} follows the two gaps along Path~A: the sector gap
+and the gap to the lowest state with the same $(S,\text{parity})$ as the
+tracked state.  The latter never approaches the former; its minimum is
+$\Deff$ itself, at $s=1$.  Table~\ref{tab:bound} evaluates the sufficient
+adiabatic time of Jansen, Ruskai and Seiler~\cite{Jansen2007} in the form
+used in Sec.~IV.E of Ref.~\cite{EigenQPairing2026},
+$T_b=\epsilon^{-1/2}\int_0^1[\|\ddot H\|/\Delta^2+7\|\dot H\|^2/\Delta^3]\,ds$
+with $\|B-A\|$ the spectral norm of $\Hhigh-P\Hlow P^\dagger$ in the sector,
+once with the sector gap and once with the symmetry-resolved gap.  The
+symmetry-resolved bound is smaller by a factor $5$ to $17$ but remains three
+to five orders of magnitude above the empirical $T^*=10/t$, as the pairing
+bound did (there $3\times10^2$); the larger ratio here reflects
+$\|B-A\|=11$--$20$, set by the shift $\mu$ and the width of the Hubbard
+spectrum.
+
+\begin{figure*}[t]
+  \includegraphics[width=\textwidth]{figs/fig3.png}
+  \caption{Left: along Path~A ($\mu_{\rm buf}=2t$), the sector gap (dashed)
+  and the gap within the symmetry sector of the tracked state (solid) for
+  $U/t=0,2,4,8$.  Right: the sector gap along Path~A (solid) and Path~B with
+  $\Lambda=16t$ (dotted); both reach their minimum, the fine-sector gap, at
+  $s=1$.}
+  \label{fig:gaps}
+\end{figure*}
+
+\begin{table}[t]
+  \caption{Sufficient adiabatic time $T_b$ (infidelity $\epsilon=10^{-2}$)
+  along Path~A ($\mu_{\rm buf}=2t$) for the chain $4\to8$, evaluated with the
+  sector gap and with the gap in the symmetry sector of the tracked state,
+  against the empirical $T^*$ ($1-p<10^{-3}$).  Times in units of $1/t$.}
+  \label{tab:bound}
+  \begin{ruledtabular}
+  \begin{tabular}{ccccccc}
+  $U/t$ & $\min\Delta$ & $\min\Deff$ & $\|B-A\|$ & $T_b(\Delta)$ & $T_b(\Deff)$ & $T^*$\\
+  \hline
+  0 & 0.532 & 0.879 & 11.1 & $5.7\times10^{4}$ & $1.2\times10^{4}$ & 10\\
+  2 & 0.319 & 0.780 & 11.8 & $2.5\times10^{5}$ & $2.0\times10^{4}$ & 10\\
+  4 & 0.223 & 0.588 & 13.9 & $1.0\times10^{6}$ & $6.4\times10^{4}$ & 10\\
+  8 & 0.137 & 0.366 & 20.0 & $1.0\times10^{7}$ & $5.8\times10^{5}$ & 10\\
+  \end{tabular}
+  \end{ruledtabular}
+\end{table}
+
+\subsection{Bootstrapping from the filled dimer and composing steps}
+\label{sec:dimer}
+The self-similarity of the one-dimensional hierarchy allows the chain of
+refinements to start from the two-site dimer with $N_\uparrow=N_\downarrow=2$,
+whose sector contains a single state --- both sites doubly occupied ---
+with coarse energy $E_{\rm low}=2\cdot(U/2)-2t\cdot2=U-4t$.  This is the
+analogue of the $k=2$ determinant that seeded the $k=2\to4$ chain in
+Ref.~\cite{EigenQPairing2026}, and it requires no classical or variational
+preprocessing.  Table~\ref{tab:dimer} shows the step $2\to4$: the
+doubly-occupied seed is, as expected, a worse start as $U$ grows,
+$p_0=0.80$ at $U=0$ down to $0.48$ at $U=8t$, but the effective gap is
+large ($\Deff=2.2t$--$0.8t$) and $p>0.9997$ is reached by $T=16/t$ at every
+$U$.
+
+Figure~\ref{fig:composed} composes the steps.  With the \emph{refined}
+four-site state (not the exact one) as the input of the $4\to8$ step and the
+shift referenced to its variational energy
+$\expval{\Hlow}{\psi}$, as in the $3\to4$ chain of
+Ref.~\cite{EigenQPairing2026}, the composed chain $2\to4\to8$ at $U=4t$ with
+$T=16/t$ per step reaches $p=0.99988$, against $0.99994$ from the exact
+coarse input; with $T=8/t$ in the first step the second step saturates at
+$p=0.9979$, the overlap of its input, because the admixture of other coarse
+states refines to other fine states.  The composed chain is also better than
+a single-shot refinement $2\to8$ in which each coarse site is resolved into a
+block of four at once: that start has $p_0=0.579$ and reaches $p=0.9966$ at
+$T=16/t$ and $0.99988$ only at $T=32/t$.  Two steps of $T=16/t$ therefore
+take a single computational basis state to the eight-site ground state with
+$p>0.9998$ before any filtering.
+
+\begin{table}[t]
+  \caption{The first step of the one-dimensional hierarchy: the filled dimer
+  ($N_\uparrow=N_\downarrow=2$, one state) refined to the four-site open chain
+  (36 states), Path~A with $\mu_{\rm buf}=2t$.}
+  \label{tab:dimer}
+  \begin{ruledtabular}
+  \begin{tabular}{cccccccc}
+  $U/t$ & $E_{\rm low}$ & $E_{\rm high}$ & $p_0$ & $\Delta$ & $\Deff$ & $p(8)$ & $p(16)$\\
+  \hline
+  0 & $-4$ & $-4.4721$ & 0.805 & 1.236 & 2.236 & 0.9999 & 1.0000\\
+  2 & $-2$ & $-2.8759$ & 0.754 & 0.789 & 1.851 & 0.9995 & 1.0000\\
+  4 & $\phantom{-}0$ & $-1.9531$ & 0.645 & 0.540 & 1.358 & 0.9979 & 0.9999\\
+  8 & $\phantom{-}4$ & $-1.1172$ & 0.480 & 0.311 & 0.805 & 0.9787 & 0.9997\\
+  \end{tabular}
+  \end{ruledtabular}
+\end{table}
+
+\begin{figure*}[t]
+  \includegraphics[width=\textwidth]{figs/fig4.png}
+  \caption{Left: $1-p(T)$ for the dimer step $2\to4$ at $U/t=0,2,4,8$.
+  Right, $U=4t$: the step $4\to8$ from the exact coarse ground state
+  (circles), the composed chain $2\to4\to8$ with the refined four-site state
+  as input after a first step of $T=8/t$ or $16/t$ (squares), and the
+  single-shot refinement $2\to8$ with blocks of four fine sites (diamonds),
+  all versus the time of the last step.}
+  \label{fig:composed}
+\end{figure*}
+
+\subsection{Eight to sixteen sites}
+\label{sec:chain816}
+The protection survives a doubling of the system.  Refining the eight-site
+chain to sixteen sites at $(2,2)$ ($784\to14\,400$ states, $U=4t$) starts
+from $p_0=0.869$, with $E_{\rm low}=-6.817213$ and $E_{\rm high}=-7.209813$,
+faces a fine-sector gap of only $0.051t$, and still reaches $p=0.9924$ at
+$T=8/t$, $0.99931$ at $T=16/t$ and $0.99995$ at $T=32/t$.  Among the forty
+lowest eigenstates of the fine sector the first to carry weight lies at
+$\Deff=0.138t$ (weight $10^{-4}$), the next at $0.415t$ and $0.505t$ (the
+latter with weight $10^{-2}$), while the eight other states below $0.4t$,
+including the one that defines the sector gap, carry none.  Composing three steps from the filled dimer,
+$2\to4\to8\to16$ with $T=16/t$ each and the refined state as the input of
+every step, gives $p=0.99923$ for the sixteen-site ground state.
+
+\subsection{Two dimensions: the plaquette and the wrong symmetry sector}
+\label{sec:2d}
+For the square lattice the first step is $2\times2\to4\times4$.  With one
+particle per spin ($16\to256$ states) the refinement behaves as in one
+dimension: both ground states are $A_1$, $p_0=0.80$--$0.85$ for $U/t=0,4,8$,
+$\Deff\simeq2.1t$--$2.2t$, and $p>0.9997$ at $T=8/t$, $p>0.99998$ at
+$T=16/t$ (Table~\ref{tab:2d}).
+
+With two particles per spin ($36\to14\,400$ states) the prolonged coarse
+ground state has \emph{zero} overlap with the fine ground state, and the
+symmetry diagnostics of Sec.~\ref{sec:model} identify why
+(Fig.~\ref{fig:2d}).  The half-filled coarse plaquette (Galerkin parameters
+$t/2$, $U/4$) has, for every $U>0$, a $B_1$ singlet ground state with an
+$A_2$ triplet close above it ($0.071t$ at $U=4t$, $0.15t$ at $8t$); the
+dilute fine lattice --- four electrons on sixteen open sites --- has an
+$A_2$ \emph{triplet} ground state for every $U>0$ studied
+($U/t=1,2,4,6,8$), the $B_1$ singlet lying $0.04t$--$0.11t$ above it.  The
+prolongation commutes with $\mathbf S^2$ and with $C_{4v}$, so the two cannot
+be connected: the decomposition of the fine ground state over the prolonged
+coarse eigenstates gives weight $0$ on the coarse ground state, $0.647$ on
+the $A_2$ triplet, and $0.007$ on all other coarse states together ($U=4t$).
+Refining that triplet along Path~A ($\mu=E_1^{\rm low}+2t$) reaches
+$p=0.99944$ at $T=8/t$, $0.99997$ at $T=16/t$ and $0.99999$ at $T=32/t$,
+although the fine-sector gap is only $0.090t$; the lowest state of the
+$(A_2,S=1)$ sector that carries weight lies $1.77t$ above the ground state
+(among the thirty lowest eigenstates), so once the right sector is chosen
+the symmetry protection of Sec.~\ref{sec:symmetry} works strongly in its
+favor.  The same path started from the coarse ground state gives
+$p=3\times10^{-27}$.
+
+Two conclusions follow for the method.  The coarse state to be refined is
+the lowest coarse eigenstate \emph{in the symmetry sector of the target},
+which need not be the coarse ground state, and the coarse solver (UCCSD or
+otherwise) must therefore be run with the target's quantum numbers imposed
+or at least diagnosed; and the rodeo filter cannot rescue a wrong choice,
+since a state of zero overlap has nothing to amplify.  Conversely, when the
+coarse ground state is in the wrong sector the refinement becomes a sensitive
+detector of a level crossing between the coarse and the fine problem --- here
+between the singlet and the triplet as the filling goes from one half to one
+eighth, a crossing that persists over the whole range of $U$ studied rather
+than being tuned by it.  \todo{The $U=0$ point is degenerate in both models
+and its labels are not meaningful; consider adding the $(S,\Gamma)$-resolved
+spectrum of the fine lattice at a second filling, e.g.\ $(3,3)$, and the
+periodic lattice, where Lieb's theorem fixes the spin at half filling.}
+
+\begin{table*}[t]
+  \caption{Plaquette refinement $2\times2\to4\times4$ on the open square
+  lattice, Path~A with $\mu_{\rm buf}=2t$.  At $(2,2)$ the coarse ground
+  state is a $B_1$ singlet with zero overlap on the $A_2$ triplet ground
+  state of the fine lattice; the entry refines the lowest coarse $(A_2,S=1)$
+  state (see text), and $\Deff$ is taken among the thirty lowest fine
+  eigenstates.}
+  \label{tab:2d}
+  \begin{ruledtabular}
+  \begin{tabular}{cccccccccc}
+  $(N_\uparrow,N_\downarrow)$ & $U/t$ & dims & $E_{\rm low}$ & $E_{\rm high}$ & $(\Gamma,S)$ coarse / fine & $p_0$ & $\Delta$ & $\Deff$ & $p(16)$\\
+  \hline
+  (1,1) & 0 & $16\to256$ & $-6.0000$ & $-6.4721$ & $A_1$ / $A_1$ & 0.805 & 1.000 & 2.236 & 0.99999\\
+  (1,1) & 4 & $16\to256$ & $-5.8136$ & $-6.2638$ & $A_1$ / $A_1$ & 0.840 & 0.792 & 2.096 & 0.99999\\
+  (1,1) & 8 & $16\to256$ & $-5.7093$ & $-6.1833$ & $A_1$ / $A_1$ & 0.845 & 0.711 & 2.129 & 0.99998\\
+  (2,2) & 4 & $36\to14\,400$ & $-9.4142$ & $-10.4197$ & $(B_1,0)$ / $(A_2,1)$ & 0 & 0.090 & --- & $3\times10^{-27}$\\
+  (2,2) & 4 & $36\to14\,400$ & $-9.3429$ & $-10.4197$ & $(A_2,1)$ / $(A_2,1)$ & 0.647 & 0.090 & 1.771 & 0.99997\\
+  \end{tabular}
+  \end{ruledtabular}
+\end{table*}
+
+\begin{figure*}[t]
+  \includegraphics[width=\textwidth]{figs/fig5.png}
+  \caption{Lowest levels of the coarse plaquette (left, Galerkin parameters
+  $t/2$, $U/4$) and of the fine $4\times4$ lattice (right) at $(2,2)$ versus
+  $U/t$, labelled by $C_{4v}$ irrep (marker) and total spin (color).  For
+  every $U>0$ the coarse ground state is a $B_1$ singlet and the fine ground
+  state an $A_2$ triplet; the prolongation conserves both labels.}
+  \label{fig:2d}
+\end{figure*}
+
+\subsection{Rodeo filtering of the refined state}
+\label{sec:res-rodeo}
+With $\sigma=5/\Deff$ ($5.7/t$ to $13.6/t$ for $U/t=0$ to $8$) the filter
+applied to the prolonged state behaves as the pairing case did
+(Fig.~\ref{fig:rodeo}): the infidelity falls from $1-p_0\simeq0.2$ to
+$4$--$5\times10^{-3}$ after six cycles and $2$--$3\times10^{-4}$ after ten,
+the geometric $2^{-M}$ suppression of Eq.~\eqref{eq:fid}, with an ensemble
+acceptance that converges to $p_0$.  Applied to the Path-A state refined for
+$T=16/t$ the same filter starts from $1-p\simeq10^{-4}$ and reaches
+$0.5$--$1.4\times10^{-6}$ after six cycles; applied to the Path-B state
+($\Lambda=16t$, $T=32/t$) it starts from the ceiling, $1-p\simeq2\times10^{-3}$,
+and reaches $2$--$4\times10^{-5}$ after six cycles; applied to the eight-site
+UCCSD state it starts from $1-p=4.7\times10^{-4}$, $3.1\times10^{-3}$ and
+$1.2\times10^{-2}$ at $U/t=2,4,8$ (zero at $U=0$, where the free-fermion
+reference is exact) and reaches $7\times10^{-6}$, $5\times10^{-5}$ and
+$2\times10^{-4}$.  As in Ref.~\cite{EigenQPairing2026}, the question that
+matters is not whether the refined input converges faster per cycle --- it
+does, by the ratio of the initial infidelities --- but whether the cycles
+saved pay for the refinement gates; that comparison requires the
+circuit-level Trotterization of Sec.~\ref{sec:circuits}.
+
+\begin{figure*}[t]
+  \includegraphics[width=\textwidth]{figs/fig6.png}
+  \caption{Exact ensemble infidelity of the rodeo filter,
+  Eq.~\eqref{eq:fid}, with $\sigma=5/\Deff$ versus the number of cycles.
+  Left, $U=4t$: prolonged input, Path-A inputs refined for $T=8/t$ and
+  $16/t$, the Path-B input at its ceiling and the eight-site UCCSD state.
+  Right: prolonged (dashed) and Path-A $T=16/t$ (solid) inputs for all four
+  couplings against the $2^{-M}$ law.}
+  \label{fig:rodeo}
+\end{figure*}
+
+\subsection{The UCCSD comparator}
+\label{sec:res-uccsd}
+Table~\ref{tab:uccsd} collects the variational results.  On the coarse chain
+the 26-parameter UCCSD is exact at $U=0$ and reaches infidelities
+$1.8\times10^{-4}$, $3.3\times10^{-3}$ and $1.7\times10^{-2}$ at
+$U/t=2,4,8$ from a free-fermion reference that is very poor at strong
+coupling ($E_{\rm HF}-E_{\rm FCI}=2.3t$ at $U=8t$); on the fine chain the
+198-parameter ansatz does slightly better, $4.7\times10^{-4}$,
+$3.1\times10^{-3}$, $1.2\times10^{-2}$, at a cost of $3.1\times10^4$ CNOTs
+against $1.7\times10^3$.  Used as the coarse solver, the UCCSD state is
+prolonged with essentially the same $p_0$ as the exact coarse state
+($0.800$ against $0.797$ at $U=4t$), but the refinement then saturates at
+$p=0.99669$ ($U=4t$) and $0.98234$ ($U=8t$) instead of $0.9999$: as in the
+composed chain of Sec.~\ref{sec:dimer}, the admixture of other coarse
+eigenstates in the variational input is transported to other fine
+eigenstates, and the refined overlap is capped at roughly the coarse
+fidelity.  The coarse solver must therefore be converged to the accuracy
+required of the final state, or the filter must do the rest.
+
+\begin{table*}[t]
+  \caption{Sector-level UCCSD (Sec.~\ref{sec:uccsd}) on the Galerkin coarse
+  chain ($L=4$, Eq.~\eqref{eq:gal1d}) and on the fine chain ($L=8$) at $(2,2)$:
+  reference, variational and exact energies, infidelity with the exact ground
+  state, number of parameters and CNOT count of the preparation (Givens
+  network plus excitation blocks).  The last columns give the overlap of the
+  prolonged UCCSD coarse state and its Path-A refinement at $T=16/t$.}
+  \label{tab:uccsd}
+  \begin{ruledtabular}
+  \begin{tabular}{c|cccc|cccc|cc}
+  & \multicolumn{4}{c|}{coarse $L=4$ (26 parameters, 1720 CNOTs)} & \multicolumn{4}{c|}{fine $L=8$ (198 parameters, 30864 CNOTs)} & \multicolumn{2}{c}{UCCSD coarse $\to$ refined}\\
+  $U/t$ & $E_{\rm HF}$ & $E_{\rm UCCSD}$ & $E_{\rm FCI}$ & $1-F$ & $E_{\rm HF}$ & $E_{\rm UCCSD}$ & $E_{\rm FCI}$ & $1-F$ & $p_0$ & $p(16)$\\
+  \hline
+  0 & $-6.23607$ & $-6.23607$ & $-6.23607$ & $<10^{-15}$ & $-6.82295$ & $-6.82295$ & $-6.82295$ & $<10^{-14}$ & 0.77733 & 0.99997\\
+  2 & $-5.23607$ & $-5.43744$ & $-5.43797$ & $1.8\times10^{-4}$ & $-5.71184$ & $-6.02962$ & $-6.03209$ & $4.7\times10^{-4}$ & 0.81405 & 0.99977\\
+  4 & $-4.23607$ & $-4.96957$ & $-4.97657$ & $3.3\times10^{-3}$ & $-4.60073$ & $-5.61876$ & $-5.63443$ & $3.1\times10^{-3}$ & 0.79991 & 0.99669\\
+  8 & $-2.23607$ & $-4.51765$ & $-4.55859$ & $1.7\times10^{-2}$ & $-2.37850$ & $-5.22167$ & $-5.27797$ & $1.2\times10^{-2}$ & 0.75667 & 0.98234\\
+  \end{tabular}
+  \end{ruledtabular}
+\end{table*}
+
+% ===========================================================================
+\section{Quantum circuits and depth comparison}
+\label{sec:circuits}
+% ===========================================================================
+
+\subsection{Pauli structure and step costs}
+In the block Jordan--Wigner ordering of Sec.~\ref{sec:model} an open chain
+of $L_f$ sites on $2L_f$ qubits has $4(L_f-1)$ hopping strings
+$\tfrac t2(X_jX_{j+1}+Y_jY_{j+1})$ of weight two, $L_f$ interaction strings
+$\tfrac U4Z_jZ_{j+L_f}$ and $2L_f$ single-$Z$ terms: $24$ strings for
+$L_f=4$, which we verified against the full-space Pauli decomposition of the
+library on eight qubits, and $52$ strings of weight $\le2$ for $L_f=8$,
+against the $325$ strings of weight up to eight of the $k=4$ pairing model
+on half the qubits.  With the Pauli-rotation primitive of
+Ref.~\cite{EigenQPairing2026} --- $2(w-1)$ CNOTs per weight-$w$ string, two
+more per rotation when controlled --- a first-order Trotter step of the fine
+chain costs $72$ CNOTs ($52$ rotations), a second-order step $144$, and a
+controlled second-order step $352$.  The product formula groups the bonds
+into two layers of disjoint bonds plus the diagonal interaction; each layer
+is a product of commuting two-qubit blocks and is realized exactly, so the
+Trotter error comes only from the non-commutativity between the three
+groups, as on hardware.  The $Z_jZ_{j+L_f}$ terms are the only non-local
+ones; the site-major ordering, which makes them adjacent at the price of
+weight-three hopping strings, is the alternative to be compared.
+\todo{Compare the two orderings on a linear-connectivity device.}
+
+\paragraph{Prolongation and the coarse term.}
+The prolongation $4\to8$ costs $16$ CNOTs.  The embedded coarse term of
+Path~A is the coarse Hubbard step on the bonding register --- $24$
+rotations, $32$ CNOTs unconditioned --- with every rotation conditioned on
+the eight antibonding qubits being empty.  With the Gray-code
+phase-polynomial convention that gave the $14$- and $350$-CNOT figures of
+Ref.~\cite{EigenQPairing2026} (which is exact for few controls but grows as
+$2^{c+1}$) this is $1.2\times10^4$ CNOTs per application; with a
+clean-ancilla ladder of relative-phase Toffolis ($6(c-1)+2$ extra CNOTs per
+rotation) it is $1\,088$.  We use the latter, i.e.\ $7.6$ fine Trotter steps
+per application of the coarse term, and note that either figure makes the
+coarse term, not the fine step, the cost of Path~A.  \todo{Compile the
+conditioned coarse term explicitly and verify it against the sector matrix
+exponential, as was done for the $2\to4$ phase in paper I.}
+
+\subsection{Trotterized refinement}
+Figure~\ref{fig:trotter} replaces the exact slice propagation at $T=16/t$,
+$U=4t$ by first- and second-order product formulas over the groups
+$[P(\Hlow-\mu)P^\dagger,\,K_{\rm even},\,K_{\rm odd},\,D-\mu]$ for Path~A
+and $[(1+\Lambda\cos^2)K_{\rm even},\,K_{\rm odd},\,D]$ for Path~B.  The
+Hubbard path needs many more steps than the pairing path did: the
+second-order formula reproduces the exact-slice overlap to within $10^{-3}$
+with $n_s=128$ steps for Path~A ($p=0.99983$), $256$ for Path~B with
+$\Lambda=8t$ ($0.99213$) and $512$ for $\Lambda=16t$ ($0.99342$), against
+$43$ steps for $T^*=16$ in Ref.~\cite{EigenQPairing2026}.  The reason is the
+norm of the step generators, $\|B-A\|=14$ for Path~A and the enhanced
+intra-block hopping $(1+\Lambda)$ for Path~B, which makes $\Lambda=8t$ the
+better operating point of the two-local path despite its higher ceiling.
+At these step counts the refinement costs $2.97\times10^5$ CNOTs for Path~A
+(of which $2.8\times10^5$ in the coarse term), $3.7\times10^4$ for Path~B at
+$\Lambda=8t$ and $7.4\times10^4$ at $\Lambda=16t$ (Table~\ref{tab:budget}).
+First-order formulas do not reach the exact-slice overlap within $10^{-3}$
+even at $512$ steps.
+
+\begin{figure}[t]
+  \includegraphics[width=\linewidth]{figs/fig7.png}
+  \caption{Trotterized refinement of the chain $4\to8$ at $U=4t$, $T=16/t$:
+  $1-p$ versus the number of product-formula steps for Path~A and Path~B
+  ($\Lambda=8t$, $16t$), first (dashed) and second order (solid); dotted
+  lines are the exact-slice values.}
+  \label{fig:trotter}
+\end{figure}
+
+\subsection{Matched-observable comparison}
+\label{sec:budget}
+Following Sec.~V.C of Ref.~\cite{EigenQPairing2026} we feed the same
+Trotterized rodeo filter --- second order, fixed step $\delta t$, $\sigma=5/\Deff=8.5/t$,
+forty Gaussian time sets, six cycles --- the prolonged state, the Path-B
+states refined with $n_s=256$ ($\Lambda=8t$) and $512$ ($\Lambda=16t$), the
+Path-A state refined with $n_s=128$ and the eight-site UCCSD state, and
+compare the acceptance-weighted ensemble infidelity of the accepted runs
+against the CNOTs per accepted preparation (input plus filter, early
+termination after the first failed ancilla measurement).  Two
+implementation details differ from paper I and are forced by the Hubbard
+norms.  The fixed step is diagonalized once, so that $n$ steps are applied
+exactly as $We^{in\phi}W^\dagger$ and the cycle times are quantized to
+multiples of $\delta t$; the filter then projects on the eigenvector of the
+step unitary closest to the ground state, whose eigenphase is what the
+energy scan of the rodeo locates on a device, and we take
+$\Eobj$ equal to it rather than to $E_0$.  The Trotter floor of the filter is
+that eigenvector's infidelity with the exact ground state:
+$2.6\times10^{-3}$ at $\delta t=0.25/t$ (the step of paper I, where
+$\Eobj-E_0=0.09t$ would also have spoiled the acceptance),
+$5.8\times10^{-5}$ at $\delta t=0.1/t$ and $3.5\times10^{-6}$ at $0.05/t$;
+we operate at $\delta t=0.1/t$, where $\Eobj-E_0=0.013t$.
+
+\begin{table*}[t]
+  \caption{Matched-observable comparison for the chain $4\to8$ at $U=4t$:
+  the same Trotterized rodeo filter (second order, $\delta t=0.1/t$,
+  $\sigma=8.5/t$, $\Eobj$ the Trotter-effective ground energy) applied to
+  every input.  $p$ is the overlap of the input, ``prep'' its CNOT count
+  (prolongation $16$; refinement $n_s$ second-order steps of $144$ CNOTs,
+  plus $2\times1\,088$ per step for the coarse term of Path~A; UCCSD
+  $30\,864$), and for $M=1,2,4,6$ cycles the ensemble infidelity, the
+  cumulative acceptance and the CNOTs per accepted preparation.}
+  \label{tab:budget}
+  \begin{ruledtabular}
+  \begin{tabular}{lcc|ccc|ccc|ccc}
+  input & $p$ & prep & \multicolumn{3}{c|}{$M=1$} & \multicolumn{3}{c|}{$M=2$} & \multicolumn{3}{c}{$M=6$}\\
+  & & & $1-\mathcal F$ & acc. & CNOT & $1-\mathcal F$ & acc. & CNOT & $1-\mathcal F$ & acc. & CNOT\\
+  \hline
+  prolonged & 0.7974 & 16 & $1.1\times10^{-1}$ & 0.895 & $2.5\times10^{4}$ & $6.0\times10^{-2}$ & 0.848 & $5.2\times10^{4}$ & $4.7\times10^{-3}$ & 0.802 & $1.5\times10^{5}$\\
+  Path B, $\Lambda=8t$, $n_s=256$ & 0.9921 & 36\,880 & $3.9\times10^{-3}$ & 0.996 & $5.9\times10^{4}$ & $2.0\times10^{-3}$ & 0.994 & $8.4\times10^{4}$ & $2.0\times10^{-4}$ & 0.992 & $1.8\times10^{5}$\\
+  Path B, $\Lambda=16t$, $n_s=512$ & 0.9934 & 73\,744 & $3.0\times10^{-3}$ & 0.996 & $9.6\times10^{4}$ & $1.7\times10^{-3}$ & 0.995 & $1.2\times10^{5}$ & $1.9\times10^{-4}$ & 0.993 & $2.2\times10^{5}$\\
+  Path A, $n_s=128$ & 0.9998 & 296\,976 & $1.1\times10^{-4}$ & 1.000 & $3.2\times10^{5}$ & $8.6\times10^{-5}$ & 1.000 & $3.4\times10^{5}$ & $5.9\times10^{-5}$ & 1.000 & $4.4\times10^{5}$\\
+  UCCSD, $L=8$ & 0.9969 & 30\,864 & $1.6\times10^{-3}$ & 0.998 & $5.3\times10^{4}$ & $8.1\times10^{-4}$ & 0.997 & $7.8\times10^{4}$ & $1.1\times10^{-4}$ & 0.997 & $1.7\times10^{5}$\\
+  \end{tabular}
+  \end{ruledtabular}
+\end{table*}
+
+\begin{figure*}[t]
+  \includegraphics[width=\textwidth]{figs/fig8.png}
+  \caption{Cost versus accuracy for the chain $4\to8$ at $U=4t$: ensemble
+  infidelity against CNOTs per accepted preparation (left, $M=0$ is the
+  unfiltered input) and against the number of cycles (right) for the five
+  inputs of Table~\ref{tab:budget}, all cleaned by the same Trotterized
+  filter.  Every curve converges to the Trotter floor of
+  $5.8\times10^{-5}$.}
+  \label{fig:budget}
+\end{figure*}
+
+Table~\ref{tab:budget} and Fig.~\ref{fig:budget} give the verdict, which is
+the one of Ref.~\cite{EigenQPairing2026}.  The two-local Path~B at
+$\Lambda=8t$ costs the same as the UCCSD preparation of the fine chain
+($3.7\times10^4$ against $3.1\times10^4$ CNOTs) and starts $2.5$ times worse
+($1-p=7.9\times10^{-3}$ against $3.1\times10^{-3}$); after two cycles the two
+inputs reach $2.0\times10^{-3}$ at $8.4\times10^4$ and $8.1\times10^{-4}$ at
+$7.8\times10^4$ CNOTs, and after six cycles $2.0\times10^{-4}$ and
+$1.1\times10^{-4}$ at $1.8\times10^5$ and $1.7\times10^5$.  Path~A delivers
+the best input ($1-p=1.7\times10^{-4}$, one cycle brings it to the floor) but
+at ten times the cost, $3\times10^5$ CNOTs, almost entirely in the
+conditioned coarse term.  The prolonged state alone, at $16$ CNOTs, needs
+six cycles and $1.5\times10^5$ CNOTs to reach $5\times10^{-3}$, with an
+acceptance of $0.80$.  All curves converge to the Trotter floor, which is
+set by $\delta t$ and not by the input.  Refinement is therefore not a gate
+saver on the Hubbard chain either; the two-local path makes it competitive
+with the variational preparation, and its merit remains that it needs no
+classical optimizer, no training measurements and no choice of ansatz.
+
+% ===========================================================================
+\section{Discussion and outlook}
+\label{sec:discussion}
+% ===========================================================================
+\paragraph{Lattice versus basis refinement.}
+The lattice refinement of the Hubbard model is structurally cleaner than the
+basis refinement of the pairing model: a Galerkin coarse model in closed
+form, a self-similar hierarchy in one dimension, a two-local Hamiltonian
+with $O(L_f)$ Pauli strings of weight two, a prolongation of $O(N_c)$ gates.
+Against this stands a coarse term that is conditioned on $2N_c$ qubits, and
+Path~B as its two-local replacement with a $(t/\Lambda)^2$ ceiling and a
+step count that grows with $\Lambda$.  The Hubbard path also needs three to
+ten times more Trotter steps than the pairing path for the same adiabatic
+time, because the shifted generators have larger norms; this, more than the
+adiabatic time itself, sets the budget.
+
+\paragraph{Which gap matters.}
+The quantity that controls the refinement is the symmetry-protected
+effective gap $\Deff$, not the sector gap; this is why $T^*$ is flat in $U$
+and in size here, why the sufficient time of the adiabatic theorem is a
+closer (though still remote) estimate when evaluated with the symmetry-resolved
+gap, and why $\Deff$ is the right width for the rodeo filter.  It suggests
+that the inverse-gap scaling extracted in Ref.~\cite{EigenQPairing2026}
+through the shift should be re-read as a statement about $\Deff$.  Its
+converse, the zero-overlap plaquette, is a warning for any refinement or
+nucleation scheme: the coarse state must carry the quantum numbers of the
+target, which the ED diagnostics of Sec.~\ref{sec:model} --- or, on a device,
+measurements of $\mathbf S^2$ and of the point-group characters --- can
+check before any gate is spent.  The singlet--triplet crossing between the
+half-filled plaquette and the dilute $4\times4$ lattice is a property of the
+filling, not of $U$, over the whole range studied.
+
+\paragraph{Coarse accuracy.}
+Composing steps with refined inputs, and starting from a variational coarse
+state, both show the same ceiling: an admixture of other coarse eigenstates
+in the input refines to other fine eigenstates and caps the final overlap
+at roughly the input fidelity.  The coarse stage must therefore be as
+accurate as the target, or the filter must pay for the difference; the
+filled dimer, which is exact, is from this point of view the best coarse
+state the hierarchy has.
+
+\paragraph{Strong coupling.}
+At fixed $U/t$ the hierarchy is self-similar, so refinement does not by
+itself reach the $t$--$J$ regime; a path that raises $U$ along with the
+resolution, or a refinement at fixed filling (prolonging with doubled
+particle number, which is not a state map) are the options, and the ED
+code's $t$--$J$ solver gives the reference.  The rodeo filter, in contrast,
+applies unchanged to the $t$--$J$ Hamiltonian in its constrained sector.
+\todo{Decide whether a $t$--$J$ section belongs in this paper.}
+
+\paragraph{Relation to nucleation.}
+In one dimension the dimer-seeded hierarchy and the nucleation of a chain
+from a dimer~\cite{Sadia2026} start from the same state and reach the same
+target by refining resolution versus growing the domain; the Hubbard chain
+is the natural place to compare the two paths at matched gate count, and the
+optimized variants of either (a warm-started variational path) are the
+obvious way to cut the $10^2$--$10^3$ Trotter steps found here.
+
+\paragraph{Hardware targets.}
+The $4\to8$ chain (16 qubits) and the $2\times2\to4\times4$ plaquette at
+$(1,1)$ (32 qubits, 256-dimensional sector) are within reach of current
+devices; the Trotter step is shallow ($72$ CNOTs first order at $L_f=8$),
+and Path~B needs nothing beyond the fine Hamiltonian's own blocks.
+\todo{PBC/APBC variants; a schedule with $\Lambda\to\infty$ at $s=0$;
+Path-B at $T<16$ since it saturates early.}
+
+\begin{acknowledgments}
+The work of C.G. and G.F.L. acknowledge funding from the
+European Union's Horizon Europe research and innovation program under the
+Marie Sk\l{}odowska-Curie Grant Agreement No.\ 101126636. M.H.-J. is
+partially supported by U.S. National Science Foundation (NSF) Grants
+PHY-1404159 and PHY-2310020.  The authors acknowledge Anthropic's Claude
+for assistance with literature search and coding.
+\end{acknowledgments}
+
+\section*{Code availability}
+\label{sec:code}
+All results are produced by the notebook
+\texttt{notebooks/ResolutionRefHubbard.ipynb}, built by
+\texttt{scripts/build\_notebook\_hubbard.py} on the module
+\texttt{pairinglib.hubbard} (lattices, sector ED, block prolongation,
+Galerkin coarse model, both paths, exact and Trotterized refinement, the
+ensemble rodeo formula and its Trotterized version, the symmetry
+diagnostics, the sector-level UCCSD and the gate counting), which is covered
+by the test suite of the repository; the figures are extracted from the
+executed notebook.  The ED code (Hubbard and $t$--$J$ models, chain, square
+and checkerboard lattices, dense, Lanczos and matrix-free solvers) is the
+notebook \texttt{Hubbard.ipynb}~\cite{HubbardNotebook}, whose conventions
+the module follows.  \todo{Repository link.}
+
+% ===========================================================================
+\begin{thebibliography}{99}
+\bibitem{EigenQPairing2026} S.~Bogner, C.~Glittum, H.~Hergert,
+M.~Hjorth-Jensen, G.~Lange, R.~LaRose, D.~Lee, F.~P.~Massel, and J.~P.~Sadia,
+``Resolution refinement followed by the rodeo algorithm for eigenstate
+preparation: implementation and assessment on the pairing Hamiltonian,''
+submitted to Phys.\ Rev.\ C (2026).
+\bibitem{PHcompanion} S.~Bogner, C.~Glittum, H.~Hergert,
+M.~Hjorth-Jensen, G.~Lange, R.~LaRose, D.~Lee, F.~P.~Massel, and J.~P.~Sadia,
+``Resolution refinement and the rodeo algorithm beyond seniority:
+eigenstate preparation for the pairing Hamiltonian with a particle-hole
+interaction,'' companion paper (2026).
+\bibitem{Bogner2026} S.~Bogner, H.~Hergert, M.~Hjorth-Jensen, R.~LaRose,
+D.~Lee, and M.~Patkowski, ``Quantum state preparation with resolution
+refinement,'' Phys.\ Lett.\ B \textbf{875}, 140363 (2026); arXiv:2511.14732.
+\bibitem{Choi2021} K.~Choi, D.~Lee, J.~Bonitati, Z.~Qian, and J.~Watkins,
+Phys.\ Rev.\ Lett.\ \textbf{127}, 040505 (2021).
+\bibitem{Qian2024} Z.~Qian \emph{et al.}, Eur.\ Phys.\ J.\ A \textbf{60}, 151 (2024).
+\bibitem{Hubbard1963} J.~Hubbard, Proc.\ R.\ Soc.\ London A \textbf{276}, 238 (1963).
+\bibitem{Arovas2022} D.~P.~Arovas, E.~Berg, S.~A.~Kivelson, and S.~Raghu,
+Annu.\ Rev.\ Condens.\ Matter Phys.\ \textbf{13}, 239 (2022).
+\bibitem{Wecker2015} D.~Wecker, M.~B.~Hastings, N.~Wiebe, B.~K.~Clark,
+C.~Nayak, and M.~Troyer, Phys.\ Rev.\ A \textbf{92}, 062318 (2015).
+\bibitem{Cade2020} C.~Cade, L.~Mineh, A.~Montanaro, and S.~Stanisic,
+Phys.\ Rev.\ B \textbf{102}, 235122 (2020).
+\bibitem{Cai2020} Z.~Cai, Phys.\ Rev.\ Applied \textbf{14}, 014059 (2020).
+\bibitem{Stanisic2022} S.~Stanisic \emph{et al.}, Nat.\ Commun.\ \textbf{13}, 5743 (2022).
+\bibitem{Jansen2007} S.~Jansen, M.-B.~Ruskai, and R.~Seiler, J.~Math.\ Phys.\
+\textbf{48}, 102111 (2007).
+\bibitem{Sadia2026} J.~P.~Sadia, M.~Hjorth-Jensen, D.~Lee, and R.~LaRose,
+arXiv:2609.37527 (2026).
+\bibitem{HubbardNotebook} \todo{Authors}, ``The Hubbard and $t$--$J$ models:
+exact diagonalisation on chain, square and checkerboard lattices,''
+\texttt{paper3/Hubbard.ipynb} (2026).
+\end{thebibliography}
+
+\end{document}

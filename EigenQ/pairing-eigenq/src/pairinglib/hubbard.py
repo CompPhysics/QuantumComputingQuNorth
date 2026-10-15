@@ -11,12 +11,12 @@ and the sector Hamiltonian factorises as
 
 Lattice refinement (Bogner et al. 2026): every coarse site c owns a block
 B(c) of fine sites and the prolongation maps the coarse orbital to the
-normalised symmetric (bonding) combination of its block.  The Galerkin coarse
+normalized symmetric (bonding) combination of its block.  The Galerkin coarse
 model H_low = P^T H_high P is again a Hubbard model (chain: (t,U)->(t/2,U/2)
 minus t N; square: (t,U)->(t/2,U/4) minus 2 t N), see `galerkin_params`.
 
 The refinement paths, the exact slice propagation, the ensemble rodeo
-infidelity and the Trotterised versions mirror refine.py / rodeo.py /
+infidelity and the Trotterized versions mirror refine.py / rodeo.py /
 trotter.py of the pairing model; the symmetry diagnostics (total spin,
 reflection, C4v irreps) are new.
 """
@@ -249,7 +249,7 @@ def path_A(Hf, Hl, P, mu):
 
 
 def path_B(Hf, Kintra, Lam):
-    """Path B (un-dimerisation): H(s) = H_high + Lam cos^2 K_intra, with K_intra the
+    """Path B (un-dimerization): H(s) = H_high + Lam cos^2 K_intra, with K_intra the
     intra-block hopping (both spins, t = 1 amplitude; the sign is that of hop_spin,
     i.e. an *extra* hopping of strength Lam).  Returns (H_le, H_hs)."""
     Hf = Hf.toarray() if issparse(Hf) else Hf
@@ -353,7 +353,7 @@ def apply_Splus(psi, N, Nup, Ndn):
 
 
 def total_spin(psi, N, Nup, Ndn):
-    """<S^2> = Sz(Sz+1) + |S^+ psi|^2 for a normalised sector vector; returns (S(S+1), S)."""
+    """<S^2> = Sz(Sz+1) + |S^+ psi|^2 for a normalized sector vector; returns (S(S+1), S)."""
     psi = np.asarray(psi); psi = psi / np.linalg.norm(psi)
     Sz = 0.5 * (Nup - Ndn)
     s2 = Sz * (Sz + 1) + (float(np.vdot(apply_Splus(psi, N, Nup, Ndn), apply_Splus(psi, N, Nup, Ndn)).real)
@@ -385,7 +385,7 @@ def reflection_chain(N):
 
 def c4v_elements(L):
     """The eight site maps of C4v acting on the L x L square lattice (i = xL + y)
-    about its centre, keyed by the standard class labels; and the character
+    about its center, keyed by the standard class labels; and the character
     table of C4v for the five irreps (A1, A2, B1, B2, E)."""
     site = lambda x, y: x * L + y
     def mk(f):
@@ -409,7 +409,7 @@ def c4v_elements(L):
 
 
 def c4v_weights(psi, L, Nup, Ndn):
-    """Weight of a normalised sector vector in each C4v irrep,
+    """Weight of a normalized sector vector in each C4v irrep,
     w_G = (d_G/|G|) sum_g chi_G(g)^* <psi|g|psi>; sums to one."""
     ops, classes, chars = c4v_elements(L)
     N = L * L
@@ -434,7 +434,7 @@ def c4v_irrep(psi, L, Nup, Ndn, tol=1e-6):
     return k, w[k]
 
 
-# ------------------------------------------------------------------ Trotterised pipeline
+# ------------------------------------------------------------------ Trotterized pipeline
 def _eigterms(terms):
     return [np.linalg.eigh(T.toarray() if issparse(T) else T) for T in terms]
 
@@ -478,16 +478,16 @@ def trotter_step_matrix(terms, dt, order=2):
 
 
 def trotter_evolution(terms, dt, order=2, target=None):
-    """Fixed-step product formula for exp(-i H t), diagonalised once: the step
+    """Fixed-step product formula for exp(-i H t), diagonalized once: the step
     unitary U_step is Schur-decomposed (it is normal, so the Schur form is
     diagonal) and U_step^n = W e^{i n phi} W^+ is applied with two matrix-vector
     products whatever n.  Returns dict(Ufun, nsteps, tq, phases, W, E_eff, floor):
     Ufun(n) applies U_step^n to a vector; nsteps(t) = max(1, round(|t|/dt)) and
-    tq(t) = nsteps(t) dt is the quantised evolution time; if `target` (the exact
+    tq(t) = nsteps(t) dt is the quantized evolution time; if `target` (the exact
     ground state) is given, E_eff = -phi_k/dt is the Trotter-effective ground
     energy (the eigenphase of the U_step eigenvector of largest overlap with the
     target, which is what an energy scan on the device locates) and `floor` =
-    1 - |<target|w_k>|^2 is the infidelity floor of the Trotterised filter."""
+    1 - |<target|w_k>|^2 is the infidelity floor of the Trotterized filter."""
     from scipy.linalg import schur
     Ust = trotter_step_matrix(terms, dt, order)
     T, W = schur(Ust, output="complex")
@@ -508,9 +508,9 @@ def trotter_evolution(terms, dt, order=2, target=None):
 
 
 def rodeo_track_U(v0, Ufun, ts, E, target, dt=None):
-    """Rodeo fidelity / cumulative acceptance per cycle with a Trotterised
+    """Rodeo fidelity / cumulative acceptance per cycle with a Trotterized
     controlled evolution: Ufun(n) returns a callable applying n fixed steps of
-    length dt (from `trotter_evolution`); the cycle time is quantised to n dt and
+    length dt (from `trotter_evolution`); the cycle time is quantized to n dt and
     the phase uses that time.  With dt=None, Ufun(t) is a callable for the exact
     time t (as in paper I)."""
     v = v0.astype(complex).copy(); P = 1.0; F, A = [], []
@@ -610,7 +610,7 @@ def uccsd_pool_size(N, Nup, Ndn):
     return s, d
 
 
-def uccsd_hubbard(N, bonds, Nup, Ndn, U, t=1.0, maxiter=500, H=None, verbose=False):
+def uccsd_hubbard(N, bonds, Nup, Ndn, U, t=1.0, maxiter=500, H=None, verbose=False, keep=None, theta0=None):
     """Sector-level UCCSD-VQE for the Hubbard model with the free-fermion (U=0)
     orbitals as reference: |psi> = prod_mu exp(theta_mu (tau_mu - tau_mu^T)) |HF>,
     tau = spin-resolved singles and doubles in the orbital basis, applied as a
@@ -652,6 +652,10 @@ def uccsd_hubbard(N, bonds, Nup, Ndn, U, t=1.0, maxiter=500, H=None, verbose=Fal
     for (i, a) in product(occ_u, vir_u):
         for (j, b) in product(occ_d, vir_d):
             gens.append(kron(Eu(a, i), Ed(b, j), format="csr")); doubles.append(("ud", i, j, a, b))
+    if keep is not None:                                 # pruned pool: keep the listed operator indices (order kept)
+        keep = sorted(keep); labels = singles + doubles
+        gens = [gens[i] for i in keep]; labels = [labels[i] for i in keep]
+        singles = [l for l in labels if len(l) == 3]; doubles = [l for l in labels if len(l) == 5]
     Ks = [(g - g.T).tocsr() for g in gens]
     Pis = []
     for K in Ks:
@@ -684,7 +688,8 @@ def uccsd_hubbard(N, bonds, Nup, Ndn, U, t=1.0, maxiter=500, H=None, verbose=Fal
             lam_ = fac(m, -th[m], lam_)                  # U_m^+ = exp(-theta K)
         return g
     E_hf = energy(np.zeros(P))
-    res = minimize(energy, np.zeros(P), jac=grad, method="L-BFGS-B",
+    x0 = np.zeros(P) if theta0 is None else np.asarray(theta0, float)
+    res = minimize(energy, x0, jac=grad, method="L-BFGS-B",
                    options={"ftol": 1e-14, "gtol": 1e-10, "maxiter": maxiter})
     psi = Phi @ forward(res.x)[-1]
     return dict(E=float(res.fun), psi=psi / np.linalg.norm(psi), theta=res.x, nit=int(res.nit),

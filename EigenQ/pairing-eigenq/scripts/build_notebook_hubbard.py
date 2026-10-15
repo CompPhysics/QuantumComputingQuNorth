@@ -95,7 +95,7 @@ md(r"""---
 ## 2&nbsp; Prolongation and the Galerkin coarse Hamiltonian
 
 A refinement step maps $N_c$ coarse sites onto $N_f=bN_c$ fine sites ($b=2$ for the chain, $b=4$
-for the square lattice).  The prolongation sends the coarse orbital to the normalised bonding
+for the square lattice).  The prolongation sends the coarse orbital to the normalized bonding
 combination of its block,
 $c^\dagger_{c\sigma}\mapsto s^\dagger_{c\sigma}=b^{-1/2}\sum_{f\in B(c)}c^\dagger_{f\sigma}$,
 and a coarse determinant to the product of $s^\dagger$ operators; $P$ is an isometry from the coarse
@@ -147,7 +147,7 @@ $H_A(s)=\cos^2(\tfrac{\pi s}2)P(H_{\rm low}-\mu)P^\dagger+\sin^2(\tfrac{\pi s}2)
 with $\mu=E_{\rm low}+\mu_{\rm buf}$.  **Path B** keeps the Hamiltonian two-local in the laboratory
 frame: it adds an extra hopping $\Lambda$ on the intra-block bonds and switches it off,
 $H_B(s)=H_{\rm high}-\Lambda\cos^2(\tfrac{\pi s}2)\sum_{\rm intra}\sum_\sigma(c^\dagger_{f\sigma}c_{f'\sigma}+{\rm h.c.})$
-— the dimerised chain being adiabatically made uniform.  At finite $\Lambda$ the ground state of
+— the dimerized chain being adiabatically made uniform.  At finite $\Lambda$ the ground state of
 $H_B(0)$ differs from the prolonged state by an admixture of order $t/\Lambda$, so Path B carries a
 residual $1-p\simeq c\,(t/\Lambda)^2$ to the end.
 
@@ -208,7 +208,7 @@ for U, r in chain48.items():
         ls = "-" if ("mu_buf=2" in k or "Lambda=16" in k) else "--"
         a.semilogy(Ts[1:], np.maximum(1 - v["ov"][1:], 1e-12), ls, color=cols[U], marker="o", ms=3,
                    label=f"U={U:.0f}, {k}")
-for a, ttl in zip(ax, ("Path A (projector path)", "Path B (un-dimerisation)")):
+for a, ttl in zip(ax, ("Path A (projector path)", "Path B (un-dimerization)")):
     a.set_xlabel("adiabatic time $T$ [1/t]"); a.set_ylabel("$1-p(T)$"); a.set_title(f"chain $4\\to8$, $(2,2)$: {ttl}")
     a.grid(alpha=0.3, which="both"); a.legend(fontsize=7, ncol=2); a.set_ylim(1e-7, 1)
 plt.tight_layout(); plt.show()
@@ -439,7 +439,7 @@ for U in (0.0, 4.0, 8.0):
     sq11[U] = dict(E_low=ps["El"], E_high=wf[0], p0=c2[0], gap=wf[1]-wf[0], Deff=Deff, ov=ov)
     print(f"{U:4.0f} {ps['El']:8.4f} {wf[0]:8.4f} {c2[0]:6.3f} {wf[1]-wf[0]:6.3f} {Deff:6.3f} {ic[0]+f' ({ic[1]:.2f})':>16s} {i_f[0]+f' ({i_f[1]:.2f})':>14s} | " + " ".join(f"{o:.5f}" for o in ov))
 
-print(f"\nplaquette 2x2 -> 4x4, (2,2): coarse levels and the fine ground state, labelled by (C4v irrep, S)   [{time.time()-t0:.0f} s]")
+print(f"\nplaquette 2x2 -> 4x4, (2,2): coarse levels and the fine ground state, labeled by (C4v irrep, S)   [{time.time()-t0:.0f} s]")
 sq22 = {}
 Uscan = (0.0, 1.0, 2.0, 4.0, 6.0, 8.0)
 for U in Uscan:
@@ -583,7 +583,7 @@ for U in Us:
 
 # ============================================================================ 10 circuits
 md(r"""---
-## 10&nbsp; Circuit level: Pauli structure, Trotterised refinement and gate budgets
+## 10&nbsp; Circuit level: Pauli structure, Trotterized refinement and gate budgets
 
 In the block Jordan–Wigner ordering an open chain of $L_f$ sites on $2L_f$ qubits has
 $4(L_f-1)$ hopping strings $\tfrac t2(X_jX_{j+1}+Y_jY_{j+1})$ of weight two, $L_f$ interaction
@@ -591,12 +591,12 @@ strings $\tfrac U4Z_jZ_{j+L_f}$ and $2L_f$ single-$Z$ terms; we verify the count
 with the full-space Pauli decomposition of the library and count CNOTs with the primitive of paper
 I (a weight-$w$ rotation costs $2(w-1)$ CNOTs; a controlled rotation two more).  The product formula
 groups the bonds into two layers of disjoint bonds (each layer is a product of commuting two-qubit
-blocks, realised exactly) plus the diagonal interaction.  The embedded coarse term of Path A is
+blocks, realized exactly) plus the diagonal interaction.  The embedded coarse term of Path A is
 the coarse Hubbard step on the bonding register conditioned on all $2N_c$ antibonding qubits being
 empty; we quote its cost with the Gray-code phase-polynomial convention of paper I and with a
 Toffoli-ladder decomposition.  We then (i) find the number of second-order steps that reproduces
 the exact-slice overlap at $T=16$ to within $1-p_{\rm exact}$, for both paths, and (ii) feed the
-same Trotterised rodeo filter (second order, $\delta t=0.25$, forty Gaussian time sets) the
+same Trotterized rodeo filter (second order, $\delta t=0.25$, forty Gaussian time sets) the
 prolonged, refined and UCCSD inputs and count CNOTs per accepted preparation, exactly as in Sec. V.C
 of paper I.""")
 code(PRE + r'''
@@ -613,7 +613,7 @@ print(f"Path A coarse term for 4->8: {ca['rotations']} rotations conditioned on 
 CN_PROL = 2*4*2            # Givens rotations: N_c per spin, 2 CNOTs each
 print(f"prolongation 4->8: {CN_PROL} CNOTs")
 
-# --- Trotterised refinement at T = 16, U = 4: steps needed for both paths ---
+# --- Trotterized refinement at T = 16, U = 4: steps needed for both paths ---
 U = 4.0; r = chain48[U]; T = 16.0
 Psih = r["Vf"][:, 0]
 terms = hb.hubbard_terms(8, hb.chain(8)[1], 2, 2, U)          # [K_even, K_odd, D]
@@ -628,7 +628,7 @@ coefB = {"B8": [lambda s: 1 + 8.0*np.cos(np.pi*s/2)**2, lambda s: 1.0, lambda s:
          "B16": [lambda s: 1 + 16.0*np.cos(np.pi*s/2)**2, lambda s: 1.0, lambda s: 1.0]}
 ns_list = (16, 32, 64, 128, 256, 512)
 trot = {}
-print(f"\nTrotterised refinement, T = {T:.0f}, U = {U:.0f}: overlap with the fine ground state (exact slices: Path A {p_ex['A']:.6f}, Path B Lambda=8 {p_ex['B8']:.6f}, Lambda=16 {p_ex['B16']:.6f})")
+print(f"\nTrotterized refinement, T = {T:.0f}, U = {U:.0f}: overlap with the fine ground state (exact slices: Path A {p_ex['A']:.6f}, Path B Lambda=8 {p_ex['B8']:.6f}, Lambda=16 {p_ex['B16']:.6f})")
 print(f"{'n_s':>4s} | {'A order 1':>10s} {'A order 2':>10s} | {'B8 order 1':>10s} {'B8 order 2':>10s} | {'B16 order 1':>11s} {'B16 order 2':>11s}")
 for ns in ns_list:
     row = []
@@ -652,11 +652,11 @@ for key, order, mk_, col in (("A", 1, "o--", "C0"), ("A", 2, "o-", "C0"), ("B8",
     ax.semilogy(ns_list, [max(1 - trot[(key, order, ns)], 1e-9) for ns in ns_list], mk_, color=col, label=f"Path {key.replace('B8', 'B ($\\Lambda=8$)').replace('B16', 'B ($\\Lambda=16$)')}, order {order}")
 for key, col in (("A", "C0"), ("B8", "C1"), ("B16", "C2")):
     ax.axhline(1 - p_ex[key], color=col, ls=":")
-ax.set_xscale("log", base=2); ax.set_xlabel("product-formula steps $n_s$"); ax.set_ylabel("$1-p(T=16)$"); ax.set_title("Trotterised refinement, chain $4\\to8$, $U=4t$ (dotted: exact slices)"); ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
+ax.set_xscale("log", base=2); ax.set_xlabel("product-formula steps $n_s$"); ax.set_ylabel("$1-p(T=16)$"); ax.set_title("Trotterized refinement, chain $4\\to8$, $U=4t$ (dotted: exact slices)"); ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
 plt.tight_layout(); plt.show()
 ''')
 code(PRE + r'''
-# --- matched-observable comparison: the same Trotterised rodeo filter on every input ---
+# --- matched-observable comparison: the same Trotterized rodeo filter on every input ---
 U = 4.0; r = chain48[U]; Psih = r["Vf"][:, 0]; E0 = r["E_high"]
 NSAMP, M_MAX, SEED = 40, 6, 3
 SIG = rodeo48[U]["sigma"]
@@ -664,14 +664,14 @@ N8, b8 = hb.chain(8)
 st2 = hb.chain_step_cnots(N8, b8, 2)["cnots"]; ct2 = hb.chain_step_cnots(N8, b8, 2, controlled=True)["cnots"]
 ca = hb.conditioned_term_cnots(4, hb.chain(4)[1], n_controls=8)["toffoli"]
 terms = hb.hubbard_terms(N8, b8, 2, 2, U)
-print("Trotterised controlled evolution (second order): the fixed step is diagonalised once; the filter then projects on the")
+print("Trotterized controlled evolution (second order): the fixed step is diagonalized once; the filter then projects on the")
 print("eigenvector of the step unitary closest to the ground state, whose eigenphase is what an energy scan on the device locates:")
 for dt_ in (0.25, 0.1, 0.05):
     tr_ = hb.trotter_evolution(terms, dt_, order=2, target=Psih)
     print(f"  dt = {dt_:5.2f}: E_eff - E_0 = {tr_['E_eff'] - E0:+.2e}, infidelity floor 1-|<Psi|w>|^2 = {tr_['floor']:.1e}")
 DT = 0.1
 tr = hb.trotter_evolution(terms, DT, order=2, target=Psih); E_obj = tr["E_eff"]
-print(f"operating point: dt = {DT}, E_obj = E_eff = {E_obj:.6f} (E_0 = {E0:.6f}), sigma = {SIG:.2f}; cycle times quantised to multiples of dt")
+print(f"operating point: dt = {DT}, E_obj = E_eff = {E_obj:.6f} (E_0 = {E0:.6f}), sigma = {SIG:.2f}; cycle times quantized to multiples of dt")
 # inputs with their preparation cost (second-order refinement with the steps found above; the coarse term twice per step)
 inputs = {"prolonged": (r["Phi0"].astype(complex), CN_PROL),
           f"Path B ($\\Lambda=8$) refined, T=16, n_s={n_ref['B8']}": (hb.trotter_refine(r["Phi0"], groupsB, coefB["B8"], 16.0, n_ref["B8"], order=2), CN_PROL + n_ref["B8"]*st2),
@@ -692,7 +692,7 @@ for name, (v0, cprep) in inputs.items():
     reach = np.concatenate([np.ones((NSAMP, 1)), Acc[:, :-1]], axis=1)
     cost_et = (cprep + np.cumsum(reach*cyc_cost, axis=1).mean(0))/Am
     rows[name] = dict(p=p, cprep=cprep, Fw=Fw, A=Am, cost=cost_et)
-print(f"\nchain 4->8, U={U:.0f}: Trotterised rodeo (order 2, dt={DT}, sigma={SIG:.2f}, {NSAMP} time sets); per-step CNOTs {st2} (controlled {ct2}); coarse term {ca}/application   [{time.time()-t0:.0f} s]")
+print(f"\nchain 4->8, U={U:.0f}: Trotterized rodeo (order 2, dt={DT}, sigma={SIG:.2f}, {NSAMP} time sets); per-step CNOTs {st2} (controlled {ct2}); coarse term {ca}/application   [{time.time()-t0:.0f} s]")
 print(f"{'input':44s} {'p':>8s} {'prep CNOT':>9s} | " + " | ".join(f"M={m}: 1-F_w   acc   CNOT/acc" for m in (1, 2, 4, 6)))
 for name, d in rows.items():
     print(f"{name:44s} {d['p']:8.5f} {d['cprep']:9d} | " + " | ".join(f"{1-d['Fw'][m-1]:.1e} {d['A'][m-1]:.4f} {d['cost'][m-1]:8.0f}" for m in (1, 2, 4, 6)))
@@ -712,9 +712,162 @@ ax[1].set_xlabel("rodeo cycles $M$"); ax[1].set_ylabel("$1-\\mathcal{F}_M$"); ax
 plt.tight_layout(); plt.show()
 ''')
 
-# ============================================================================ 11 summary
+
+# ============================================================================ 11 revision checks
 md(r"""---
-## 11&nbsp; Summary
+## 11&nbsp; Revision checks: the counted coarse term, the pruned variational comparator, the ordinary adiabatic ramp and the response norm
+
+The assessment of paper I (October 2026) raised points that apply here as well; this section
+settles them for the chain $4\to8$ at $U=4t$.  (a) The embedded coarse term of Path A contains
+non-commuting coarse terms; the counted circuit does not exponentiate it as one block but as the
+three conditioned coarse groups $P(D_c-\mu)P^\dagger$, $PK^c_{\rm even}P^\dagger$,
+$PK^c_{\rm odd}P^\dagger$, and the Trotterized refinement is repeated at that level.  (b) The
+198-parameter UCCSD of Section 9 is pruned to the operators whose amplitudes exceed $10^{-3}$ and
+re-optimized, which is the demonstrated restricted ansatz that an adaptive selection would at
+best find.  (c) An ordinary adiabatic ramp that switches on the interaction,
+$H(s)=K+\sin^2(\pi s/2)\,U\sum_in_{i\uparrow}n_{i\downarrow}$ started from the free-fermion
+determinant of the fine chain (prepared by a Givens network), is the generic preconditioning
+against which the specific refinement paths must be measured.  (d) The first-order response norm
+$\chi_u(s)=\sum_{n>0}|\langle n|\partial_uH|0\rangle|^2/(E_n-E_0)^2$, $u=\sin^2(\pi s/2)$, of
+Path A is followed along the path for every $U$, and the digital filter's long-run state is
+characterized.  (e) The matched comparison of Section 10 is repeated with the new inputs, with
+$M=0$ included, with CNOTs per attempt as well as per accepted preparation, with bootstrap
+uncertainties of the sampled infidelities, and with the minimum cost at three target
+infidelities.""")
+code(PRE + r"""
+from scipy.optimize import minimize
+U = 4.0; r = chain48[U]; Psih = r["Vf"][:, 0]; Hd = r["Hf"]; mu = r["E_low"] + 2.0
+Kev, Kod, D = [t_.toarray() for t_ in hb.hubbard_terms(8, hb.chain(8)[1], 2, 2, U)]
+c2f = lambda s: np.cos(np.pi*s/2)**2; s2f = lambda s: np.sin(np.pi*s/2)**2
+# --- (a) Path A with the coarse term split into its coarse Trotter groups
+tl, Ul, cst = hb.galerkin_params("chain", 1.0, U, 4)
+Kc_e, Kc_o, Dc = [t_.toarray() for t_ in hb.hubbard_terms(4, hb.chain(4)[1], 2, 2, Ul, t=tl)]
+A_groups = [r["P"] @ (Dc + (cst - mu)*np.eye(36)) @ r["P"].T, r["P"] @ Kc_e @ r["P"].T, r["P"] @ Kc_o @ r["P"].T]
+assert abs(sum(A_groups) - r["P"] @ (r["Hl"] - mu*np.eye(36)) @ r["P"].T).max() < 1e-10
+groupsA_split = A_groups + [Kev, Kod, D - mu*np.eye(784)]; coefA_split = [c2f]*3 + [s2f]*3
+pA_ex = p_ex["A"]
+print(f"(a) Path A, T=16, U={U:.0f}: exact slices p = {pA_ex:.6f}; second-order product formula with the coarse term as one block / split into three conditioned coarse groups:")
+trotA = {}
+for ns in (64, 128, 256, 512):
+    p1 = abs(np.vdot(Psih, hb.trotter_refine(r["Phi0"], groupsA, coefA, 16.0, ns, order=2)))**2
+    p2 = abs(np.vdot(Psih, hb.trotter_refine(r["Phi0"], groupsA_split, coefA_split, 16.0, ns, order=2)))**2
+    trotA[ns] = p2; print(f"    n_s = {ns:3d}: one block {p1:.6f}   split {p2:.6f}")
+nA_split = next(ns for ns in (64, 128, 256, 512) if abs(trotA[ns] - pA_ex) <= 1e-3)
+ca = hb.conditioned_term_cnots(4, hb.chain(4)[1], n_controls=8)["toffoli"]; st2 = hb.chain_step_cnots(8, hb.chain(8)[1], 2)["cnots"]
+print(f"    steps within 1e-3 of the exact-slice overlap (split groups): n_s = {nA_split}; cost {CN_PROL} + {nA_split}*({st2} + 2*{ca}) = {CN_PROL + nA_split*(st2 + 2*ca)} CNOTs")
+
+# --- (b) pruned UCCSD on the fine chain
+uf = ucc_fine[U]; th = np.abs(uf["theta"]); labels = uf["singles"] + uf["doubles"]
+for thr in (1e-2, 1e-3):
+    print(f"(b) UCCSD (8 sites): {int((th > thr).sum())} of {len(th)} amplitudes exceed {thr:.0e}")
+keep = [i for i in range(len(th)) if th[i] > 1e-3]
+up = hb.uccsd_hubbard(8, hb.chain(8)[1], 2, 2, U, maxiter=400, H=Hd, keep=keep, theta0=uf["theta"][keep])
+cn_full = hb.uccsd_cnots(8, uf["singles"], uf["doubles"])["total"]; cn_pr = hb.uccsd_cnots(8, up["singles"], up["doubles"])["total"]
+print(f"    pruned ansatz ({up['n_params']} parameters, {cn_pr} CNOTs): E = {up['E']:.6f}, 1-F = {1-abs(np.vdot(Psih, up['psi']))**2:.3e}   (full: {uf['n_params']} parameters, {cn_full} CNOTs, 1-F = {1-abs(np.vdot(Psih, uf['psi']))**2:.3e}, FCI {r['E_high']:.6f})")
+
+# --- (c) the ordinary adiabatic ramp K -> K + U n n from the free-fermion determinant
+Hfree, _ = hb.H_hubbard(8, hb.chain(8)[1], 2, 2, 0.0); w0, V0 = np.linalg.eigh(Hfree.toarray()); FF = V0[:, 0]
+Deff_ff, c2ff = hb.effective_gap(FF, r["wf"], r["Vf"])
+ov_r, _ = hb.refine_overlaps(FF, Hd - D, Hd, Ts, Psih, MSL)
+print(f"(c) U-ramp from the free-fermion determinant: p0 = {c2ff[0]:.4f}, D_eff = {Deff_ff:.3f}; exact slices: " + " ".join(f"p({T})={o:.5f}" for T, o in zip(Ts, ov_r) if T in (4, 8, 12, 16, 24, 32)))
+groupsR = [Kev, Kod, D]; coefR = [lambda s: 1.0, lambda s: 1.0, s2f]
+CN_GIVENS = 2*(8*7//2)*2
+ramp = {}
+for T in (8, 16):
+    pex = ov_r[list(Ts).index(T)]
+    for ns in (16, 32, 64, 128, 256):
+        pr = abs(np.vdot(Psih, hb.trotter_refine(FF, groupsR, coefR, float(T), ns, order=2)))**2
+        if abs(pr - pex) <= 1e-3 or ns == 256:
+            ramp[T] = (ns, pr); break
+    print(f"    T = {T}: exact {pex:.6f}; n_s = {ramp[T][0]} second-order steps give {ramp[T][1]:.6f}; cost {CN_GIVENS} (Givens network) + {ramp[T][0]}*{st2} = {CN_GIVENS + ramp[T][0]*st2} CNOTs")
+
+# --- (d) response norm along Path A for every U, and the long-run state of the fixed-step filter
+fig, ax = plt.subplots(1, 2, figsize=(13, 4.8))
+sgrid = np.linspace(0, 1, 41)
+print("(d) first-order response norm chi_u(s) of Path A (mu_buf = 2):")
+for U_, r_ in chain48.items():
+    mu_ = r_["E_low"] + 2.0; A_ = r_["P"] @ (r_["Hl"] - mu_*np.eye(36)) @ r_["P"].T; B_ = r_["Hf"] - mu_*np.eye(784); dHu = B_ - A_
+    chi = []
+    for s_ in sgrid:
+        u = np.sin(np.pi*s_/2)**2; ws, Vs = np.linalg.eigh((1-u)*A_ + u*B_)
+        amp = np.abs(Vs[:, 1:].T @ (dHu @ Vs[:, 0]))**2; chi.append(float(np.sum(amp/(ws[1:]-ws[0])**2)))
+    ax[0].plot(sgrid, chi, color=cols[U_], label=f"U={U_:.0f}: $\\chi_u(0)={chi[0]:.2f}$, max {max(chi):.2f}")
+    print(f"    U={U_:.0f}: chi_u(0) = {chi[0]:.3f}, max_s chi_u(s) = {max(chi):.3f} at s = {sgrid[int(np.argmax(chi))]:.2f}")
+ax[0].set_yscale("log"); ax[0].set_xlabel("$s$"); ax[0].set_ylabel("$\\chi_u(s)$"); ax[0].set_title("response norm along Path A, chain $4\\to8$"); ax[0].legend(fontsize=8); ax[0].grid(alpha=0.3, which="both")
+ax[1].semilogy(Ts[1:], np.maximum(1 - ov_r[1:], 1e-12), "o-", color="C4", label="$U$-ramp from the free-fermion determinant (exact slices)")
+ax[1].semilogy(Ts[1:], np.maximum(1 - r["paths"]["A, mu_buf=2"]["ov"][1:], 1e-12), "o-", color="C2", label="Path A, $\\mu_{\\rm buf}=2t$")
+ax[1].semilogy(Ts[1:], np.maximum(1 - r["paths"]["B, Lambda=8"]["ov"][1:], 1e-12), "s--", color="C1", label="Path B, $\\Lambda=8t$")
+ax[1].set_xlabel("$T$ [1/t]"); ax[1].set_ylabel("$1-p(T)$"); ax[1].set_title("the ordinary adiabatic ramp versus the refinement paths, $U=4t$"); ax[1].legend(fontsize=8); ax[1].grid(alpha=0.3, which="both")
+plt.tight_layout(); plt.show()
+tr_ = hb.trotter_evolution(hb.hubbard_terms(8, hb.chain(8)[1], 2, 2, U), 0.1, order=2, target=Psih)
+print(f"    fixed-step filter (dt = 0.1): with quantized times all cycles share the eigenvectors of the step unitary, so the long-run accepted state is its")
+print(f"    eigenvector closest to the ground state (infidelity floor {tr_['floor']:.2e}) and, with E_obj = E_eff, the long-run acceptance tends to the input weight on it rather than decaying")
+""")
+code(PRE + r"""
+# --- (e) matched comparison with the new inputs: M = 0..6, per attempt and per accepted, bootstrap errors, minimum cost at targets
+U = 4.0; r = chain48[U]; Psih = r["Vf"][:, 0]
+inputs2 = {"prolonged": (r["Phi0"].astype(complex), CN_PROL),
+           "free-fermion determinant": (FF.astype(complex), CN_GIVENS),
+           f"UCCSD pruned ({up['n_params']} par.)": (up["psi"], cn_pr),
+           "UCCSD (198 par.)": (ucc_fine[U]["psi"], cn_full),
+           f"$U$-ramp, T=8 (n_s={ramp[8][0]})": (hb.trotter_refine(FF, groupsR, coefR, 8.0, ramp[8][0], order=2), CN_GIVENS + ramp[8][0]*st2),
+           f"$U$-ramp, T=16 (n_s={ramp[16][0]})": (hb.trotter_refine(FF, groupsR, coefR, 16.0, ramp[16][0], order=2), CN_GIVENS + ramp[16][0]*st2),
+           f"Path B ($\\Lambda=8$), T=16 (n_s={n_ref['B8']})": (hb.trotter_refine(r["Phi0"], groupsB, coefB["B8"], 16.0, n_ref["B8"], order=2), CN_PROL + n_ref["B8"]*st2),
+           f"Path A (split), T=16 (n_s={nA_split})": (hb.trotter_refine(r["Phi0"], groupsA_split, coefA_split, 16.0, nA_split, order=2), CN_PROL + nA_split*(st2 + 2*ca))}
+rng = np.random.default_rng(SEED); tsets = [np.abs(rng.normal(0.0, SIG, M_MAX)) for _ in range(NSAMP)]
+cyc_cost = np.array([[tr["nsteps"](t)*ct2 for t in ts] for ts in tsets])
+rows2 = {}
+rngb = np.random.default_rng(5)
+for name, (v0, cprep) in inputs2.items():
+    p = abs(np.vdot(Psih, v0))**2
+    F = np.zeros((NSAMP, M_MAX)); Acc = np.zeros((NSAMP, M_MAX))
+    for s_, ts in enumerate(tsets):
+        F[s_], Acc[s_] = hb.rodeo_track_U(v0, tr["Ufun"], ts, E_obj, Psih, dt=DT)
+    Fw = (F*Acc).sum(0)/Acc.sum(0); Am = Acc.mean(0)
+    boots = np.array([1 - ((F*Acc)[idx].sum(0)/Acc[idx].sum(0)) for idx in (rngb.integers(0, NSAMP, NSAMP) for _ in range(400))])
+    rse = boots.std(0)/np.maximum(1 - Fw, 1e-30)
+    reach = np.concatenate([np.ones((NSAMP, 1)), Acc[:, :-1]], axis=1)
+    cost_acc = np.concatenate([[float(cprep)], (cprep + np.cumsum(reach*cyc_cost, axis=1).mean(0))/Am])
+    cost_att = np.concatenate([[float(cprep)], cprep + np.cumsum(cyc_cost, axis=1).mean(0)])
+    rows2[name] = dict(p=p, cprep=cprep, inf=np.concatenate([[1-p], 1-Fw]), rse=np.concatenate([[0.0], rse]), acc=np.concatenate([[1.0], Am]), cost_acc=cost_acc, cost_att=cost_att)
+print(f"chain 4->8, U={U:.0f}: Trotterized rodeo (order 2, dt={DT}, sigma={SIG:.2f}, E_obj = E_eff, {NSAMP} time sets; bootstrap relative std. error of the sampled infidelity in brackets)")
+print(f"{'input':40s} {'p':>8s} {'prep':>6s} | " + " | ".join(f"M={m}: 1-F_w (rse)  acc  /attempt /accepted" for m in (0, 2, 6)))
+for name, d in rows2.items():
+    print(f"{name:40s} {d['p']:8.5f} {d['cprep']:6d} | " + " | ".join(f"{d['inf'][m]:.1e} ({100*d['rse'][m]:3.0f}%) {d['acc'][m]:.3f} {d['cost_att'][m]:8.0f} {d['cost_acc'][m]:8.0f}" for m in (0, 2, 6)))
+print(f"best infidelity after {M_MAX} cycles: {min(d['inf'][-1] for d in rows2.values()):.1e} (floor of the fixed-step filter {tr['floor']:.1e})")
+print("\nfull table, M = 0..6: ensemble infidelity (bootstrap rse %) / cumulative acceptance / CNOTs per accepted preparation")
+for name, d in rows2.items():
+    print(f"  {name}")
+    print("     1-F : " + " ".join(f"{d['inf'][m]:.2e}({100*d['rse'][m]:2.0f}%)" for m in range(M_MAX+1)))
+    print("     acc : " + " ".join(f"{d['acc'][m]:12.4f}" for m in range(M_MAX+1)))
+    print("     cost: " + " ".join(f"{d['cost_acc'][m]:12.0f}" for m in range(M_MAX+1)))
+print("\nminimum CNOTs per accepted preparation reaching a target infidelity, per input (M = 0..6; '-' = not reached):")
+TGTS = (1e-3, 3e-4, 1e-4)
+print(f"{'input':40s} " + " ".join(f"{'target '+format(t,'.0e'):>22s}" for t in TGTS))
+for name, d in rows2.items():
+    cells_ = []
+    for tgt in TGTS:
+        ok = np.where(d["inf"] <= tgt)[0]
+        if ok.size:
+            m = ok[np.argmin(d["cost_acc"][ok])]; cells_.append(f"M={m} {d['cost_acc'][m]:8.0f} ({d['inf'][m]:.1e})")
+        else: cells_.append("-")
+    print(f"{name:40s} " + " ".join(f"{c:>22s}" for c in cells_))
+
+fig, ax = plt.subplots(1, 2, figsize=(13, 5))
+mks = ["o-", "s-", "d-", "^-", "v-", "P-", "X-", "*-"]
+for (name, d), mk_ in zip(rows2.items(), mks):
+    ax[0].loglog(d["cost_acc"], d["inf"], mk_, ms=5, label=f"{name} ($p={d['p']:.4f}$)")
+    ax[1].semilogy(np.arange(0, M_MAX+1), d["inf"], mk_, ms=5, label=name)
+for tgt in (1e-3, 3e-4, 1e-4): ax[0].axhline(tgt, color="gray", ls=":", lw=0.8)
+ax[0].set_xlabel("CNOTs per accepted preparation (input + filter, early termination)"); ax[0].set_ylabel("ensemble infidelity $1-\\mathcal{F}_M$")
+ax[0].set_title(f"eight inputs to the same Trotterized filter, $U=4t$ ($\\delta t={DT}$); $M=0\\ldots6$"); ax[0].legend(fontsize=7); ax[0].grid(alpha=0.3, which="both")
+ax[1].set_xlabel("rodeo cycles $M$ ($M=0$: unfiltered input)"); ax[1].set_ylabel("$1-\\mathcal{F}_M$"); ax[1].set_title("same data versus the number of cycles"); ax[1].legend(fontsize=7); ax[1].grid(alpha=0.3, which="both")
+plt.tight_layout(); plt.show()
+""")
+
+# ============================================================================ 12 summary
+md(r"""---
+## 12&nbsp; Summary
 
 * **Lattice refinement is structurally clean.**  The Galerkin coarse model of the bonding
   prolongation is a Hubbard model in closed form ($t/2$, $U/2$ in one dimension, self-similar at
@@ -728,12 +881,12 @@ md(r"""---
   ($B_1$ singlet) has zero overlap with the fine ground state ($A_2$ triplet); refining the lowest
   coarse state in the target's sector works, the coarse solver must carry the target's quantum
   numbers, and the filter cannot rescue a wrong choice.
-* **Two paths.**  Path B (un-dimerisation) stays two-local and refines as fast but is capped at
+* **Two paths.**  Path B (un-dimerization) stays two-local and refines as fast but is capped at
   $1-p\simeq(t/\Lambda)^2$; Path A removes the ceiling at the price of a coarse term conditioned on
   all antibonding qubits.  Two rodeo cycles remove either residual.
 * **Bootstrap.**  From the filled dimer, a single basis state, two or three refinement steps of
   $T=16/t$ reach the eight- and sixteen-site ground states with $p>0.999$ before any filtering.
-* **Costs.**  At matched infidelity the Trotterised pipeline and the fine-chain UCCSD input are
+* **Costs.**  At matched infidelity the Trotterized pipeline and the fine-chain UCCSD input are
   compared with the same filter in Section 10; the verdict and the numbers are those printed there
   and quoted in the paper.""")
 
