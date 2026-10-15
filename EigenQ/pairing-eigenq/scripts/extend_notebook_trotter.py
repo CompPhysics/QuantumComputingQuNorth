@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Insert the circuit-level (Trotterised) pipeline, the k=3->4 chain and the
+"""Insert the circuit-level (Trotterized) pipeline, the k=3->4 chain and the
 g-scan sections into ResolutionRefPairing.ipynb, before the summary cell.
 Built with nbformat (never hand-edit the .ipynb JSON); idempotent: existing
 cells tagged with the section markers are replaced.
@@ -21,7 +21,7 @@ sector exponentials.  On hardware both are product formulas.  We now quantify th
 Trotter error at the circuit level, using the term decomposition that matches the
 gate compilation of the paper: the diagonal term $D$ (kinetic + $p{=}q$ pairing:
 single-qubit phases and $ZZ$ rotations) and one pair-hopping term $h_{pq}$ per
-level pair.  Each $e^{-ih_{pq}\,\delta t}$ is realised *exactly* by its eight
+level pair.  Each $e^{-ih_{pq}\,\delta t}$ is realized *exactly* by its eight
 commuting weight-4 Pauli rotations, so the only error is the non-commutativity
 *between* terms --- exactly as on a device.  We use `pairinglib.pairing_terms`,
 `trotter_U`, `refine_state_trotter` and `rodeo_track_U`; nothing is redefined here.
@@ -55,7 +55,7 @@ code_trotter_fig = "# " + MARK + r"""
 w4, v4 = np.linalg.eigh(H4); E0 = w4[0]; GS = v4[:, 0]
 T_AD = 30.0
 
-# (a) Trotterised refinement k=2->4: infidelity vs number of refinement steps n_s
+# (a) Trotterized refinement k=2->4: infidelity vs number of refinement steps n_s
 ns_grid = [10, 20, 40, 80, 160]
 inf_ref = {1: [], 2: []}
 for order in (1, 2):
@@ -66,7 +66,7 @@ psi_exact_slices, _ = pl.refine_state(N, 4, T_AD)         # exact-slice referenc
 inf_exact = 1 - abs(np.vdot(GS, psi_exact_slices))**2
 p_ref = {o: 1 - np.array(inf_ref[o]) for o in (1, 2)}
 
-# (b) rodeo with a Trotterised controlled evolution at FIXED STEP SIZE dt:
+# (b) rodeo with a Trotterized controlled evolution at FIXED STEP SIZE dt:
 #     a cycle of time t uses ceil(t/dt) steps, as on hardware.
 NS_OP = 80                                                 # operating point from (a)
 psi_in, _ = pl.refine_state_trotter(N, 4, T_AD, NS_OP, order=2)
@@ -95,7 +95,7 @@ for order, mk in ((1, "o-"), (2, "s-")):
     ax[0].loglog(ns_grid, inf_ref[order], mk, label=f"product formula, order {order}")
 ax[0].axhline(inf_exact, ls=":", c="k", label=f"exact slices (M=160): {inf_exact:.1e}")
 ax[0].set_xlabel(r"refinement steps $n_s$"); ax[0].set_ylabel(r"$1-|\langle\Psi_{\rm GS}|\Phi\rangle|^2$")
-ax[0].set_title(rf"Trotterised refinement, $k=2\to4$, $T={T_AD:.0f}$"); ax[0].legend()
+ax[0].set_title(rf"Trotterized refinement, $k=2\to4$, $T={T_AD:.0f}$"); ax[0].legend()
 Ms = np.arange(1, M_CYC+1)
 for dtm, mk in ((1.0, "o-"), (0.5, "s-"), (0.25, "d-"), (None, "k:")):
     lab = "exact evolution" if dtm is None else rf"$\delta t={dtm}$ ($\approx${mean_steps[dtm]:.1f} steps/cycle)"
@@ -146,7 +146,7 @@ cn_rodeo   = int(round(nsteps_avg * CN_CSTEP * ORDER_FAC))
 cn_run     = cn_refine + cn_rodeo
 cn_accept  = cn_run / A2
 print("k=4 depth budget (CNOTs), N=4, g=1")
-print(f"  UCCSD-VQE preparation:        {CN_VQE} per prep; optimiser: {nit} iterations x (E+grad) evals")
+print(f"  UCCSD-VQE preparation:        {CN_VQE} per prep; optimizer: {nit} iterations x (E+grad) evals")
 print(f"    variational error:          {err_vqe:.2e}")
 print(f"  pipeline (n_s={NS_OP} order-2, M={M_OP} cycles, dt={DT_OP}, sigma={SIG}):")
 print(f"    refinement                  {cn_refine}")
@@ -156,7 +156,7 @@ print(f"    acceptance P_M              {A2:.4f}")
 print(f"    per ACCEPTED preparation    {cn_accept:.0f}")
 print(f"    final infidelity            {1-F2:.2e}")
 print("The pipeline is deeper per accepted shot than one UCCSD replay, but it is")
-print("optimiser-free and reaches an infidelity far below the variational floor;")
+print("optimizer-free and reaches an infidelity far below the variational floor;")
 print("at matched accuracy the variational route has no operating point at all.")
 """
 

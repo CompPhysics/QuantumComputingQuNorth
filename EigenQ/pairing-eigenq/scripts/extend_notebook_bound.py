@@ -45,11 +45,11 @@ The interpolation $H(s)=\cos^2(\pi s/2)\,A+\sin^2(\pi s/2)\,B$ with
 $A=P(H_{\rm low}-\mu)P^\dagger$ and $B=H_{\rm high}-\mu$ is the $\sin^2$ schedule
 for which the adiabatic bound of Jansen, Ruskai and Seiler has no boundary terms.
 The nucleation paper (Sadia *et al.*, arXiv:2609.37527) turns it into explicit
-sufficient conditions for a Trotterised adiabatic stage: a total time
+sufficient conditions for a Trotterized adiabatic stage: a total time
 $T\ge\epsilon^{-1/2}\int_0^1[\|\ddot H\|/\Delta^2+7\|\dot H\|^2/\Delta^3]\,ds$
 guarantees a final infidelity $\le\epsilon$, and
 $n_s\ge\eta^{-1}(T\Lambda_1/4+T^2\Lambda_2/2)$ first-order Trotter steps keep the
-operator error of the digitised sweep below $\eta$, with $\Lambda_1=\max_s\|\dot H\|$
+operator error of the digitized sweep below $\eta$, with $\Lambda_1=\max_s\|\dot H\|$
 and $\Lambda_2$ the largest total commutator norm between the Trotter groups
 (here $\sum_{i<j}\|[H_i,H_j]\|$ over the groups of the gate compilation,
 $[A,\,D-\mu,\,h_{pq},\ldots,V_{\rm ph}\ {\rm pieces}]$).  Along our path

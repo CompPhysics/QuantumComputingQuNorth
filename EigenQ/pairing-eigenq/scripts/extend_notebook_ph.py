@@ -34,7 +34,7 @@ $$
 \hat a_{q\downarrow}\hat a_{r\uparrow}+{\rm h.c.}\Big).
 $$
 The triple sum contains three distinct processes: the $q=r$ pieces are the pairing term
-again and merely renormalise $g\to g+2f$; the $q=p\neq r$ pieces carry a *single*
+again and merely renormalize $g\to g+2f$; the $q=p\neq r$ pieces carry a *single*
 particle from one level to another (a $1p$--$1h$ excitation of seniority two); and the
 pieces with $p,q,r$ all different remove two unpaired particles and deposit a pair
 elsewhere (seniority-two $2p$--$2h$ states).  $\hat V_{\rm ph}$ still conserves
@@ -295,7 +295,7 @@ for f in FS:
 md_trot = MARK + r"""
 ### The circuit-level budget with the particle-hole term
 
-Section~13 Trotterised the pipeline for the pairing force with two kinds of exactly
+Section~13 Trotterized the pipeline for the pairing force with two kinds of exactly
 exponentiable blocks: the diagonal term and one pair-hopping term per level pair.  The
 particle-hole term adds blocks of its own.  Its $q=r$ pieces are pairing terms and only
 rescale the existing rotation angles ($g\to g+2f$) at no cost; the remaining pieces,
@@ -303,7 +303,7 @@ one per $(p,q,r)$ with $q\neq r$, split into $2k(k-1)$ one-particle-one-hole blo
 ($\hat a^\dagger_{p\uparrow}\hat n_{p\downarrow}\hat a_{r\uparrow}+{\rm h.c.}$ and its
 spin partner; four Pauli strings each) and $k(k-1)(k-2)$ pair-breaking blocks
 (eight strings each, like a double excitation).  Within every block the strings commute,
-so each factor $e^{-i\hat T\delta t}$ is again realised exactly by its rotations, and the
+so each factor $e^{-i\hat T\delta t}$ is again realized exactly by its rotations, and the
 product-formula error comes only from the non-commutativity *between* blocks --- $55$ of
 them at $k=4$ instead of seven.  What changes on hardware is the depth of one step: the
 $1p$--$1h$ strings carry Jordan--Wigner parity chains of weight up to $2k$, and the
@@ -341,7 +341,7 @@ for fam, d in pc.items():
 """
 
 code_trot_fig = "# " + MARK + r"""
-# ---- Trotterised refinement and rodeo with the particle-hole term ----
+# ---- Trotterized refinement and rodeo with the particle-hole term ----
 T_AD = 30.0; ns_grid = [10, 20, 40, 80, 160]
 inf_ref = {}; inf_exact = {}; GSf = {}; E0f = {}; Hf = {}
 for f in (0.2, 0.5):
@@ -352,7 +352,7 @@ for f in (0.2, 0.5):
                                for ns in ns_grid]
     pe, _ = pl.refine_state(N, 4, T_AD, f=f); inf_exact[f] = 1 - abs(np.vdot(GSf[f], pe))**2
 
-# rodeo with Trotterised controlled evolution at fixed step size dt, refined (n_s=80, order 2) input
+# rodeo with Trotterized controlled evolution at fixed step size dt, refined (n_s=80, order 2) input
 NS_OP, M_CYC, SIG, NSAMP = 80, 6, 4.0, 12
 rng = np.random.default_rng(11)
 tsets = [np.abs(rng.normal(0.0, SIG, M_CYC)) for _ in range(NSAMP)]
@@ -379,7 +379,7 @@ for f, ls in ((0.2, '-'), (0.5, '--')):
         ax[0].loglog(ns_grid, inf_ref[(f, order)], 'o' + ls, color=c, label=f'$f={f}$, order {order}')
     ax[0].axhline(inf_exact[f], color='gray', ls=ls, lw=0.9, label=f'$f={f}$, exact slices')
 ax[0].set_xlabel('refinement steps $n_s$'); ax[0].set_ylabel(r'$1-|\langle\Psi_0|\Phi\rangle|^2$')
-ax[0].set_title(r'Trotterised refinement $k=2\to4$, $T=30$, with $V_{\rm ph}$'); ax[0].legend(fontsize=7); ax[0].grid(alpha=0.3, which='both')
+ax[0].set_title(r'Trotterized refinement $k=2\to4$, $T=30$, with $V_{\rm ph}$'); ax[0].legend(fontsize=7); ax[0].grid(alpha=0.3, which='both')
 Ms = np.arange(1, M_CYC+1)
 for dtm, c in ((1.0, 'C0'), (0.5, 'C1'), (0.25, 'C2'), (0.125, 'C4'), (None, 'k')):
     lab = 'exact evolution' if dtm is None else f'$\\delta t={dtm}$ ({mean_steps[(0.5, dtm)]/M_CYC:.1f} steps/cycle)'

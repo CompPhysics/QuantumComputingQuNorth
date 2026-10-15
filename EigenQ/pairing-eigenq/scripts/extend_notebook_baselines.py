@@ -48,10 +48,10 @@ md_base = MARK + r"""
 
 The value of the refinement stage is decided by comparing *inputs to the same
 filter* on the *same observable*.  An energy error is not an infidelity: for a
-normalised state $\langle H\rangle-E_0=\sum_{j>0}|c_j|^2(E_j-E_0)\ge\Delta(1-F)$,
+normalized state $\langle H\rangle-E_0=\sum_{j>0}|c_j|^2(E_j-E_0)\ge\Delta(1-F)$,
 so the UCCSD energy error $1.4\times10^{-3}$ at $k=4$ caps its infidelity at
 $7.9\times10^{-4}$; the actual value is $1.8\times10^{-4}$.  Below, one and the
-same Trotterised rodeo filter (order 2, $\delta t=0.25$, $\sigma=4$, 40 common
+same Trotterized rodeo filter (order 2, $\delta t=0.25$, $\sigma=4$, 40 common
 time sets) is fed (i) the prolonged determinant, (ii) the full-space gate-level
 UCCSD state, (iii) the refined state at $T^*=16$ and (iv) at $T=30$.  We report
 the acceptance-weighted ensemble infidelity, the acceptance, and the CNOTs per

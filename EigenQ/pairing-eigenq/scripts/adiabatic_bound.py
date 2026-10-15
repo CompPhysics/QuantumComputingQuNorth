@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sufficient conditions for the Trotterised refinement path (paper Eq. eq:Tbound),
+"""Sufficient conditions for the Trotterized refinement path (paper Eq. eq:Tbound),
 evaluated for the k=2->4 chain at N=4, g=1 and compared with the empirical
 refinement time T* and step count: (a) the adiabatic-time bound of Jansen,
 Ruskai and Seiler in the form used by the nucleation paper (Sadia et al.,

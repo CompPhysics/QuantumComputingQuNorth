@@ -56,45 +56,52 @@ eigenstate preparation: implementation and assessment on the pairing Hamiltonian
 \date{\today}
 
 \begin{abstract}
-Projective spectral filters such as the rodeo algorithm prepare eigenstates with
-exponential accuracy in the number of filter cycles, but their cost is set by
-the squared overlap $p$ of the input state with the target.  We implement and
-assess, on the exactly solvable constant-pairing Hamiltonian, a pipeline in
-which \emph{resolution refinement} --- the adiabatic transport of an eigenstate
-from a coarse to a fine single-particle basis along a shift-controlled,
-gapped path --- supplies the input of the rodeo filter, and we compare it
-against the simplest alternatives on the same footing: the same filter applied
-to the unrefined prolonged state, to an ordinary adiabatic ramp from the
-Hartree--Fock Hamiltonian, to a prolonged coarse variational state and to
-full-space unitary coupled-cluster (UCCSD) states.  All comparisons use the
-ground-state infidelity as the common observable, the same second-order
-product-formula evolution, and a two-qubit gate budget per attempt and per
-accepted preparation that includes the embedded coarse-Hamiltonian term of
-the refinement path.  For four particles on four levels (eight system
-qubits) the refined input ($p=0.998$) is filtered to an infidelity of
-$5\times10^{-4}$ after two cycles and $1.5\times10^{-4}$ after six, the
-floor of the averaged post-selection map of the Trotterized filter; the
-plain adiabatic ramp reaches the same overlap at a quarter of the
-refinement cost; and the seniority-zero reference admits a four-parameter
-pair-rotation preparation of $192$ CNOTs whose infidelity, $1.8\times10^{-4}$
-(energy error $1.4\times10^{-3}$), is below every target that the filtered
-pipeline reaches, at two orders of magnitude less cost.  Refinement
-therefore does not beat a cheap, accurate variational input at this system
-size, nor generic adiabatic preconditioning; its merits are the absence of a
-classical optimization loop and of training measurements.  The extracted
-refinement time changes with the shift-controlled path gap and with the
-pairing strength, but the scans are sensitivity studies that identify no
-scaling exponent, because the response norm that the inverse-gap argument
-requires to be bounded is itself varied by the shift; the sufficient
-adiabatic-time and Trotter-step conditions available for such paths are
-evaluated and found to overestimate the empirical cost by two to three
-orders of magnitude.  Level occupation
-numbers and correlation energies of the prepared states are reported, and all
-stages are compiled to rotation--CNOT circuits with gate counts verified
-against exact evolution.  The seniority-conserving pairing force is the
-cleanest possible testbed; the extension of the assessment to a
-seniority-breaking particle-hole interaction is the subject of a companion
-paper.
+\textbf{Background:} Projective spectral filters such as the rodeo algorithm
+prepare eigenstates with an accuracy that improves exponentially in the
+number of filter cycles, at a cost set by the squared overlap $p$ of the
+input state with the target.  Resolution refinement --- the adiabatic
+transport of an eigenstate from a coarse to a fine single-particle basis
+along a shift-controlled, gapped path --- has been proposed as a way to
+supply that input without any variational optimization.
+\textbf{Purpose:} To implement the complete chain, coarse eigenstate,
+prolongation, resolution refinement, and rodeo filter, at the gate level on
+an exactly solvable fermionic testbed, the constant-pairing Hamiltonian; to
+validate every stage against exact results; and to establish, by a
+comparison on a common observable, what the refinement stage contributes
+relative to the simplest alternative inputs to the same filter.
+\textbf{Methods:} All stages are compiled to single-qubit rotations and
+controlled-NOT (CNOT) gates, with second-order product formulas for the
+refinement and for the controlled evolution of the filter, and are simulated
+exactly within the particle-number sector.  The benchmarks are full
+configuration interaction, coupled-cluster doubles, and unitary
+coupled-cluster singles and doubles (UCCSD) at the operator and at the gate
+level, and the analytic success-probability formulas of the filter.  The
+comparison uses the ground-state infidelity as the common observable and the
+two-qubit gate count per attempt and per accepted preparation, with and
+without filter cycles.
+\textbf{Results:} For four particles on four levels (eight system qubits)
+the refinement raises the overlap of the prolonged determinant from $0.87$
+to $0.998$ along a path that stays gapped, with no trained parameter and no
+measurement during preparation, and the filter removes the remaining weight
+geometrically, in agreement with the exact Gaussian-ensemble expression
+derived here, with an acceptance that converges to $p$ and an accuracy floor
+of $1.2\times10^{-4}$ set by the product formula; the acceptance statistics
+of the filter diagnose a corrupted evolution.  The response norm of the path
+is obtained in closed form at its start, and the sufficient adiabatic-time
+and Trotter-step conditions available for such paths are evaluated and
+found to overestimate the empirical cost by two to three orders of
+magnitude.  At matched accuracy, an ordinary adiabatic ramp from the
+Hartree--Fock Hamiltonian reaches the same overlap at one quarter of the
+refinement cost, and a four-parameter pair-rotation ansatz of $192$ CNOT
+gates reaches an infidelity of $1.8\times10^{-4}$ without any filter.
+\textbf{Conclusions:} Resolution refinement followed by the rodeo algorithm
+is a validated, optimizer-free and measurement-free route to a
+high-fidelity correlated eigenstate, with every gate counted and every stage
+anchored to exact results.  For the pairing model at this size it is not
+the cheapest route; the controlled benchmark fixes the baseline against
+which its advantages for larger spaces or poorer variational inputs must be
+measured.  A companion paper extends the assessment to a seniority-breaking
+particle-hole interaction.
 \end{abstract}
 
 \maketitle
@@ -165,7 +172,7 @@ decides whether the refinement stage earns its gates: does refinement followed
 by filtering beat filtering the best input that is available cheaply?
 
 The pairing problem has become a standard target for quantum algorithms, and
-the programme of Lacroix and collaborators is the closest in spirit to ours.
+the program of Lacroix and collaborators is the closest in spirit to ours.
 Its common thread is the deliberate use of symmetry breaking and
 restoration: a symmetry-breaking (BCS-like) trial state is cheap and
 correlated, and the symmetry is restored afterwards by a projective step ---
@@ -846,7 +853,7 @@ message: the conditions certify convergence but do not predict cost.  Part
 of the reason is visible in the integrand.  The bound pays for the full
 operator norm $\norm{B-A}=7.62$ --- the same value in the full $N=4$ sector
 and in the six-dimensional seniority-zero block that the dynamics
-actually explores, so it is not an artefact of inaccessible sectors --- and
+actually explores, so it is not an artifact of inaccessible sectors --- and
 for the global gap, whereas the adiabatic error is governed by the
 individual matrix elements of $dH/ds$ between the tracked state and the
 states it couples to, relative to their individual gaps.  Those elements are
@@ -914,7 +921,7 @@ Scanning the target energy $E$ (Fig.~\ref{fig:scan}; $M=4$ cycles, $12$ time set
 per energy) produces a peak at the ground-state energy; a coarse scan
 ($\sigma=2$, $60$ energies on $[-0.5,4]$) resolves it from the excited band,
 and a fine scan ($\sigma=8$, $161$ energies with spacing $0.0075$ on a
-window of width $1.2$ centred on the highest point of the coarse scan,
+window of width $1.2$ centered on the highest point of the coarse scan,
 $E=0.644$, i.e.\ chosen without knowledge of $E_0$) locates it at
 $E=0.6362$ against the exact $E_0=0.635548$ by three-point parabolic
 interpolation at the grid maximum.  On a device every acceptance is a shot
@@ -969,7 +976,7 @@ $0.998$ to $0.965$, $0.873$ and $0.596$ (exact ensemble values, Sec.~19 of
 the notebook; an earlier version quoted sampled values) --- in
 this regime the acceptance, not the fidelity, is the sensitive diagnostic of
 a wrong target, and it then no longer tends to the input overlap; a detuning
-towards another eigenvalue would instead select that state, which the
+toward another eigenvalue would instead select that state, which the
 acceptance alone does not certify against.
 
 \begin{figure*}[t]
@@ -977,7 +984,7 @@ acceptance alone does not certify against.
 \includegraphics[width=\linewidth]{figs/fig7.png}
 \caption{Rodeo energy scan ($M=4$).  Left: coarse scan ($\sigma=2$); the dotted
 vertical lines mark exact eigenvalues and the dashed line the $2^{-M}$ background.
-Right: fine scan ($\sigma=8$) on a window centred on the coarse-scan maximum;
+Right: fine scan ($\sigma=8$) on a window centered on the coarse-scan maximum;
 the peak is located at $E=0.6362$ (exact $E_0=0.6355$).}
 \label{fig:scan}
 \end{figure*}
@@ -1616,7 +1623,7 @@ not as evidence for them.
 
 \paragraph{Relation to symmetry-restoration and subspace approaches.}
 The results invite a comparison with the pairing-model work of Lacroix and
-collaborators summarized in the Introduction.  Both programmes start from a
+collaborators summarized in the Introduction.  Both programs start from a
 cheap, imperfect trial state and sharpen it; the difference is what is
 sharpened and how.  In the symmetry-restoration route the trial state breaks a
 symmetry on purpose and the projector --- phase estimation on the symmetry
@@ -1802,53 +1809,181 @@ for assistance with literature search and coding.
 % ===========================================================================
 \begin{thebibliography}{99}
 % ===========================================================================
+\bibitem{Beck2023}
+D.~Beck \textit{et al.},
+\textit{Quantum information science and technology for nuclear physics.
+Input into U.S.\ long-range planning, 2023},
+arXiv:2303.00113 (2023).
+\bibitem{Bauer2023}
+C.~W.~Bauer, Z.~Davoudi, N.~Klco, M.~J.~Savage,
+\textit{Quantum simulation of fundamental particles and forces},
+Nat.\ Rev.\ Phys.\ \textbf{5}, 420 (2023).
+\bibitem{LeeReview2023}
+D.~Lee,
+\textit{Quantum techniques for eigenvalue problems},
+Eur.\ Phys.\ J.\ A \textbf{59}, 275 (2023).
+\bibitem{Ovrum2007}
+E.~Ovrum, M.~Hjorth-Jensen,
+\textit{Quantum computation algorithm for many-body studies},
+arXiv:0705.1928 (2007).
+\bibitem{Hlatshwayo2022}
+M.~Q.~Hlatshwayo, Y.~Zhang, H.~Wibowo, R.~LaRose, D.~Lacroix, E.~Litvinova,
+\textit{Simulating excited states of the Lipkin model on a quantum computer},
+Phys.\ Rev.\ C \textbf{106}, 024319 (2022).
+\bibitem{Stetcu2022}
+I.~Stetcu, A.~Baroni, J.~Carlson,
+\textit{Variational approaches to constructing the many-body nuclear ground state
+for quantum computing},
+Phys.\ Rev.\ C \textbf{105}, 064308 (2022).
+\bibitem{PerezObiol2023}
+A.~P\'erez-Obiol, A.~M.~Romero, J.~Men\'endez, A.~Rios, A.~Garc\'ia-S\'aez,
+B.~Juli\'a-D\'iaz,
+\textit{Nuclear shell-model simulation in digital quantum computers},
+Sci.\ Rep.\ \textbf{13}, 12291 (2023).
+\bibitem{Jiang2023}
+C.~Jiang, J.~Pei,
+\textit{Quantum computing of the pairing Hamiltonian at finite temperature},
+Phys.\ Rev.\ C \textbf{107}, 044308 (2023).
+\bibitem{Zhang2024}
+J.~Zhang, D.~Lacroix, Y.~Beaujeault-Taudi\`ere,
+\textit{Neutron-proton pairing correlations described on quantum computers},
+Phys.\ Rev.\ C \textbf{110}, 064320 (2024).
+\bibitem{Lacroix2023}
+E.~A.~Ruiz~Guzman,
+\textit{Symmetry breaking and restoration for many-body problems treated on
+quantum computers},
+PhD thesis, Universit\'e Paris-Saclay (2023); arXiv:2310.17996.
 \bibitem{Peruzzo2014}
 A.~Peruzzo, J.~McClean, P.~Shadbolt, M.-H.~Yung, X.-Q.~Zhou, P.~J.~Love,
 A.~Aspuru-Guzik, J.~L.~O'Brien,
 \textit{A variational eigenvalue solver on a photonic quantum processor},
 Nat.\ Commun.\ \textbf{5}, 4213 (2014).
-
 \bibitem{McClean2018}
 J.~R.~McClean, S.~Boixo, V.~N.~Smelyanskiy, R.~Babbush, H.~Neven,
 \textit{Barren plateaus in quantum neural network training landscapes},
 Nat.\ Commun.\ \textbf{9}, 4812 (2018).
-
+\bibitem{Larocca2025}
+M.~Larocca, S.~Thanasilp, S.~Wang, K.~Sharma, J.~Biamonte, P.~J.~Coles,
+L.~Cincio, J.~R.~McClean, Z.~Holmes, M.~Cerezo,
+\textit{Barren plateaus in variational quantum computing},
+Nat.\ Rev.\ Phys.\ \textbf{7}, 174 (2025).
 \bibitem{Albash2018}
 T.~Albash, D.~A.~Lidar,
 \textit{Adiabatic quantum computation},
 Rev.\ Mod.\ Phys.\ \textbf{90}, 015002 (2018).
-
 \bibitem{Abrams1999}
 D.~S.~Abrams, S.~Lloyd,
 \textit{Quantum algorithm providing exponential speed increase for finding
 eigenvalues and eigenvectors},
 Phys.\ Rev.\ Lett.\ \textbf{83}, 5162 (1999).
-
+\bibitem{LinTong2020}
+L.~Lin, Y.~Tong,
+\textit{Near-optimal ground state preparation},
+Quantum \textbf{4}, 372 (2020).
+\bibitem{Dong2022}
+Y.~Dong, L.~Lin, Y.~Tong,
+\textit{Ground-state preparation and energy estimation on early fault-tolerant
+quantum computers via quantum eigenvalue transformation of unitary matrices},
+PRX Quantum \textbf{3}, 040305 (2022).
+\bibitem{Stetcu2023}
+I.~Stetcu, A.~Baroni, J.~Carlson,
+\textit{Projection algorithm for state preparation on quantum computers},
+Phys.\ Rev.\ C \textbf{108}, L031306 (2023).
 \bibitem{Choi2021}
 K.~Choi, D.~Lee, J.~Bonitati, Z.~Qian, J.~Watkins,
 \textit{Rodeo algorithm for quantum computing},
 Phys.\ Rev.\ Lett.\ \textbf{127}, 040505 (2021).
-
 \bibitem{Qian2024}
 Z.~Qian, J.~Watkins, G.~Given, J.~Bonitati, K.~Choi, D.~Lee,
 \textit{Demonstration of the rodeo algorithm on a quantum computer},
 Eur.\ Phys.\ J.\ A \textbf{60}, 151 (2024).
-
-\bibitem{Bogner2026}
-S.~Bogner, H.~Hergert, M.~Hjorth-Jensen, R.~LaRose, D.~Lee, M.~Patkowski,
-\textit{Quantum state preparation with resolution refinement},
-Phys.\ Lett.\ B \textbf{875}, 140363 (2026); arXiv:2511.14732.
-
+\bibitem{Cohen2023}
+T.~D.~Cohen, H.~Oh,
+\textit{Optimizing the rodeo projection algorithm},
+Phys.\ Rev.\ A \textbf{108}, 032422 (2023).
+\bibitem{BeeLindgren2022}
+M.~Bee-Lindgren, Z.~Qian, M.~DeCross, N.~C.~Brown, C.~N.~Gilbreth, J.~Watkins,
+X.~Zhang, D.~Lee,
+\textit{Controlled gate networks: theory and application to eigenvalue estimation},
+Eur.\ Phys.\ J.\ A \textbf{61}, 263 (2025); arXiv:2208.13557.
+\bibitem{Patkowski2026}
+M.~Patkowski, O.~Ayyildiz, K.~Hunt, N.~Jansen, D.~Lee,
+\textit{Improved rodeo algorithm performance for spectral functions and state
+preparation},
+arXiv:2602.05978 (2026).
 \bibitem{Patkowski2025fusion}
 M.~Patkowski, O.~Ayyildiz, M.~Kebri\v{c}, K.~L.~C.~Hunt, D.~Lee,
 \textit{Hierarchical fusion method for scalable quantum eigenstate preparation},
 Phys.\ Rev.\ A \textbf{113}, 052442 (2026); arXiv:2510.19039.
-
+\bibitem{Bogner2026}
+S.~Bogner, H.~Hergert, M.~Hjorth-Jensen, R.~LaRose, D.~Lee, M.~Patkowski,
+\textit{Quantum state preparation with resolution refinement},
+Phys.\ Lett.\ B \textbf{875}, 140363 (2026); arXiv:2511.14732.
 \bibitem{Sadia2026}
 J.~P.~Sadia, M.~Hjorth-Jensen, D.~Lee, R.~LaRose,
 \textit{Digital quantum state preparation by nucleation},
 arXiv:2609.37527 (2026).
-
+\bibitem{Lacroix2020}
+D.~Lacroix,
+\textit{Symmetry assisted preparation of entangled many-body states on a quantum computer},
+Phys.\ Rev.\ Lett.\ \textbf{125}, 230502 (2020).
+\bibitem{RuizGuzman2023}
+E.~A.~Ruiz~Guzman, D.~Lacroix,
+\textit{Restoring broken symmetries using quantum search ``oracles''},
+Phys.\ Rev.\ C \textbf{107}, 034310 (2023).
+\bibitem{Siwach2021}
+P.~Siwach, D.~Lacroix,
+\textit{Filtering states with total spin on a quantum computer},
+Phys.\ Rev.\ A \textbf{104}, 062435 (2021).
+\bibitem{RuizGuzman2024}
+E.~A.~Ruiz~Guzman, D.~Lacroix,
+\textit{Restoring symmetries in quantum computing using Classical Shadows},
+Eur.\ Phys.\ J.\ A \textbf{60}, 112 (2024).
+\bibitem{RuizGuzman2022}
+E.~A.~Ruiz~Guzman, D.~Lacroix,
+\textit{Accessing ground-state and excited-state energies in a many-body system after symmetry restoration using quantum computers},
+Phys.\ Rev.\ C \textbf{105}, 024324 (2022).
+\bibitem{RuizGuzman2021}
+E.~A.~Ruiz~Guzman, D.~Lacroix,
+\textit{Calculation of generating function in many-body systems with quantum computers: technical challenges and use in hybrid quantum-classical methods},
+arXiv:2104.08181 (2021).
+\bibitem{Lacroix2023EPJA}
+D.~Lacroix, E.~A.~Ruiz~Guzman, P.~Siwach,
+\textit{Symmetry breaking/symmetry preserving circuits and symmetry restoration on quantum computers: A quantum many-body perspective},
+Eur.\ Phys.\ J.\ A \textbf{59}, 3 (2023).
+\bibitem{Ayral2023}
+T.~Ayral, P.~Besserve, D.~Lacroix, E.~A.~Ruiz~Guzman,
+\textit{Quantum computing with and for many-body physics},
+Eur.\ Phys.\ J.\ A \textbf{59}, 227 (2023).
+\bibitem{Zhang2025}
+J.~Zhang, D.~Lacroix,
+\textit{Excited states from ADAPT-VQE convergence path in many-body problems: application to nuclear pairing problem and H$_4$ molecule dissociation},
+Phys.\ Lett.\ B \textbf{869}, 139841 (2025).
+\bibitem{BeaujeaultTaudiere2024}
+Y.~Beaujeault-Taudi\`ere, D.~Lacroix,
+\textit{Solving the Lipkin model using quantum computers with two qubits only with a hybrid quantum-classical technique based on the generator coordinate method},
+Phys.\ Rev.\ C \textbf{109}, 024327 (2024).
+\bibitem{AychetClaisse2026}
+S.~Aychet-Claisse, D.~Lacroix, V.~Som\`a, J.~Zhang,
+\textit{Quantum simulations of Green's functions for small superfluid systems},
+Phys.\ Rev.\ C \textbf{113}, 044324 (2026); arXiv:2509.02272.
+\bibitem{LNP936}
+M.~Hjorth-Jensen, M.~P.~Lombardo, U.~van~Kolck (eds.),
+\textit{An Advanced Course in Computational Nuclear Physics},
+Lecture Notes in Physics \textbf{936}, Springer (2017).
+\bibitem{Richardson1963}
+R.~W.~Richardson,
+\textit{A restricted class of exact eigenstates of the pairing-force Hamiltonian},
+Phys.\ Lett.\ \textbf{3}, 277 (1963).
+\bibitem{RichardsonSherman1964}
+R.~W.~Richardson, N.~Sherman,
+\textit{Exact eigenstates of the pairing-force Hamiltonian},
+Nucl.\ Phys.\ \textbf{52}, 221 (1964).
+\bibitem{Dukelsky2004}
+J.~Dukelsky, S.~Pittel, G.~Sierra,
+\textit{Colloquium: Exactly solvable Richardson-Gaudin models for many-body
+quantum systems},
+Rev.\ Mod.\ Phys.\ \textbf{76}, 643 (2004).
 \bibitem{PHcompanion}
 S.~Bogner, C.~Glittum, H.~Hergert, M.~Hjorth-Jensen, G.~Lange, R.~LaRose,
 D.~Lee, F.~P.~Massel, J.~P.~Sadia,
@@ -1856,270 +1991,84 @@ D.~Lee, F.~P.~Massel, J.~P.~Sadia,
 eigenstate preparation for the pairing Hamiltonian with a particle-hole
 interaction},
 companion paper (2026).
-
-\bibitem{Jansen2007}
-S.~Jansen, M.-B.~Ruskai, R.~Seiler,
-\textit{Bounds for the adiabatic approximation with applications to quantum
-computation},
-J.\ Math.\ Phys.\ \textbf{48}, 102111 (2007).
-
-\bibitem{Kovalsky2023}
-L.~K.~Kovalsky, F.~A.~Calderon-Vargas, M.~D.~Grace, A.~B.~Magann,
-J.~B.~Larsen, A.~D.~Baczewski, M.~Sarovar,
-\textit{Self-healing of Trotter error in digital adiabatic state preparation},
-Phys.\ Rev.\ Lett.\ \textbf{131}, 060602 (2023).
-
-\bibitem{LeeReview2023}
-D.~Lee,
-\textit{Quantum techniques for eigenvalue problems},
-Eur.\ Phys.\ J.\ A \textbf{59}, 275 (2023).
-
 \bibitem{LeeUCC2019}
 J.~Lee, W.~J.~Huggins, M.~Head-Gordon, K.~B.~Whaley,
 \textit{Generalized unitary coupled cluster wavefunctions for quantum computation},
 J.\ Chem.\ Theory Comput.\ \textbf{15}, 311 (2019).
-
-\bibitem{Kandala2017}
-A.~Kandala, A.~Mezzacapo, K.~Temme, M.~Takita, M.~Brink, J.~M.~Chow,
-J.~M.~Gambetta,
-\textit{Hardware-efficient variational quantum eigensolver for small molecules
-and quantum magnets},
-Nature \textbf{549}, 242 (2017).
-
-\bibitem{Grimsley2019}
-H.~R.~Grimsley, S.~E.~Economou, E.~Barnes, N.~J.~Mayhall,
-\textit{An adaptive variational algorithm for exact molecular simulations on a
-quantum computer},
-Nat.\ Commun.\ \textbf{10}, 3007 (2019).
-
-\bibitem{Tang2021}
-H.~L.~Tang, V.~O.~Shkolnikov, G.~S.~Barron, H.~R.~Grimsley, N.~J.~Mayhall,
-E.~Barnes, S.~E.~Economou,
-\textit{Qubit-ADAPT-VQE: an adaptive algorithm for constructing
-hardware-efficient ans\"atze on a quantum processor},
-PRX Quantum \textbf{2}, 020310 (2021).
-
 \bibitem{Tilly2022}
 J.~Tilly, H.~Chen, S.~Cao, D.~Picozzi, K.~Setia, Y.~Li, E.~Grant, L.~Wossnig,
 I.~Rungger, G.~H.~Booth, J.~Tennyson,
 \textit{The variational quantum eigensolver: a review of methods and best
 practices},
 Phys.\ Rep.\ \textbf{986}, 1 (2022).
-
+\bibitem{Jansen2007}
+S.~Jansen, M.-B.~Ruskai, R.~Seiler,
+\textit{Bounds for the adiabatic approximation with applications to quantum
+computation},
+J.\ Math.\ Phys.\ \textbf{48}, 102111 (2007).
+\bibitem{Kovalsky2023}
+L.~K.~Kovalsky, F.~A.~Calderon-Vargas, M.~D.~Grace, A.~B.~Magann,
+J.~B.~Larsen, A.~D.~Baczewski, M.~Sarovar,
+\textit{Self-healing of Trotter error in digital adiabatic state preparation},
+Phys.\ Rev.\ Lett.\ \textbf{131}, 060602 (2023).
 \bibitem{Trotter1959}
 H.~F.~Trotter,
 \textit{On the product of semi-groups of operators},
 Proc.\ Am.\ Math.\ Soc.\ \textbf{10}, 545 (1959).
-
 \bibitem{Suzuki1976}
 M.~Suzuki,
 \textit{Generalized Trotter's formula and systematic approximants of exponential
 operators},
 Commun.\ Math.\ Phys.\ \textbf{51}, 183 (1976).
-
 \bibitem{Childs2021}
 A.~M.~Childs, Y.~Su, M.~C.~Tran, N.~Wiebe, S.~Zhu,
 \textit{Theory of Trotter error with commutator scaling},
 Phys.\ Rev.\ X \textbf{11}, 011020 (2021).
-
-\bibitem{LNP936}
-M.~Hjorth-Jensen, M.~P.~Lombardo, U.~van~Kolck (eds.),
-\textit{An Advanced Course in Computational Nuclear Physics},
-Lecture Notes in Physics \textbf{936}, Springer (2017).
-
-\bibitem{Lacroix2020}
-D.~Lacroix,
-\textit{Symmetry assisted preparation of entangled many-body states on a quantum computer},
-Phys.\ Rev.\ Lett.\ \textbf{125}, 230502 (2020).
-
-\bibitem{RuizGuzman2021}
-E.~A.~Ruiz~Guzman, D.~Lacroix,
-\textit{Calculation of generating function in many-body systems with quantum computers: technical challenges and use in hybrid quantum-classical methods},
-arXiv:2104.08181 (2021).
-
-\bibitem{Siwach2021}
-P.~Siwach, D.~Lacroix,
-\textit{Filtering states with total spin on a quantum computer},
-Phys.\ Rev.\ A \textbf{104}, 062435 (2021).
-
-\bibitem{RuizGuzman2022}
-E.~A.~Ruiz~Guzman, D.~Lacroix,
-\textit{Accessing ground-state and excited-state energies in a many-body system after symmetry restoration using quantum computers},
-Phys.\ Rev.\ C \textbf{105}, 024324 (2022).
-
-\bibitem{Lacroix2023EPJA}
-D.~Lacroix, E.~A.~Ruiz~Guzman, P.~Siwach,
-\textit{Symmetry breaking/symmetry preserving circuits and symmetry restoration on quantum computers: A quantum many-body perspective},
-Eur.\ Phys.\ J.\ A \textbf{59}, 3 (2023).
-
-\bibitem{RuizGuzman2023}
-E.~A.~Ruiz~Guzman, D.~Lacroix,
-\textit{Restoring broken symmetries using quantum search ``oracles''},
-Phys.\ Rev.\ C \textbf{107}, 034310 (2023).
-
-\bibitem{Ayral2023}
-T.~Ayral, P.~Besserve, D.~Lacroix, E.~A.~Ruiz~Guzman,
-\textit{Quantum computing with and for many-body physics},
-Eur.\ Phys.\ J.\ A \textbf{59}, 227 (2023).
-
-\bibitem{BeaujeaultTaudiere2024}
-Y.~Beaujeault-Taudi\`ere, D.~Lacroix,
-\textit{Solving the Lipkin model using quantum computers with two qubits only with a hybrid quantum-classical technique based on the generator coordinate method},
-Phys.\ Rev.\ C \textbf{109}, 024327 (2024).
-
-\bibitem{RuizGuzman2024}
-E.~A.~Ruiz~Guzman, D.~Lacroix,
-\textit{Restoring symmetries in quantum computing using Classical Shadows},
-Eur.\ Phys.\ J.\ A \textbf{60}, 112 (2024).
-
-\bibitem{Zhang2025}
-J.~Zhang, D.~Lacroix,
-\textit{Excited states from ADAPT-VQE convergence path in many-body problems: application to nuclear pairing problem and H$_4$ molecule dissociation},
-Phys.\ Lett.\ B \textbf{869}, 139841 (2025).
-
-\bibitem{AychetClaisse2026}
-S.~Aychet-Claisse, D.~Lacroix, V.~Som\`a, J.~Zhang,
-\textit{Quantum simulations of Green's functions for small superfluid systems},
-Phys.\ Rev.\ C \textbf{113}, 044324 (2026); arXiv:2509.02272.
-
+\bibitem{Kandala2017}
+A.~Kandala, A.~Mezzacapo, K.~Temme, M.~Takita, M.~Brink, J.~M.~Chow,
+J.~M.~Gambetta,
+\textit{Hardware-efficient variational quantum eigensolver for small molecules
+and quantum magnets},
+Nature \textbf{549}, 242 (2017).
 \bibitem{NielsenChuang}
 M.~A.~Nielsen, I.~L.~Chuang,
 \textit{Quantum Computation and Quantum Information},
 Cambridge University Press (2010).
-
-\bibitem{Richardson1963}
-R.~W.~Richardson,
-\textit{A restricted class of exact eigenstates of the pairing-force Hamiltonian},
-Phys.\ Lett.\ \textbf{3}, 277 (1963).
-
-\bibitem{RichardsonSherman1964}
-R.~W.~Richardson, N.~Sherman,
-\textit{Exact eigenstates of the pairing-force Hamiltonian},
-Nucl.\ Phys.\ \textbf{52}, 221 (1964).
-
-\bibitem{Dukelsky2004}
-J.~Dukelsky, S.~Pittel, G.~Sierra,
-\textit{Colloquium: Exactly solvable Richardson-Gaudin models for many-body
-quantum systems},
-Rev.\ Mod.\ Phys.\ \textbf{76}, 643 (2004).
-
-\bibitem{Ovrum2007}
-E.~Ovrum, M.~Hjorth-Jensen,
-\textit{Quantum computation algorithm for many-body studies},
-arXiv:0705.1928 (2007).
-
-\bibitem{Hlatshwayo2022}
-M.~Q.~Hlatshwayo, Y.~Zhang, H.~Wibowo, R.~LaRose, D.~Lacroix, E.~Litvinova,
-\textit{Simulating excited states of the Lipkin model on a quantum computer},
-Phys.\ Rev.\ C \textbf{106}, 024319 (2022).
-
-\bibitem{Stetcu2022}
-I.~Stetcu, A.~Baroni, J.~Carlson,
-\textit{Variational approaches to constructing the many-body nuclear ground state
-for quantum computing},
-Phys.\ Rev.\ C \textbf{105}, 064308 (2022).
-
-\bibitem{Stetcu2023}
-I.~Stetcu, A.~Baroni, J.~Carlson,
-\textit{Projection algorithm for state preparation on quantum computers},
-Phys.\ Rev.\ C \textbf{108}, L031306 (2023).
-
-\bibitem{PerezObiol2023}
-A.~P\'erez-Obiol, A.~M.~Romero, J.~Men\'endez, A.~Rios, A.~Garc\'ia-S\'aez,
-B.~Juli\'a-D\'iaz,
-\textit{Nuclear shell-model simulation in digital quantum computers},
-Sci.\ Rep.\ \textbf{13}, 12291 (2023).
-
-\bibitem{Jiang2023}
-C.~Jiang, J.~Pei,
-\textit{Quantum computing of the pairing Hamiltonian at finite temperature},
-Phys.\ Rev.\ C \textbf{107}, 044308 (2023).
-
-\bibitem{Zhang2024}
-J.~Zhang, D.~Lacroix, Y.~Beaujeault-Taudi\`ere,
-\textit{Neutron-proton pairing correlations described on quantum computers},
-Phys.\ Rev.\ C \textbf{110}, 064320 (2024).
-
-\bibitem{Lacroix2023}
-E.~A.~Ruiz~Guzman,
-\textit{Symmetry breaking and restoration for many-body problems treated on
-quantum computers},
-PhD thesis, Universit\'e Paris-Saclay (2023); arXiv:2310.17996.
-
-\bibitem{Cohen2023}
-T.~D.~Cohen, H.~Oh,
-\textit{Optimizing the rodeo projection algorithm},
-Phys.\ Rev.\ A \textbf{108}, 032422 (2023).
-
-\bibitem{BeeLindgren2022}
-M.~Bee-Lindgren, Z.~Qian, M.~DeCross, N.~C.~Brown, C.~N.~Gilbreth, J.~Watkins,
-X.~Zhang, D.~Lee,
-\textit{Controlled gate networks: theory and application to eigenvalue estimation},
-Eur.\ Phys.\ J.\ A \textbf{61}, 263 (2025); arXiv:2208.13557.
-
-\bibitem{Patkowski2026}
-M.~Patkowski, O.~Ayyildiz, K.~Hunt, N.~Jansen, D.~Lee,
-\textit{Improved rodeo algorithm performance for spectral functions and state
-preparation},
-arXiv:2602.05978 (2026).
-
-\bibitem{LinTong2020}
-L.~Lin, Y.~Tong,
-\textit{Near-optimal ground state preparation},
-Quantum \textbf{4}, 372 (2020).
-
-\bibitem{Dong2022}
-Y.~Dong, L.~Lin, Y.~Tong,
-\textit{Ground-state preparation and energy estimation on early fault-tolerant
-quantum computers via quantum eigenvalue transformation of unitary matrices},
-PRX Quantum \textbf{3}, 040305 (2022).
-
-\bibitem{Larocca2025}
-M.~Larocca, S.~Thanasilp, S.~Wang, K.~Sharma, J.~Biamonte, P.~J.~Coles,
-L.~Cincio, J.~R.~McClean, Z.~Holmes, M.~Cerezo,
-\textit{Barren plateaus in variational quantum computing},
-Nat.\ Rev.\ Phys.\ \textbf{7}, 174 (2025).
-
-\bibitem{Beck2023}
-D.~Beck \textit{et al.},
-\textit{Quantum information science and technology for nuclear physics.
-Input into U.S.\ long-range planning, 2023},
-arXiv:2303.00113 (2023).
-
-\bibitem{Bauer2023}
-C.~W.~Bauer, Z.~Davoudi, N.~Klco, M.~J.~Savage,
-\textit{Quantum simulation of fundamental particles and forces},
-Nat.\ Rev.\ Phys.\ \textbf{5}, 420 (2023).
-
-\bibitem{QuNorth}
-QuNorth, \textit{Magne: a level-2 neutral-atom quantum computer},
-\url{https://qunorth.com} (accessed July 2026).
-
+\bibitem{Grimsley2019}
+H.~R.~Grimsley, S.~E.~Economou, E.~Barnes, N.~J.~Mayhall,
+\textit{An adaptive variational algorithm for exact molecular simulations on a
+quantum computer},
+Nat.\ Commun.\ \textbf{10}, 3007 (2019).
+\bibitem{Tang2021}
+H.~L.~Tang, V.~O.~Shkolnikov, G.~S.~Barron, H.~R.~Grimsley, N.~J.~Mayhall,
+E.~Barnes, S.~E.~Economou,
+\textit{Qubit-ADAPT-VQE: an adaptive algorithm for constructing
+hardware-efficient ans\"atze on a quantum processor},
+PRX Quantum \textbf{2}, 020310 (2021).
 \bibitem{Kim2023}
 Y.~Kim, A.~Eddins, S.~Anand, K.~X.~Wei, E.~van~den~Berg, S.~Rosenblatt,
 H.~Nayfeh, Y.~Wu, M.~Zaletel, K.~Temme, A.~Kandala,
 \textit{Evidence for the utility of quantum computing before fault tolerance},
 Nature \textbf{618}, 500 (2023).
-
 \bibitem{Moses2023}
 S.~A.~Moses \textit{et al.},
 \textit{A race-track trapped-ion quantum processor},
 Phys.\ Rev.\ X \textbf{13}, 041052 (2023).
-
 \bibitem{Ransford2025}
 A.~Ransford \textit{et al.},
 \textit{Helios: a 98-qubit trapped-ion quantum computer},
 arXiv:2511.05465 (2025).
-
 \bibitem{Bluvstein2024}
 D.~Bluvstein \textit{et al.},
 \textit{Logical quantum processor based on reconfigurable atom arrays},
 Nature \textbf{626}, 58 (2024).
-
 \bibitem{Reichardt2024}
 B.~W.~Reichardt \textit{et al.},
 \textit{Logical computation demonstrated with a neutral atom quantum processor},
 arXiv:2411.11822 (2024).
+\bibitem{QuNorth}
+QuNorth, \textit{Magne: a level-2 neutral-atom quantum computer},
+\url{https://qunorth.com} (accessed July 2026).
 \end{thebibliography}
 
 \end{document}

@@ -14,7 +14,7 @@
     D -> H_high as a baseline; the prolonged k=3 state as a filter input.
 (e) The long-run state of the digital (product-formula) filter: leading eigenvalue
     and asymptotic infidelity of the averaged post-selection map at dt = 0.25, 0.5, 1.
-(f) Matched-observable comparison of eight inputs to the same Trotterised filter,
+(f) Matched-observable comparison of eight inputs to the same Trotterized filter,
     including M = 0, with per-attempt and per-accepted CNOTs and the minimum cost at
     target infidelities 2e-3, 5e-4, 2e-4.
 Usage: PYTHONPATH=src python3 scripts/assessment_checks.py [outdir]
@@ -176,7 +176,7 @@ groups34 = [Pm3 @ (D3 - mu3*np.eye(len(D3))) @ Pm3.T] + [Pm3 @ h @ Pm3.T for h i
 c2f = lambda s: np.cos(np.pi*s/2)**2; s2f = lambda s: np.sin(np.pi*s/2)**2
 coef34 = [c2f]*(1+len(hops3)) + [s2f]*(1+len(hops))
 Phi34 = Pm3 @ sec3
-print(f"   Trotterised at T = {T34:.0f} with the coarse term split into its {1+len(hops3)} coarse groups (second order):")
+print(f"   Trotterized at T = {T34:.0f} with the coarse term split into its {1+len(hops3)} coarse groups (second order):")
 p34_tr = {}
 for ns in (8, 11, 16, 22, 32, 48):
     psi = pl.trotter_path(Phi34, groups34, coef34, float(T34), ns, order=2)
@@ -201,13 +201,13 @@ TR = next(T for T in Tfine if pR[T] >= 0.99)
 pR_tr = {}
 for ns in (4, 6, 8, 11, 16, 22):
     pR_tr[ns] = abs(np.vdot(GS, pl.trotter_path(HF, groupsR, coefR, float(TR), ns, order=2)))**2
-print(f"   T* = {TR:.0f}; Trotterised (second order): " + ", ".join(f"n_s={ns}: {pR_tr[ns]:.6f}" for ns in pR_tr))
+print(f"   T* = {TR:.0f}; Trotterized (second order): " + ", ".join(f"n_s={ns}: {pR_tr[ns]:.6f}" for ns in pR_tr))
 nsR = next(ns for ns in pR_tr if abs(pR_tr[ns] - pR[TR]) <= 1 - pR[TR] and pR_tr[ns] >= 0.99)
 print(f"   steps reproducing the exact-slice overlap within 1-p and reaching 0.99: n_s = {nsR}; cost 2*{nsR}*{CN_STEP} = {2*nsR*CN_STEP} CNOTs (no coarse term)")
 D_gap_s0 = np.sort(np.diag(D)[sen == 0]); print(f"   gap of D within seniority zero at s = 0: {D_gap_s0[1]-D_gap_s0[0]:.3f} (ramp); shift-controlled gap of the refinement path: 0.600")
 
 # =============================================================== (e) long-run state of the digital filter
-print("\n(e) the averaged post-selection map K(rho) = E_t[K_t rho K_t^+] of the Trotterised filter (second order, |t| half-Gaussian, sigma = 4):")
+print("\n(e) the averaged post-selection map K(rho) = E_t[K_t rho K_t^+] of the Trotterized filter (second order, |t| half-Gaussian, sigma = 4):")
 tm = pl.model_terms(k, G, N)
 idx0 = np.where(sen == 0)[0]; d0 = len(idx0); GS0 = GS[idx0]/np.linalg.norm(GS[idx0])
 xg, wg = hermegauss(80); wg = wg/np.sqrt(2*np.pi)
@@ -225,7 +225,7 @@ for dtm in (0.25, 0.5, 1.0):
     print(f"   dt_max = {dtm:4.2f}: leading eigenvalue {floors[dtm][0]:.6f} (long-run acceptance decays by {100*(1-floors[dtm][0]):.2f}% per cycle), asymptotic infidelity {floors[dtm][1]:.3e}")
 
 # =============================================================== (f) matched comparison, eight inputs, M = 0..6
-print("\n(f) the same Trotterised filter (second order, dt = 0.25, sigma = 4, 40 time sets, seed 3) on eight inputs:")
+print("\n(f) the same Trotterized filter (second order, dt = 0.25, sigma = 4, 40 time sets, seed 3) on eight inputs:")
 DT, SIG, NSAMP, M_MAX, SEED = 0.25, 4.0, 40, 6, 3
 Ufun = lambda t: pl.trotter_U_dt(k, G, N, t, DT, order=2, terms=tm)[0]
 NS_DENS = 80/30.0
@@ -296,7 +296,7 @@ for (name, d), mk_ in zip(rows.items(), mks):
 for tgt in (2e-3, 5e-4, 2e-4):
     ax[0].axhline(tgt, color="gray", ls=":", lw=0.8)
 ax[0].set_xlabel("CNOTs per accepted preparation (input + filter, early termination)"); ax[0].set_ylabel("ensemble infidelity $1-\\mathcal{F}_M$")
-ax[0].set_title("eight inputs to the same Trotterised filter ($\\delta t=0.25$, $\\sigma=4$); $M=0\\ldots6$"); ax[0].legend(fontsize=7); ax[0].grid(alpha=0.3, which="both")
+ax[0].set_title("eight inputs to the same Trotterized filter ($\\delta t=0.25$, $\\sigma=4$); $M=0\\ldots6$"); ax[0].legend(fontsize=7); ax[0].grid(alpha=0.3, which="both")
 ax[1].set_xlabel("rodeo cycles $M$ ($M=0$: unfiltered input)"); ax[1].set_ylabel("$1-\\mathcal{F}_M$"); ax[1].set_title("same data versus the number of cycles"); ax[1].legend(fontsize=7); ax[1].grid(alpha=0.3, which="both")
 plt.tight_layout()
 if OUT: plt.savefig(os.path.join(OUT, "fig20.png"), dpi=150); print("wrote", OUT)

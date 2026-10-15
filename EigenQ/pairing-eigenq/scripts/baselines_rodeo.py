@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Matched-observable baselines for the rodeo stage (k=4, N=4, g=1).
 
-Feeds the SAME Trotterised rodeo filter (second order, fixed step dt=0.25,
+Feeds the SAME Trotterized rodeo filter (second order, fixed step dt=0.25,
 sigma=4, |t_k| from a Gaussian) four inputs and tracks, cycle by cycle,
   * the ensemble infidelity of the accepted runs (acceptance-weighted mean of
     the post-selected fidelity; the uniform mean over time sets is also given),
@@ -9,7 +9,7 @@ sigma=4, |t_k| from a Gaussian) four inputs and tracks, cycle by cycle,
   * CNOTs per accepted preparation = (preparation + rodeo)/P_M, with and
     without early termination after the first failed ancilla measurement.
 Inputs: (i) the prolonged k=2 determinant, (ii) the full-space gate-level
-UCCSD state, (iii) the Trotterised resolution-refined state at T=16 (T*),
+UCCSD state, (iii) the Trotterized resolution-refined state at T=16 (T*),
 (iv) the same at T=30 (the operating point of Table II).  The refinement cost
 INCLUDES the embedded coarse term A = P(H_low-mu)P^T (14 CNOTs per
 application for 2->4; see Sec. V.B of the paper).
@@ -76,7 +76,7 @@ print(f"{'input':28s} {'p':>9s} {'prep CNOT':>10s} | " + " | ".join(f"M={m+1}: 1
 for name, r in rows.items():
     cells = [f"{1-r['Fw'][m]:.2e} {r['A'][m]:.4f} {r['cost_et'][m]:.0f}" for m in range(M_MAX) if m+1 in (1, 2, 4, 6)]
     print(f"{name:28s} {r['p']:9.6f} {r['cprep']:10d} | " + " | ".join(cells))
-print("\nuniform mean of normalised fidelities vs acceptance-weighted (M=2, M=6):")
+print("\nuniform mean of normalized fidelities vs acceptance-weighted (M=2, M=6):")
 for name, r in rows.items():
     print(f"  {name:28s} 1-<F>: {1-r['F'][1]:.3e} / {1-r['F'][5]:.3e}   1-F_w: {1-r['Fw'][1]:.3e} / {1-r['Fw'][5]:.3e}"
           f"   cost no-ET vs ET at M=2: {r['cost'][1]:.0f} / {r['cost_et'][1]:.0f}")
@@ -109,7 +109,7 @@ else:
     plt.show()
 
 # ---- particle-hole model: UCCSD + rodeo at the Table V operating points ----
-print("\nparticle-hole term: UCCSD input + Trotterised rodeo (M=2), k=4, N=4, g=1")
+print("\nparticle-hole term: UCCSD input + Trotterized rodeo (M=2), k=4, N=4, g=1")
 for f in (0.2, 0.5):
     Hf = pl.H_pairing_sparse(k, G, N, st, ix, f=f).toarray(); wf, Vf = np.linalg.eigh(Hf); E0f, GSf = wf[0], Vf[:, 0]
     E_uf, psi_f = pl.gate_uccsd_state(k, N, G, f=f); uf = np.array([psi_f[I] for I in st]); uf /= np.linalg.norm(uf)

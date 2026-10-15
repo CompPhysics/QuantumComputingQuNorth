@@ -3,7 +3,7 @@
 tagged section EXT:ASSESS (code from scripts/assessment_checks.py) before the
 Summary cell, and patch three original cells so that the notebook's own numbers
 match the article's conventions:
-  * the fine rodeo energy scan is centred on the COARSE-scan peak, not on the
+  * the fine rodeo energy scan is centered on the COARSE-scan peak, not on the
     exact E0, and reports a shot-noise uncertainty of the located peak;
   * the rodeo-convergence cell resets the random generator (seed 7) for every
     input, plots the exact Gaussian-ensemble curve of Eq. (fid) and error bars
@@ -56,16 +56,16 @@ derivative couplings of the tracked state at $s=0.25$ and the convergence of the
 propagation in the number of slices are also recorded.  (b) The sampled rodeo infidelities of
 Section 11 are compared with the exact Gaussian-ensemble expression and given their standard
 errors.  (c) The seniority-zero reference admits an exact four-parameter preparation: the four
-occupied-pair$\to$virtual-pair rotations of the UCCSD pool, 192 CNOTs; we optimise it and show
+occupied-pair$\to$virtual-pair rotations of the UCCSD pool, 192 CNOTs; we optimize it and show
 that it reproduces the full 26-operator UCCSD state, whose other 22 amplitudes vanish.
-(d) The $k=3\to4$ chain is re-timed on a finer grid and Trotterised with the embedded coarse
+(d) The $k=3\to4$ chain is re-timed on a finer grid and Trotterized with the embedded coarse
 term split into its own coarse groups (the counted circuit), and two baselines that the
 comparison of Section 17 lacked are added: the prolonged $k=3$ UCCSD state fed directly to
 the filter, and an ordinary adiabatic ramp from the diagonal (HF) Hamiltonian,
 $H(s)=D+\sin^2(\pi s/2)\sum_{pq}h_{pq}$, which has no shift and no coarse term.  (e) The
 long-run state of the digital filter is obtained from the leading eigenvector of the averaged
 post-selection map $\mathcal K(\rho)=\mathbb E_t[\tilde K_t\rho\tilde K_t^\dagger]$ in the
-seniority-zero block.  (f) Eight inputs are sent through the same Trotterised filter, including
+seniority-zero block.  (f) Eight inputs are sent through the same Trotterized filter, including
 $M=0$, with CNOTs per attempt and per accepted preparation, and the minimum cost reaching three
 target infidelities is tabulated.
 """
