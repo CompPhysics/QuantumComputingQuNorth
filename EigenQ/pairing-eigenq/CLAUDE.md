@@ -73,7 +73,15 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   `scripts/sizes_observables.py`, which also run standalone), EXT:BOUND
   (sufficient adiabatic-time / Trotter-step conditions of the nucleation paper,
   arXiv:2609.37527, evaluated on the 2->4 path; code from
-  `scripts/adiabatic_bound.py`; paper Sec. IV.E, Table tab:bound, fig18).
+  `scripts/adiabatic_bound.py`; paper Sec. IV.E, Table tab:bound, fig18),
+  EXT:ASSESS (revision of 2026-10-14 after `paper/article_correctness_assessment.md`;
+  code from `scripts/assessment_checks.py`, inserted by
+  `scripts/extend_notebook_assess.py`, which ALSO patches three original cells:
+  the fine energy scan is centred on the coarse-scan maximum, the rodeo
+  convergence cell resets seed 7 per input and plots exact-ensemble curves with
+  standard errors, the shift-scan panel shows both affine fits; figs 19-20;
+  `make check` now expects 20 figures).  `scripts/verify_assessment.py`
+  recomputes every number claimed in the assessment.
 - Compare like with like: an energy error is NOT an infidelity
   (<H>-E0 >= gap*(1-F)).  UCCSD k=4, g=1 infidelities: 1.78e-4 (f=0),
   1.01e-3 (f=0.2), 3.72e-3 (f=0.5).  Every comparison with the pipeline uses the
@@ -83,9 +91,31 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   3->4: doubly-conditioned k=3 step, ~350 CNOTs).  `cnot_counts` counts the
   high-space step only.
 - Bounds vs. practice (k=2->4, N=4, g=1): T_bound(eps=1e-2)=5.1e3 vs T*=16;
-  first-order step bound 3.4e4 at T* vs 160 (order 1) / 40 (order 2) in practice.
-- Review history: `paper/revisions.txt` (external review) and
-  `paper/response_to_revisions.md` (what was verified/changed/open).
+  first-order step bound 3.4e4 at T* vs 160 (order 1) / 40 (order 2) in practice
+  (different criteria: operator norm vs one overlap — say so).
+- Rodeo statistics: quote the EXACT Gaussian-ensemble infidelity (Eq. fid) as the
+  reference; sampled 40-set values carry relative standard errors 13%/37%/82% at
+  M=2/6/10; seed convention = `default_rng(7)` RESET per input.  Detuning study
+  (exact ensemble, sigma=3, M=6): d=0.05/0.1/0.2 -> acceptance 0.965/0.873/0.596.
+- Scaling claims: the mu-scan points (0.3,50),(0.6,16),(1.0,8),(1.5,6) fit
+  17.05/D-8.42 (SSR 28) AND 4.13/D^2+4.16 (SSR 0.22) — NO exponent is identified;
+  chi_u(0)=g^2/b^2 varies x25 across the scan. Never write "confirms 1/Delta" or
+  "incompatible with 1/Delta^2".  Gaps: shift 0.6 / sector 1.823 / seniority-zero 2.300.
+- Comparators that must appear in any gate-budget statement: the four-pair
+  restricted ansatz (192 CNOTs, 1-F=1.78e-4, identical to the 26-operator UCCSD
+  whose other 22 amplitudes are exactly 0; k=3 coarse state: two rotations, 96
+  CNOTs, exact) and the HF adiabatic ramp D -> H (T=4, 11 second-order steps,
+  6512 CNOTs, p=0.9978, no shift/coarse term).  Minimum cost at targets
+  2e-3/5e-4/2e-4: four-pair 192 (M=0); HF ramp 1.7e4/4.0e4/6.4e4; refined T=16
+  4.9e4/7.4e4/9.4e4.  Digital filter (dt=0.25): averaged-map floor 1.2e-4,
+  eigenvalue 0.9979 (acceptance decays 0.2%/cycle); dt=0.5: 1.5e-3; dt=1: 0.21.
+  3->4 chain: T*=8, 22 steps with the coarse term SPLIT into coarse groups
+  (`pl.trotter_path`), 28 520 CNOTs.
+- Review history: `paper/revisions.txt` + `paper/response_to_revisions.md`
+  (2026-10-02) and `paper/article_correctness_assessment.md` +
+  `paper/response_to_assessment.md` (2026-10-14; previous tex kept as
+  `paper/eigenq_pairing_v4_backup.tex`).  Paper II has NOT been re-audited
+  against the 2026-10-14 points (fixed-cycle comparisons, "never couples").
 - Hubbard conventions (`hubbard.py`): t=1, OBC, block JW ordering (up orbitals
   then down), sorted uint64 masks, H = K_up (x) 1 + 1 (x) K_dn + U diag; block
   prolongation = bonding combination; Galerkin coarse model chain (t/2, U/2) - tN,

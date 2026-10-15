@@ -17,8 +17,8 @@ from .phmodel import ph_term_sector, ph_term_full
 from .pauli import pauli_decompose
 
 __all__ = ["pairing_terms", "ph_terms", "model_terms", "trotter_U", "trotter_U_dt",
-           "trotter_error", "refine_state_trotter", "rodeo_track_U", "cnot_counts",
-           "ph_pauli_costs"]
+           "trotter_error", "refine_state_trotter", "trotter_path", "rodeo_track_U",
+           "cnot_counts", "ph_pauli_costs"]
 
 
 def pairing_terms(k, g, N, delta=1.0):
@@ -184,6 +184,29 @@ def refine_state_trotter(N, k_high, T, n_s, k_low=2, mu_buf=0.6, g=1.0,
             for e, c in zip(reversed(eigs), reversed(coef)):
                 psi = _factor(e, c * dt / 2) @ psi
     return psi / np.linalg.norm(psi), Hh
+
+
+def trotter_path(Phi0, groups, coefs, T, n_s, order=2):
+    """Generic product-formula evolution along an interpolated path
+    H(s) = sum_i coefs[i](s) groups[i], s in [0, 1], with n_s first- or
+    second-order steps of length T/n_s (midpoint rule for s).  `groups` are
+    Hermitian matrices (each realised exactly by its gate block), `coefs` are
+    callables s -> float.  Returns the normalised final state."""
+    eigs = _eigterms(groups)
+    psi = np.asarray(Phi0, dtype=complex).copy()
+    dt = T / n_s
+    for m in range(n_s):
+        s = (m + 0.5) / n_s
+        c = [f(s) for f in coefs]
+        if order == 1:
+            for e, ci in zip(eigs, c):
+                psi = _factor(e, ci * dt) @ psi
+        else:
+            for e, ci in zip(eigs, c):
+                psi = _factor(e, ci * dt / 2) @ psi
+            for e, ci in zip(reversed(eigs), reversed(c)):
+                psi = _factor(e, ci * dt / 2) @ psi
+    return psi / np.linalg.norm(psi)
 
 
 def rodeo_track_U(v0, Ufun, ts, E, target):
