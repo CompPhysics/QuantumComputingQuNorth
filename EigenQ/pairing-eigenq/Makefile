@@ -1,5 +1,6 @@
 NB     := notebooks/ResolutionRefPairing.ipynb
 TEX    := paper/eigenq_pairing.tex
+TEXSM  := paper/eigenq_pairing_supp.tex
 FIGS   := paper/figs
 TEXPH  := paper_ph/eigenq_pairing_ph.tex
 FIGSPH := paper_ph/figs
@@ -23,7 +24,7 @@ notebook:
 	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NB) 1800
 
 check:
-	$(PY) $(SKILLS)/notebook-builder/scripts/check_notebook.py $(NB) 22
+	$(PY) $(SKILLS)/notebook-builder/scripts/check_notebook.py $(NB) 23
 
 figures:
 	$(PY) $(SKILLS)/physics-paper/scripts/extract_figures.py $(NB) $(FIGS)
@@ -36,6 +37,7 @@ figures-ph: figures
 
 paper: figures
 	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEX)
+	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXSM)   # Supplemental Material (xr against the main .aux)
 
 paper-ph: figures-ph
 	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXPH)

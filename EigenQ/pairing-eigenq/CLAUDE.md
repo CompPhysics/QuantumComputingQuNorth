@@ -10,8 +10,22 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 - The notebook (`notebooks/ResolutionRefPairing.ipynb`) is a build artifact.
 - There are TWO papers, split on 2026-10-12 (the pre-split manuscript is
   `paper/eigenq_pairing_v3_backup.tex`):
-  * Paper I, `paper/eigenq_pairing.tex` — the pure (seniority-conserving)
-    pairing model only; cites paper II as `\cite{PHcompanion}`.
+  * Paper I, `paper/eigenq_pairing.tex` (main text) + `paper/eigenq_pairing_supp.tex`
+    (Supplemental Material, cross-referenced with `xr` against the main .aux;
+    `make paper` builds both) — the pure (seniority-conserving) pairing model.
+    Restructured 2026-10-16 (pre-split tex: `eigenq_pairing_v7_backup.tex`;
+    `scripts/split_supplement.py` is the one-off restructuring script, kept for
+    the record) around (a) the reference implementation, (b) the matched-accuracy
+    benchmark at 8 and 16 qubits, (c) three transferable results (shift rule
+    chi_u(0) = P(k-P) g^2/(4 b^2), averaged post-selection map of the digital
+    filter, bounds vs practice).  Title: "Resolution refinement followed by the
+    rodeo algorithm: a gate-level benchmark of eigenstate-preparation routes on
+    the pairing Hamiltonian".  Paper I NO LONGER cites papers II or III (user
+    decision 2026-10-16); the SM holds figs S1-S8 / tables S1-S5 (fig4, fig3,
+    fig6, fig10, fig19, fig_bound, fig7, fig21; tab:bound, tab:ops, tab:sizes,
+    tab:obs, tab:large).  Submission target: PRC.  Open before submission:
+    repository URL + Zenodo DOI (bibitem `Code`, CITATION.cff), a LICENSE file,
+    co-author sign-off.
   * Paper II, `paper_ph/eigenq_pairing_ph.tex` — the pairing model plus the
     seniority-breaking particle-hole term V_ph (model, refinement, bounds,
     rodeo, circuit budget at f=0.05/0.2/0.5); self-contained, with a short
@@ -86,7 +100,10 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   EXT:LARGE (2026-10-15: four pairs on eight levels, N=8, k=8, 16 qubits,
   seniority zero; code from `scripts/large_space_checks.py`, inserted by
   `scripts/extend_notebook_large.py`; figs 21-22; paper I Sec. V.F, Tables
-  tab:large/tab:shift/tab:largebudget; `make check` now expects 22 figures).
+  tab:shift/tab:largebudget, SM tab:large/fig:large), EXT:ADAPT (2026-10-16:
+  ADAPT-VQE comparator in the pair basis, `scripts/adapt_checks.py` via
+  `scripts/extend_notebook_adapt.py`, fig 23; paper I Sec. V.D, Table tab:adapt;
+  `make check` now expects 23 figures).
   `scripts/verify_assessment.py` recomputes every number claimed in the assessment.
 - Seniority-zero pair basis: `pairinglib.seniority` (`import pairinglib.seniority as sz`;
   `pair_basis`, `H_pair`, `pair_terms` = [D, h_pq] (the seniority-zero blocks of
@@ -94,8 +111,19 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   `ramp_terms`, `pair_double_ansatz` (the restricted P(k-P)-parameter UCCSD, 48
   CNOTs per rotation), `coarse_term_cnots` (Gray-code convention: 2->4 14,
   3->4 348, 4->8 (P=4) 254, 6->8 4872), `pair_encoding_cnots` (one qubit per
-  level: step 112/240 at k=8)); tests in `tests/test_seniority.py`.  Use it for
-  any pure-pairing study with k > 4 (70 states at k=8, P=4 instead of 12 870).
+  level: step 112/240 at k=8), `adapt_vqe(k, P, g, pool='pairs'|'generalized')`
+  (gradient selection with repeats, warm-started L-BFGS re-optimization,
+  history[n] holds the state after n operators)); tests in
+  `tests/test_seniority.py`.  Use it for any pure-pairing study with k > 4
+  (70 states at k=8, P=4 instead of 12 870).
+- ADAPT-VQE anchors (generalized pool, 48 CNOTs/operator): (4,4) g=1: 4 ops =
+  the four-pair ansatz, 5 ops (240 CNOTs) EXACT; (6,4): 9 ops (432) < 1e-5;
+  (8,8) g=1: 19 (912) 1.5e-4, 23 (1104) 1.7e-5, 27 (1296) 4e-6; g=2: 25/29/31
+  ops (1200/1392/1488) for 1e-3/3e-4/1e-4.  The 23-op state is BELOW the
+  dt=0.1 filter floor (4.6e-5): the filter only degrades it.  VERDICT (final):
+  the adaptive ansatz undercuts every filtered route by 2-3 orders of magnitude
+  at both sizes; among optimizer-free routes the HF ramp is cheapest; refinement
+  beats only the fixed single-layer ansatz at 16 qubits.
 - k=8, N=8, g=1 anchors (paper I Sec. V.F): E0 = 8.889170, E_HF = 10, gap 2.592,
   p_HF = 0.690; 16-pair ansatz 1-F 3.1e-3 (768 CNOTs); chi_u(0) = P(k-P) g^2/(4 b^2)
   (= 11.1 at b=0.6); T*(1e-3) = 50/25/8/6/8/10 for mu_buf = 0.6/1/2/4/8/16 (n_s =
@@ -144,7 +172,8 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   (2026-10-02) and `paper/article_correctness_assessment.md` +
   `paper/response_to_assessment.md` (2026-10-14; previous tex kept as
   `paper/eigenq_pairing_v4_backup.tex`; v5 = before the reference/abstract/US
-  pass; v6 = before the N=8, k=8 section of 2026-10-15).  Paper II has NOT been re-audited
+  pass; v6 = before the N=8, k=8 section of 2026-10-15; v7 = before the
+  2026-10-16 restructuring into main text + Supplemental Material).  Paper II has NOT been re-audited
   against the 2026-10-14 points (fixed-cycle comparisons, "never couples").
 - Spelling: US English in all three papers (Trotterized, diagonalized, centered,
   neighbor, un-dimerization, analog, ...).

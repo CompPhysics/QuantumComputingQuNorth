@@ -41,3 +41,13 @@ def test_k8_n8_anchors_and_bookkeeping():
     assert pl.cnot_counts(8)["step_uncontrolled"] == 1360 and sz.pair_encoding_cnots(8)["step_uncontrolled"] == 112
     a = sz.pair_double_ansatz(k, P, g, H=H)
     assert a["n_params"] == 16 and a["cnots"] == 768 and abs(1 - abs(np.vdot(V[:, 0], a["psi"]))**2 - 3.12e-3) < 2e-5
+
+
+def test_adapt_vqe_reproduces_restricted_ansatz_and_converges():
+    k, P, g = 4, 2, 1.0
+    H = sz.H_pair(k, g, P); GS = np.linalg.eigh(H)[1][:, 0]
+    r = sz.adapt_vqe(k, P, g, pool="pairs", grad_tol=1e-6, H=H, target=GS)
+    assert len(r["ops"]) == 4 and abs(r["E"] - 0.6369869810) < 1e-8          # the four-pair ansatz
+    r2 = sz.adapt_vqe(k, P, g, pool="generalized", grad_tol=1e-6, H=H, target=GS)
+    assert r2["history"][-1]["infidelity"] < 1e-12 and len(r2["ops"]) == 5     # exact with one more operator
+    assert all(abs(np.linalg.norm(d["psi"]) - 1) < 1e-10 for d in r2["history"][1:])

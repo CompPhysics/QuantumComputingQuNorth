@@ -234,3 +234,104 @@ def pair_encoding_cnots(k):
     nrot = 2 * nhop + k
     un = 4 * nhop
     return dict(step_uncontrolled=un, step_controlled=un + 2 * nrot, rotations=nrot)
+
+
+# ------------------------------------------------------------------ ADAPT-VQE in the pair basis
+def _pair_generators(k, P, pairs):
+    """Index arrays (Is, Js) of the pair-hopping generators K_{ia} = P_a^+ P_i - h.c.
+    for the level pairs in `pairs` (states with a pair on i and none on a map to
+    the states with the pair moved to a)."""
+    states, index = pair_basis(k, P)
+    gens = []
+    for (i, a) in pairs:
+        Is, Js = [], []
+        for s_ in states:
+            if (s_ >> i) & 1 and not (s_ >> a) & 1:
+                Is.append(index[s_]); Js.append(index[s_ ^ (1 << i) ^ (1 << a)])
+        gens.append((np.array(Is, int), np.array(Js, int)))
+    return gens
+
+
+def _apply_rot(th, psi, Is, Js):
+    c, s_ = np.cos(th), np.sin(th)
+    a, b = psi[Is].copy(), psi[Js].copy()
+    out = psi.copy(); out[Is] = c * a - s_ * b; out[Js] = s_ * a + c * b
+    return out
+
+
+def _apply_gen(psi, Is, Js):
+    out = np.zeros_like(psi); out[Js] += psi[Is]; out[Is] -= psi[Js]
+    return out
+
+
+def _optimize_product(H, hf, gens, theta0, maxiter=500):
+    """Minimize <psi|H|psi> for psi = prod_m exp(theta_m K_m)|HF> (K_m applied in
+    list order) with L-BFGS and the exact adjoint gradient."""
+    def forward(th):
+        st = [hf.copy()]
+        for m, (Is, Js) in enumerate(gens):
+            st.append(_apply_rot(th[m], st[-1], Is, Js))
+        return st
+
+    def energy(th):
+        psi = forward(th)[-1]; return float(psi @ H @ psi)
+
+    def grad(th):
+        st = forward(th); lam = H @ st[-1]; gg = np.zeros(len(th))
+        for m in range(len(gens) - 1, -1, -1):
+            Is, Js = gens[m]
+            gg[m] = 2.0 * float(lam @ _apply_gen(st[m + 1], Is, Js))
+            lam = _apply_rot(-th[m], lam, Is, Js)
+        return gg
+
+    if len(gens) == 0:
+        return np.zeros(0), float(hf @ H @ hf), hf.copy()
+    res = minimize(energy, np.asarray(theta0, float), jac=grad, method="L-BFGS-B",
+                   options={"maxiter": maxiter, "ftol": 1e-15, "gtol": 1e-11})
+    psi = forward(res.x)[-1]
+    return res.x, float(res.fun), psi / np.linalg.norm(psi)
+
+
+def adapt_vqe(k, P, g, pool="generalized", grad_tol=1e-4, max_ops=None, delta=1.0, H=None,
+              target=None, maxiter=500):
+    """ADAPT-VQE (Grimsley et al. 2019) in the seniority-zero pair basis.
+    Pool: 'pairs' = the P(k-P) occupied-pair -> virtual-pair generators of the
+    restricted UCCSD; 'generalized' = all k(k-1)/2 pair-hopping generators
+    P_q^+ P_p - h.c. (p < q), the seniority-zero analog of a generalized-doubles
+    pool.  At every iteration the pool operator with the largest energy gradient
+    |<psi|[H, K]|psi>| is appended (an operator may be selected again) and all
+    amplitudes are re-optimized from the previous optimum.  Stops when the
+    largest gradient falls below grad_tol or after max_ops operators.  Returns
+    dict(history=[dict(n_ops, E, infidelity, max_grad, op, cnots, theta, psi)],
+    theta, ops, psi, E, pool); cnots counts 48 CNOTs per pair rotation (2k-qubit
+    encoding); history[n] holds the ADAPT state after n operators."""
+    if H is None:
+        H = H_pair(k, g, P, delta)
+    if target is None:
+        target = np.linalg.eigh(H)[1][:, 0]
+    if pool == "pairs":
+        pairs = [(i, a) for i in range(P) for a in range(P, k)]
+    elif pool == "generalized":
+        pairs = [(p, q) for p in range(k) for q in range(p + 1, k)]
+    else:
+        raise ValueError(pool)
+    pool_gens = _pair_generators(k, P, pairs)
+    hf = hf_state(k, P)
+    if max_ops is None:
+        max_ops = 4 * len(pairs)
+    ops, theta, psi = [], np.zeros(0), hf.copy()
+    E = float(hf @ H @ hf)
+    hist = [dict(n_ops=0, E=E, infidelity=1 - abs(np.vdot(target, psi)) ** 2, max_grad=None, op=None, cnots=0)]
+    while len(ops) < max_ops:
+        Hpsi = H @ psi
+        grads = np.array([2.0 * float(Hpsi @ _apply_gen(psi, Is, Js)) for (Is, Js) in pool_gens])
+        m = int(np.argmax(np.abs(grads)))
+        hist[-1]["max_grad"] = float(abs(grads[m]))
+        if abs(grads[m]) < grad_tol:
+            break
+        ops.append(m)
+        gens = [pool_gens[i] for i in ops]
+        theta, E, psi = _optimize_product(H, hf, gens, np.concatenate([theta, [0.0]]), maxiter)
+        hist.append(dict(n_ops=len(ops), E=E, infidelity=1 - abs(np.vdot(target, psi)) ** 2,
+                         max_grad=None, op=pairs[m], cnots=48 * len(ops), theta=theta.copy(), psi=psi.copy()))
+    return dict(history=hist, theta=theta, ops=[pairs[i] for i in ops], psi=psi, E=E, pool=pairs)

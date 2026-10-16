@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+message: "If you use this code or the notebooks, please cite the article and the archived repository."
+title: "pairing-eigenq: resolution refinement followed by the rodeo algorithm on the pairing Hamiltonian"
+type: software
+authors:
+  - family-names: Bogner
+    given-names: Scott
+  - family-names: Glittum
+    given-names: Cecilie
+  - family-names: Hergert
+    given-names: Heiko
+  - family-names: Hjorth-Jensen
+    given-names: Morten
+    email: mhjensen@uio.no
+  - family-names: Lange
+    given-names: Gunnar
+  - family-names: LaRose
+    given-names: Ryan
+  - family-names: Lee
+    given-names: Dean
+  - family-names: Massel
+    given-names: Francesco Pietro
+  - family-names: Sadia
+    given-names: Jean Paul
+repository-code: "https://github.com/<organization>/pairing-eigenq"   # to be set when the repository is public
+license: MIT   # to be confirmed by the authors
+version: 1.0.0
+date-released: "2026-10-16"
+preferred-citation:
+  type: article
+  title: "Resolution refinement followed by the rodeo algorithm: a gate-level benchmark of eigenstate-preparation routes on the pairing Hamiltonian"
+  journal: "Physical Review C (submitted)"
+  year: 2026
+  authors:
+    - family-names: Bogner
+      given-names: Scott
+    - family-names: Glittum
+      given-names: Cecilie
+    - family-names: Hergert
+      given-names: Heiko
+    - family-names: Hjorth-Jensen
+      given-names: Morten
+    - family-names: Lange
+      given-names: Gunnar
+    - family-names: LaRose
+      given-names: Ryan
+    - family-names: Lee
+      given-names: Dean
+    - family-names: Massel
+      given-names: Francesco Pietro
+    - family-names: Sadia
+      given-names: Jean Paul
