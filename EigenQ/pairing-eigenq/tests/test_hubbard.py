@@ -127,3 +127,48 @@ def test_uccsd_pruning_and_seed():
     assert hb.uccsd_cnots(N, pr["singles"], pr["doubles"])["total"] < hb.uccsd_cnots(N, full["singles"], full["doubles"])["total"]
     assert abs(pr["E"] - full["E"]) < 1e-4                       # the dropped amplitudes were negligible
     assert abs(np.linalg.norm(pr["psi"]) - 1.0) < 1e-10
+
+
+def test_kronecker_groups_match_dense_and_adapt():
+    # the Kronecker-structured product formulas of the 16-site study reproduce the
+    # dense machinery on the chain 2 -> 4 at (1,1): ramp, Path A (split coarse groups),
+    # fixed-step filter track and the Trotter-effective ground state
+    (Nc, bc), (Nf, bf), blocks, intra = hb.refine_chain(2)
+    U = 2.0
+    Hf, _ = hb.H_hubbard(Nf, bf, 1, 1, U); Hd = Hf.toarray(); wf, Vf = np.linalg.eigh(Hd); GS = Vf[:, 0]
+    terms = hb.hubbard_terms(Nf, bf, 1, 1, U); groups = hb.hubbard_groups(Nf, bf, 1, 1, U)
+    for g, t_ in zip(groups, terms):
+        v = np.random.default_rng(0).normal(size=Hd.shape[0]) + 0j
+        from scipy.linalg import expm
+        assert np.linalg.norm(g.apply(0.3, v) - expm(-1j * 0.3 * t_.toarray()) @ v) < 1e-10
+    pool = hb._uccsd_pool_kron(Nf, bf, 1, 1); FF = hb._to_site(pool, pool["ref"]).real
+    s2 = lambda s: np.sin(np.pi * s / 2) ** 2
+    dense = hb.trotter_refine(FF, [t_.toarray() for t_ in terms], [lambda s: 1.0, lambda s: 1.0, s2], 4.0, 16, order=2)
+    kron = hb.trotter_path_groups(FF, groups, [lambda s: 1.0, lambda s: 1.0, s2], 4.0, 16, order=2)
+    assert np.linalg.norm(dense - kron) < 1e-10
+    P = hb.prolong(Nc, Nf, blocks, 1, 1, sparse=True); ps = hb.prolonged_state(Hf, P)
+    tl, Ul, cst = hb.galerkin_params("chain", 1.0, U, Nc)
+    Kc_e, Kc_o, Dc = [t_.toarray() for t_ in hb.hubbard_terms(Nc, bc, 1, 1, Ul, t=tl)]
+    mu = ps["El"] + 2.0
+    gA = [hb.ProjGroup(P, Dc + (cst - mu) * np.eye(Dc.shape[0])), hb.ProjGroup(P, Kc_e), hb.ProjGroup(P, Kc_o), groups[0], groups[1], hb.DiagGroup(groups[2].d - mu)]
+    Pd = P.toarray()
+    termsA = [Pd @ (Dc + (cst - mu) * np.eye(Dc.shape[0])) @ Pd.T, Pd @ Kc_e @ Pd.T, Pd @ Kc_o @ Pd.T] + [t_.toarray() for t_ in terms[:2]] + [terms[2].toarray() - mu * np.eye(Hd.shape[0])]
+    c2 = lambda s: np.cos(np.pi * s / 2) ** 2
+    cA = [c2] * 3 + [s2] * 3
+    assert np.linalg.norm(hb.trotter_refine(ps["Phi0"], termsA, cA, 4.0, 16, order=2) - hb.trotter_path_groups(ps["Phi0"], gA, cA, 4.0, 16, order=2)) < 1e-10
+    tr = hb.trotter_evolution(terms, 0.1, order=2, target=GS)
+    ts = np.array([0.7, 1.3, 0.4])
+    F1, A1 = hb.rodeo_track_U(ps["Phi0"].astype(complex), tr["Ufun"], ts, tr["E_eff"], GS, dt=0.1)
+    F2, A2 = hb.rodeo_track_groups(ps["Phi0"], groups, ts, tr["E_eff"], GS, 0.1)
+    assert np.allclose(F1, F2, atol=1e-10) and np.allclose(A1, A2, atol=1e-10)
+    psi_eff, E_eff = hb.effective_step_state(groups, 0.1, GS, wf[0], 3.0, iters=40)
+    assert abs(E_eff - tr["E_eff"]) < 1e-6 and abs((1 - abs(np.vdot(GS, psi_eff)) ** 2) - tr["floor"]) < 1e-6
+    # sparse UCCSD agrees with the dense one; ADAPT improves monotonically and beats a random prefix
+    N, bonds = hb.chain(4)
+    Hs, _ = hb.H_hubbard(N, bonds, 2, 2, 4.0); w, V = np.linalg.eigh(Hs.toarray())
+    dense_u = hb.uccsd_hubbard(N, bonds, 2, 2, 4.0, maxiter=300, H=Hs.toarray())
+    kron_u = hb.uccsd_hubbard_kron(N, bonds, 2, 2, 4.0, maxiter=300, H=Hs)
+    assert abs(dense_u["E"] - kron_u["E"]) < 1e-6 and kron_u["n_params"] == dense_u["n_params"]
+    ad = hb.adapt_hubbard(N, bonds, 2, 2, 4.0, grad_tol=1e-5, max_ops=12, H=Hs, target=V[:, 0])
+    inf = [d["infidelity"] for d in ad["history"]]
+    assert all(b <= a + 1e-9 for a, b in zip(inf, inf[1:])) and inf[-1] < 1e-2 and ad["history"][-1]["E"] > w[0] - 1e-9

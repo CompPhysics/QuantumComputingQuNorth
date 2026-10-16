@@ -16,7 +16,7 @@ pairing-eigenq/
 ├── notebooks/                # ResolutionRefPairing.ipynb, ResolutionRefHubbard.ipynb (build artifacts)
 ├── paper/                    # paper I: eigenq_pairing.tex (main text) + eigenq_pairing_supp.tex (Supplemental Material) + figs/
 ├── paper_ph/                 # paper II: eigenq_pairing_ph.tex + figs/ (copied from paper/figs)
-├── paper3/                   # paper III: eigenq_hubbard.tex (RevTeX) + figs/, Hubbard.ipynb (ED reference)
+├── paper3/                   # paper III: eigenq_hubbard.tex + eigenq_hubbard_supp.tex (quantumarticle) + figs/, Hubbard.ipynb (ED reference)
 ├── tests/                    # pytest: API + benchmark anchors
 ├── scripts/pipeline.py       # one-command orchestration
 ├── Makefile                  # install / test / notebook / check / figures / paper / paper-ph / all
@@ -29,7 +29,7 @@ make install        # pip install -e . + jupyter/latex deps
 make test           # library + benchmark anchors
 make all            # notebook -> check -> figures -> paper I (main text + Supplemental Material) and paper II PDFs
 make paper-ph       # paper II only (copies the V_ph figures first)
-make hubbard        # paper III: Hubbard notebook -> check -> figures -> PDF (revtex4-2)
+make hubbard        # paper III: Hubbard notebook (~2.5 h) -> check -> figures -> main text + SM PDFs (quantumarticle)
 ```
 
 ## Working with Claude Code

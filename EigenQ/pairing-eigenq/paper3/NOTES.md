@@ -1,5 +1,79 @@
 # Paper 3 — refinement + rodeo on the Hubbard model
 
+## Status 2026-10-16: fourth draft — `quantumarticle` (Quantum), main text + Supplemental Material, 8→16 at the circuit level, ADAPT-VQE
+
+Files: `eigenq_hubbard.tex` / `.pdf` (main text, `quantumarticle` two-column, 16 pp.
+incl. refs; `booktabs` tables; unstructured abstract; cites paper I only — no
+"companion"/PHcompanion references), `eigenq_hubbard_supp.tex` / `.pdf` (Supplemental
+Material, Secs. S1–S8, Tables S1–S7, Figs. S1–S4; `xr` against `eigenq_hubbard.aux`, so
+compile the main text first — `make paper-hubbard` does both), `figs/fig1-12.png`
+(main text: 1, 2, 3, 5, 10, 11, 12; SM: 4, 6, 7, 9; fig8 superseded),
+`eigenq_hubbard_v3_backup.tex` (the 2026-10-15 RevTeX/PRC third draft).
+
+Structure (paper-I template): Intro with contributions (a) reference implementation
+(b) matched benchmark at 8 AND 16 sites (c) transferable results — self-similar
+Galerkin hierarchy, symmetry-protected Δ_eff and the wrong-sector diagnostics, filter
+cost ∝ 1/Δ_eff with a fixed-step floor; Sec. 2 model/ED/diagnostics; Sec. 3 pipeline
+(+ comparators: determinant, U-ramp, UCCSD, pruned, ADAPT-VQE); Sec. 4 sector-exact
+results (4→8, symmetry protection, dimer hierarchy to 16 sites, plaquette, filter +
+variational summary); Sec. 5 circuits + matched comparison at 8 sites (Table 2,
+Fig. 10); Sec. 6 NEW: 8→16 at the circuit level (Fig. 11 transport + ADAPT, Table 3,
+Fig. 12); Sec. 7 discussion.  SM: S1 JRS bound + response norm (Table S1, Fig. S1);
+S2 dimer step + composition (Table S2, Fig. S2) + 8→16 exact; S3 plaquette (Table S3);
+S4 UCCSD tables (Table S4) + ADAPT details + 8-site ADAPT through the filter; S5
+Trotterized refinement at 8 sites (Fig. S3) + coarse-term cost conventions; S6 exact
+ensemble filter (Fig. S4); S7 ingredients of the 32-qubit study (Kronecker product
+formulas, effective step state, gate counts, step scans, ramp gap); S8 operating
+points (Table S5 8 sites; Table S7 full 16-site data).
+
+Notebook Section 12 (cells 30–31, figs 11–12; ~1.5 h on top of Sections 1–11; built
+on `hb.hubbard_groups/LayerGroup/DiagGroup/ProjGroup/trotter_path_groups/
+effective_step_state/rodeo_track_groups/uccsd_hubbard_kron/adapt_hubbard`), chain
+8→16 at (2,2), U=4 (784→14 400 states):
+- inputs: prolonged coarse GS p0 = 0.8692, determinant p0 = 0.7162, both Δ_eff =
+  0.1379; sector gap 0.0510; gap along the U-ramp 0.165→0.051.
+- exact slices: ramp p(4..64) = 0.82856/0.90373/0.94636/0.96970/0.98970/0.99591/
+  0.99887/0.99919 (T=64 for 1e-3); Path A μ_buf=2: p(8/16/32) = 0.99237/0.99931/
+  0.99995 (μ_buf=4: 0.99155/0.99879/0.99991; larger shift does not help); Path B
+  Λ=8: p(16/32) = 0.99492/0.99531, Λ=16: 0.99500/0.99605 (ceiling, as at 8 sites).
+- gates: 16-site step 304 (controlled 736), coarse term 4856 (Toffoli ladder, 16
+  controls), Givens 480, prolongation 32.  Trotter steps: ramp T=16 n_s=128 (0.96927,
+  39 392 CNOTs), T=32 n_s=256 (0.99556, 78 304; n_s=32 → 0.005!); Path A split T=16
+  n_s=128 (0.99835, 1 282 080 + coarse prep), T=8 plateaus at 0.99079 (exact 0.99237);
+  Path B Λ=8 T=16 n_s=256 (0.99476, 77 856 + coarse prep; n_s=32/64/128 →
+  4e-5/0.27/0.987); Path B T=32 not Trotterized (same ceiling, would need 512).
+- UCCSD 16 sites: 1022 par., 335 360 CNOTs, 1−F 6.98e-3; pruned 255 par., 87 776
+  CNOTs, 7.00e-3.  ADAPT 16 sites (pool 1022): 187 ops (68 008 CNOTs) for 1e-2, 9.45e-3
+  after 200.  ADAPT 8 sites (pool 198): 66/101/149/194 ops (11 712/15 528/22 816/
+  30 000 CNOTs) for 1e-2/3e-3/1e-3/3e-4; the 149-op state through the Section-11
+  filter: 1e-3/3e-4/1e-4 at 2.3e4 (M=0)/6.9e4 (M=2)/1.5e5 (M=5) — does NOT beat the
+  ramp (1.9e4/4.0e4/9.1e4), unlike the pairing model.
+- filter at 16 sites: σ = 5/Δ_eff = 36.2, δt = 0.1, E_eff − E0 = +4.92e-3, floor
+  3.7e-5 (`effective_step_state`), mean 289 steps = 2.13e5 CNOTs per cycle (9× the
+  8-site cycle).  Matched comparison (20 time sets, M = 0..6, coarse prep of the
+  hierarchy charged as the 8-site ramp T=16, 18 544 CNOTs), min CNOTs per accepted
+  preparation at 1e-2 / 3e-3 / 1e-3 / 3e-4: ramp T=32 7.8e4 (0) / 3.0e5 (1) / 7.9e5
+  (3) / 1.3e6 (5); Path B Λ=8 T=16 9.6e4 / 3.2e5 / 8.1e5 / 1.3e6 (tie within the
+  10–35 % bootstrap errors); ADAPT 187 ops 6.8e4 / 5.4e5 / 1.0e6 / 1.4e6; pruned UCCSD
+  8.8e4 / 5.6e5 / 1.1e6 / 1.3e6; Path A T=16 1.3e6 / 1.3e6 / 1.5e6 (M=1) / 2.0e6
+  (M=3); ramp T=16 5.2e5 / 1.0e6 / 1.4e6 / –; prolonged 1.3e6 / 1.4e6 / – / –;
+  determinant 1.5e6 / – / – / –.
+- VERDICT at 32 qubits: the ramp (now T=32) is still cheapest, but Path B ties with it
+  at every target, the variational routes cost 1.3–1.8×, and Path A costs 1.6–1.9× at
+  the two tightest targets instead of 16×; the cost is set by the filter cycles each
+  input still needs (2.1e5 each), i.e. by how close the input starts — the quantity
+  the refinement controls.  The trend 8→16 is the one the proposal predicted.
+
+Pipeline: `make hubbard` (notebook per-cell timeout 7200 s; `make check-hubbard`
+expects 12 figures; `make paper-hubbard` builds main + SM).  Standalone seed of
+Section 12: `scripts/hubbard16_checks.py` (its filter costs count the controlled
+step twice — the notebook is the reference).  `tests/test_hubbard.py` has a test of
+the Kronecker machinery / effective step state / sparse UCCSD / ADAPT.
+
+Open: repository URL / Zenodo DOI in `\bibitem{Code}` and `\bibitem{SM}`; authors of
+`Hubbard.ipynb` (`\bibitem{HubbardNotebook}`); co-author sign-off; the abstract is
+~330 words (Quantum has no limit, but it could be trimmed).
+
 ## Status 2026-10-15: third draft (revision after the paper-I assessment), US spelling
 
 Files: `eigenq_hubbard.tex` / `.pdf` (RevTeX, 15 pp., structured PRC abstract, same

@@ -865,9 +865,177 @@ ax[1].set_xlabel("rodeo cycles $M$ ($M=0$: unfiltered input)"); ax[1].set_ylabel
 plt.tight_layout(); plt.show()
 """)
 
-# ============================================================================ 12 summary
+
+# ============================================================================ 12 the 8->16 chain at the circuit level
 md(r"""---
-## 12&nbsp; Summary
+## 12&nbsp; Eight to sixteen sites at the circuit level, and the adaptive variational comparator
+
+Section 11 left one question open: at eight sites the free-fermion determinant has the same
+overlap and the same effective gap as the prolonged coarse eigenstate, so the plain $U$-ramp wins;
+does the coarse eigenstate become the better start once the lattice is larger?  Here the chain
+$8\to16$ at $(2,2)$ and $U=4t$ ($784\to14\,400$ states) is taken to the circuit level.  Every
+product-formula factor of the fine chain is a Kronecker product of two $120\times120$
+exponentials (`hb.hubbard_groups`, one species at a time), the embedded coarse term is applied
+exactly through the $784$-dimensional coarse space (`hb.ProjGroup`), the variational comparators
+use sparse generators (`hb.uccsd_hubbard_kron`, `hb.adapt_hubbard`), and the Trotter-effective
+ground state of the fixed-step filter is obtained by iterating the quantized-time filter itself
+(`hb.effective_step_state`), since the $14\,400$-dimensional step unitary cannot be
+diagonalized.  We also run ADAPT-VQE with the UCCSD pool at eight sites, through the filter of
+Section 11.  Figures 11 and 12.""")
+code(PRE + r"""
+from scipy.sparse.linalg import eigsh
+from scipy.sparse import csr_matrix, identity
+t0 = time.time()
+U = 4.0
+(Nc, bc), (Nf, bf), blocks, intra = hb.refine_chain(8)
+Hf, _ = hb.H_hubbard(Nf, bf, 2, 2, U); Kfree = hb.H_hubbard(Nf, bf, 2, 2, 0.0)[0]
+w16, V16 = eigsh(Hf, k=40, which="SA", tol=1e-10); o = np.argsort(w16); w16, V16 = w16[o], V16[:, o]; GS16 = V16[:, 0]; E016 = w16[0]
+P16 = hb.prolong(Nc, Nf, blocks, 2, 2, sparse=True); ps = hb.prolonged_state(Hf, P16); Hl16, El16, Phi016 = ps["Hl"], ps["El"], ps["Phi0"]
+pool16 = hb._uccsd_pool_kron(Nf, bf, 2, 2); FF16 = hb._to_site(pool16, pool16["ref"]).real
+Deff_p, c2p = hb.effective_gap(Phi016, w16, V16); Deff_f, c2f_ = hb.effective_gap(FF16, w16, V16)
+print(f"(a) chain 8->16, (2,2), U={U:.0f}: E_low = {El16:.6f}, E_high = {E016:.6f}, sector gap {w16[1]-w16[0]:.4f}")
+print(f"    prolonged coarse ground state: p0 = {c2p[0]:.4f}, D_eff = {Deff_p:.4f}; free-fermion determinant: p0 = {c2f_[0]:.4f}, D_eff = {Deff_f:.4f}   [{time.time()-t0:.0f} s]")
+print("    sector gap along the U-ramp: " + " ".join(f"s={s_}: {np.sort(eigsh(Kfree + np.sin(np.pi*s_/2)**2*(Hf-Kfree), k=2, which='SA', tol=1e-8)[0])[1]-np.sort(eigsh(Kfree + np.sin(np.pi*s_/2)**2*(Hf-Kfree), k=2, which='SA', tol=1e-8)[0])[0]:.3f}" for s_ in (0.0, 0.25, 0.5, 0.75, 1.0)))
+# --- (b) exact slices (Krylov, 48 slices)
+Ts16 = (4, 8, 12, 16, 24, 32, 48, 64)
+ramp_ex = {T: abs(np.vdot(GS16, hb.refine_sparse(FF16, Kfree, Hf, float(T), M=48)))**2 for T in Ts16}
+print("(b) exact slices, U-ramp from the determinant: " + " ".join(f"p({T})={ramp_ex[T]:.5f}" for T in Ts16) + f"   [{time.time()-t0:.0f} s]")
+pathA_ex = {}
+for mb in (2.0, 4.0):
+    mu = El16 + mb; Hle = P16 @ csr_matrix(Hl16 - mu*np.eye(784)) @ P16.T; Hhs = Hf - mu*identity(Hf.shape[0])
+    for T in (8, 16, 32):
+        pathA_ex[(mb, T)] = abs(np.vdot(GS16, hb.refine_sparse(Phi016, Hle, Hhs, float(T), M=48)))**2
+    print(f"    Path A, mu_buf={mb:.0f}: " + " ".join(f"p({T})={pathA_ex[(mb, T)]:.5f}" for T in (8, 16, 32)) + f"   [{time.time()-t0:.0f} s]")
+Kin16 = hb.hubbard_terms(Nf, intra, 2, 2, 0.0, layers=[list(range(len(intra)))])[0]
+pathB_ex = {}
+for Lam in (8.0, 16.0):
+    for T in (16, 32):
+        pathB_ex[(Lam, T)] = abs(np.vdot(GS16, hb.refine_sparse(Phi016, Hf + Lam*Kin16, Hf, float(T), M=48)))**2
+    print(f"    Path B, Lambda={Lam:.0f}: " + " ".join(f"p({T})={pathB_ex[(Lam, T)]:.5f}" for T in (16, 32)) + f"   [{time.time()-t0:.0f} s]")
+# --- (c) product formulas and gate counts
+c2f = lambda s: np.cos(np.pi*s/2)**2; s2f = lambda s: np.sin(np.pi*s/2)**2
+groups16 = hb.hubbard_groups(Nf, bf, 2, 2, U)
+st16 = hb.chain_step_cnots(Nf, bf, 2)["cnots"]; ct16 = hb.chain_step_cnots(Nf, bf, 2, controlled=True)["cnots"]
+ca16 = hb.conditioned_term_cnots(8, bc, n_controls=16)["toffoli"]; CN_GIVENS16 = 2*(Nf*(Nf-1)//2)*2; CN_PROL16 = 2*8*2
+print(f"(c) 16-site step {st16} CNOTs (second order; controlled {ct16}); coarse term of Path A (8-site step conditioned on 16 qubits) {ca16}; Givens network {CN_GIVENS16}; prolongation 8->16 {CN_PROL16}")
+def n_needed16(Phi, grp, coefs, T, pex, tol=1e-3):
+    out, prev = [], None
+    for ns in (32, 64, 128, 256, 512):
+        p = abs(np.vdot(GS16, hb.trotter_path_groups(Phi, grp, coefs, T, ns, order=2)))**2; out.append((ns, p))
+        if abs(p - pex) <= tol or (prev is not None and abs(p - prev) < 1e-4 and p > 0.5): return ns, p, out   # converged, or plateaued short of the exact value
+        prev = p
+    return ns, p, out
+trot16 = {}
+ramp_coefs = [lambda s: 1.0, lambda s: 1.0, s2f]
+for T in (16, 32):
+    ns, p, out = n_needed16(FF16, groups16, ramp_coefs, float(T), ramp_ex[T])
+    trot16[("ramp", T)] = dict(ns=ns, p=p, psi=hb.trotter_path_groups(FF16, groups16, ramp_coefs, float(T), ns), cost=CN_GIVENS16 + ns*st16)
+    print(f"    U-ramp T={T}: exact {ramp_ex[T]:.5f}; " + " ".join(f"{n}:{pp:.5f}" for n, pp in out) + f" -> n_s={ns}, {trot16[('ramp', T)]['cost']} CNOTs   [{time.time()-t0:.0f} s]")
+tl, Ul, cst = hb.galerkin_params("chain", 1.0, U, 8)
+Kc_e, Kc_o, Dc = [t_.toarray() for t_ in hb.hubbard_terms(8, bc, 2, 2, Ul, t=tl)]
+mu = El16 + 2.0
+gA16 = [hb.ProjGroup(P16, Dc + (cst - mu)*np.eye(784)), hb.ProjGroup(P16, Kc_e), hb.ProjGroup(P16, Kc_o), groups16[0], groups16[1], hb.DiagGroup(groups16[2].d - mu)]
+cA16 = [c2f]*3 + [s2f]*3
+for T in (8, 16):
+    ns, p, out = n_needed16(Phi016, gA16, cA16, float(T), pathA_ex[(2.0, T)])
+    trot16[("A", T)] = dict(ns=ns, p=p, psi=hb.trotter_path_groups(Phi016, gA16, cA16, float(T), ns), cost=CN_PROL16 + ns*(st16 + 2*ca16))
+    print(f"    Path A (split coarse groups, mu_buf=2) T={T}: exact {pathA_ex[(2.0, T)]:.5f}; " + " ".join(f"{n}:{pp:.5f}" for n, pp in out) + f" -> n_s={ns}, {trot16[('A', T)]['cost']} CNOTs + coarse preparation   [{time.time()-t0:.0f} s]")
+gB16 = [groups16[0], groups16[1], groups16[2]]
+for Lam in (8.0,):                                   # T = 32 sits at the same ceiling (exact slices above) and would need 512 steps: not Trotterized
+    cB16 = [lambda s, L=Lam: 1 + L*np.cos(np.pi*s/2)**2, lambda s: 1.0, lambda s: 1.0]
+    for T in (16,):
+        ns, p, out = n_needed16(Phi016, gB16, cB16, float(T), pathB_ex[(Lam, T)])
+        trot16[("B", T)] = dict(ns=ns, p=p, psi=hb.trotter_path_groups(Phi016, gB16, cB16, float(T), ns), cost=CN_PROL16 + ns*st16)
+        print(f"    Path B (Lambda={Lam:.0f}) T={T}: exact {pathB_ex[(Lam, T)]:.5f}; " + " ".join(f"{n}:{pp:.5f}" for n, pp in out) + f" -> n_s={ns}, {trot16[('B', T)]['cost']} CNOTs + coarse preparation   [{time.time()-t0:.0f} s]")
+# --- (d) variational inputs at 16 sites, and ADAPT at 8 and 16 sites
+uf16 = hb.uccsd_hubbard_kron(Nf, bf, 2, 2, U, maxiter=300, H=Hf); th = np.abs(uf16["theta"]); keep = [i for i in range(len(th)) if th[i] > 1e-3]
+up16 = hb.uccsd_hubbard_kron(Nf, bf, 2, 2, U, maxiter=300, H=Hf, keep=keep, theta0=uf16["theta"][keep])
+cn_full16 = hb.uccsd_cnots(Nf, uf16["singles"], uf16["doubles"])["total"]; cn_pr16 = hb.uccsd_cnots(Nf, up16["singles"], up16["doubles"])["total"]
+print(f"(d) UCCSD (16 sites): {uf16['n_params']} parameters, {cn_full16} CNOTs, E = {uf16['E']:.6f} (E0 {E016:.6f}), 1-F = {1-abs(np.vdot(GS16, uf16['psi']))**2:.3e}; "
+      f"pruned (|theta| > 1e-3): {up16['n_params']} parameters, {cn_pr16} CNOTs, 1-F = {1-abs(np.vdot(GS16, up16['psi']))**2:.3e}   [{time.time()-t0:.0f} s]")
+def cn_of(N_, ops): return hb.uccsd_cnots(N_, [l for l in ops if len(l) == 3], [l for l in ops if len(l) == 5])["total"]
+TGT = (1e-2, 3e-3, 1e-3, 3e-4)
+ad16 = hb.adapt_hubbard(Nf, bf, 2, 2, U, grad_tol=1e-6, max_ops=200, H=Hf, target=GS16); h16 = ad16["history"]
+reach16 = {tgt: next((d for d in h16 if d["infidelity"] <= tgt), None) for tgt in TGT}
+print(f"    ADAPT-VQE, 16 sites (pool {ad16['pool_size']}, repeats allowed): {len(ad16['ops'])} operators, 1-F = {h16[-1]['infidelity']:.2e}; operators (CNOTs) to reach "
+      + ", ".join(f"{tgt:.0e}: {reach16[tgt]['n_ops']} ({cn_of(Nf, ad16['ops'][:reach16[tgt]['n_ops']])})" if reach16[tgt] else f"{tgt:.0e}: -" for tgt in TGT) + f"   [{time.time()-t0:.0f} s]")
+r8 = chain48[U]; Psih8 = r8["Vf"][:, 0]
+ad8 = hb.adapt_hubbard(8, bc, 2, 2, U, grad_tol=1e-6, max_ops=200, H=csr_matrix(r8["Hf"]), target=Psih8); h8 = ad8["history"]
+reach8 = {tgt: next((d for d in h8 if d["infidelity"] <= tgt), None) for tgt in TGT}
+print(f"    ADAPT-VQE, 8 sites (pool {ad8['pool_size']}): {len(ad8['ops'])} operators, 1-F = {h8[-1]['infidelity']:.2e}; operators (CNOTs) to reach "
+      + ", ".join(f"{tgt:.0e}: {reach8[tgt]['n_ops']} ({cn_of(8, ad8['ops'][:reach8[tgt]['n_ops']])})" if reach8[tgt] else f"{tgt:.0e}: -" for tgt in TGT) + f"   [{time.time()-t0:.0f} s]")
+# the 8-site ADAPT state at 1e-3 through the filter of Section 11 (same forty time sets)
+d8 = reach8[1e-3]
+if d8 is not None:
+    v0 = d8["psi"].astype(complex); cprep8 = cn_of(8, ad8["ops"][:d8["n_ops"]])
+    F = np.zeros((NSAMP, M_MAX)); Acc = np.zeros((NSAMP, M_MAX))
+    for s_, ts in enumerate(tsets): F[s_], Acc[s_] = hb.rodeo_track_U(v0, tr["Ufun"], ts, E_obj, Psih8, dt=DT)
+    Fw = (F*Acc).sum(0)/Acc.sum(0); Am = Acc.mean(0); reach_ = np.concatenate([np.ones((NSAMP, 1)), Acc[:, :-1]], axis=1)
+    cacc8 = np.concatenate([[float(cprep8)], (cprep8 + np.cumsum(reach_*cyc_cost, axis=1).mean(0))/Am]); inf8 = np.concatenate([[1-abs(np.vdot(Psih8, v0))**2], 1-Fw])
+    print(f"    8 sites: ADAPT state ({d8['n_ops']} operators, {cprep8} CNOTs) through the Section-11 filter: 1-F_M = " + " ".join(f"{x:.1e}" for x in inf8) + "; CNOTs per accepted preparation " + " ".join(f"{c:.1e}" for c in cacc8))
+    print("      minimum cost at 1e-3 / 3e-4 / 1e-4: " + " / ".join((lambda ok: f"{cacc8[ok[np.argmin(cacc8[ok])]]:.1e} (M={ok[np.argmin(cacc8[ok])]})" if ok.size else "-")(np.where(inf8 <= tgt)[0]) for tgt in (1e-3, 3e-4, 1e-4)))
+# --- (e) the filter at 16 sites and the matched comparison
+SIG16 = 5.0/Deff_p; DT16 = 0.1
+psi_eff, E_eff16 = hb.effective_step_state(groups16, DT16, GS16, E016, SIG16, iters=80); floor16 = 1 - abs(np.vdot(GS16, psi_eff))**2
+print(f"(e) filter at 16 sites: sigma = 5/D_eff = {SIG16:.1f}, dt = {DT16}: E_eff - E0 = {E_eff16-E016:+.2e}, floor {floor16:.1e}; mean {SIG16*np.sqrt(2/np.pi)/DT16:.0f} steps = {ct16*SIG16*np.sqrt(2/np.pi)/DT16:.2e} CNOTs per cycle   [{time.time()-t0:.0f} s]")
+NS16 = 20
+rng = np.random.default_rng(SEED); tsets16 = [np.abs(rng.normal(0.0, SIG16, M_MAX)) for _ in range(NS16)]
+cyc16 = np.array([[max(1, int(round(t/DT16)))*ct16 for t in ts] for ts in tsets16])        # controlled second-order steps per cycle, as in Section 11
+CN_COARSE8 = 18544                                   # the cheapest 8-site route of Section 11 reaching 3e-4: the U-ramp at T=16
+inputs16 = {"free-fermion determinant": (FF16, CN_GIVENS16),
+            "prolonged 8-site ground state": (Phi016, CN_COARSE8 + CN_PROL16),
+            f"UCCSD pruned ({up16['n_params']} par.)": (up16["psi"], cn_pr16),
+            f"U-ramp T=16 (n_s={trot16[('ramp', 16)]['ns']})": (trot16[("ramp", 16)]["psi"], trot16[("ramp", 16)]["cost"]),
+            f"U-ramp T=32 (n_s={trot16[('ramp', 32)]['ns']})": (trot16[("ramp", 32)]["psi"], trot16[("ramp", 32)]["cost"]),
+            f"Path B ($\\Lambda=8$) T=16 (n_s={trot16[('B', 16)]['ns']})": (trot16[("B", 16)]["psi"], CN_COARSE8 + trot16[("B", 16)]["cost"]),
+            f"Path A (split) T=16 (n_s={trot16[('A', 16)]['ns']})": (trot16[("A", 16)]["psi"], CN_COARSE8 + trot16[("A", 16)]["cost"])}
+if reach16[1e-2] is not None:
+    inputs16[f"ADAPT ({reach16[1e-2]['n_ops']} op.)"] = (reach16[1e-2]["psi"], cn_of(Nf, ad16["ops"][:reach16[1e-2]["n_ops"]]))
+rows16 = {}; rngb = np.random.default_rng(5)
+print(f"    matched comparison at 16 sites ({NS16} time sets, M = 0..{M_MAX}, E_obj = E_eff; coarse preparation of the hierarchy counted as {CN_COARSE8} CNOTs)")
+for name, (v0, cprep) in inputs16.items():
+    v0 = np.asarray(v0, complex); p = abs(np.vdot(GS16, v0))**2
+    F = np.zeros((NS16, M_MAX)); Acc = np.zeros((NS16, M_MAX))
+    for s_, ts in enumerate(tsets16): F[s_], Acc[s_] = hb.rodeo_track_groups(v0, groups16, ts, E_eff16, GS16, DT16)
+    Fw = (F*Acc).sum(0)/Acc.sum(0); Am = Acc.mean(0)
+    boots = np.array([1 - ((F*Acc)[idx].sum(0)/Acc[idx].sum(0)) for idx in (rngb.integers(0, NS16, NS16) for _ in range(400))]); rse = boots.std(0)/np.maximum(1-Fw, 1e-30)
+    reach_ = np.concatenate([np.ones((NS16, 1)), Acc[:, :-1]], axis=1)
+    rows16[name] = dict(p=p, cprep=cprep, inf=np.concatenate([[1-p], 1-Fw]), rse=np.concatenate([[0], rse]), acc=np.concatenate([[1], Am]), cacc=np.concatenate([[float(cprep)], (cprep + np.cumsum(reach_*cyc16, axis=1).mean(0))/Am]))
+    print(f"    {name:44s} p={p:.5f} prep={cprep:8d} | " + " ".join(f"{rows16[name]['inf'][m]:.1e}({100*rows16[name]['rse'][m]:2.0f}%)" for m in range(M_MAX+1)) + f" | acc(6) {Am[-1]:.3f} | cost " + " ".join(f"{c:.1e}" for c in rows16[name]["cacc"]) + f"   [{time.time()-t0:.0f} s]")
+print("    minimum CNOTs per accepted preparation at a target infidelity (16 sites):")
+for tgt in (1e-2, 3e-3, 1e-3, 3e-4):
+    best = []
+    for name, d in rows16.items():
+        ok = np.where(d["inf"] <= tgt)[0]
+        if ok.size: m = ok[np.argmin(d["cacc"][ok])]; best.append((d["cacc"][m], name, m, d["inf"][m]))
+    best.sort(); print(f"      {tgt:.0e}: " + "; ".join(f"{nm} M={m} {c:.2e} ({i:.1e})" for c, nm, m, i in best))
+
+fig, ax = plt.subplots(1, 2, figsize=(13, 5))
+ax[0].semilogy(Ts16, [max(1-ramp_ex[T], 1e-9) for T in Ts16], "^-", color="C4", label="$U$-ramp from the determinant ($p_0=%.3f$)" % c2f_[0])
+ax[0].semilogy([8, 16, 32], [max(1-pathA_ex[(2.0, T)], 1e-9) for T in (8, 16, 32)], "o-", color="C2", label="Path A, $\\mu_{\\rm buf}=2t$ ($p_0=%.3f$)" % c2p[0])
+ax[0].semilogy([8, 16, 32], [max(1-pathA_ex[(4.0, T)], 1e-9) for T in (8, 16, 32)], "o--", color="C2", label="Path A, $\\mu_{\\rm buf}=4t$")
+for Lam, ls_ in ((8.0, "-"), (16.0, "--")):
+    ax[0].semilogy([16, 32], [max(1-pathB_ex[(Lam, T)], 1e-9) for T in (16, 32)], "s"+ls_, color="C1", label=f"Path B, $\\Lambda={Lam:.0f}t$")
+ax[0].set_xlabel("$T$ [1/t]"); ax[0].set_ylabel("$1-p(T)$"); ax[0].set_title("chain $8\\to16$, $U=4t$: exact-slice transport"); ax[0].legend(fontsize=8); ax[0].grid(alpha=0.3, which="both")
+ax[1].semilogy([d["n_ops"] for d in h8], [max(d["infidelity"], 1e-12) for d in h8], "s--", ms=3, label="ADAPT, 8 sites (pool 198)")
+ax[1].semilogy([d["n_ops"] for d in h16], [max(d["infidelity"], 1e-12) for d in h16], "o-", ms=3, label=f"ADAPT, 16 sites (pool {ad16['pool_size']})")
+ax[1].axhline(1-abs(np.vdot(GS16, uf16["psi"]))**2, color="C1", ls=":", label=f"single-layer UCCSD, 16 sites ({uf16['n_params']} par.)")
+ax[1].axhline(1-abs(np.vdot(Psih8, ucc_fine[U]["psi"]))**2, color="C0", ls=":", label="single-layer UCCSD, 8 sites (198 par.)")
+ax[1].set_xlabel("ADAPT iteration (operators, repeats allowed)"); ax[1].set_ylabel("$1-F$"); ax[1].set_title("ADAPT-VQE with the UCCSD pool, $U=4t$, (2,2)"); ax[1].legend(fontsize=8); ax[1].grid(alpha=0.3, which="both")
+plt.tight_layout(); plt.show()
+fig, ax = plt.subplots(1, 1, figsize=(8, 5.2))
+mks = ["o-", "s-", "d-", "^-", "v-", "P-", "X-", "*-", "<-"]
+for (name, d), mk in zip(rows16.items(), mks):
+    ax.loglog(d["cacc"], d["inf"], mk, ms=4, label=f"{name} ($p={d['p']:.4f}$)")
+for tgt in (3e-3, 1e-3, 3e-4): ax.axhline(tgt, color="gray", ls=":", lw=0.8)
+ax.set_xlabel("CNOTs per accepted preparation (input + filter, early termination)"); ax.set_ylabel("ensemble infidelity $1-\\mathcal{F}_M$")
+ax.set_title(f"chain $8\\to16$, $U=4t$: inputs to the same filter ($\\delta t={DT16}$, $\\sigma={SIG16:.0f}/t$), $M=0\\ldots6$"); ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
+plt.tight_layout(); plt.show()
+""")
+
+# ============================================================================ 13 summary
+md(r"""---
+## 13&nbsp; Summary
 
 * **Lattice refinement is structurally clean.**  The Galerkin coarse model of the bonding
   prolongation is a Hubbard model in closed form ($t/2$, $U/2$ in one dimension, self-similar at

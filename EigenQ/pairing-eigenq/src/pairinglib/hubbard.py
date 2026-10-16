@@ -730,3 +730,273 @@ def hubbard_full_jw(N, bonds, U, t=1.0):
         nu = jw_create(i, nq) @ jw_ann(i, nq); nd = jw_create(i + N, nq) @ jw_ann(i + N, nq)
         H += U * nu @ nd
     return H
+
+
+# ------------------------------------------------------------------ large sectors: Kronecker-structured product formulas
+class LayerGroup:
+    """A hopping layer t*(K_up (x) 1 + 1 (x) K_dn) whose exponential factorizes,
+    exp(-i c K) = exp(-i c K_up) (x) exp(-i c K_dn): applied to psi reshaped as a
+    (dim_up x dim_dn) matrix at the cost of two small dense products.  Kup, Kdn
+    are the one-species hopping matrices on the sorted masks (dense or sparse)."""
+    def __init__(self, Kup, Kdn):
+        Kup = Kup.toarray() if issparse(Kup) else np.asarray(Kup)
+        Kdn = Kdn.toarray() if issparse(Kdn) else np.asarray(Kdn)
+        self.wu, self.Vu = np.linalg.eigh(Kup); self.wd, self.Vd = np.linalg.eigh(Kdn)
+        self.nu, self.nd = len(self.wu), len(self.wd)
+
+    def apply(self, c, psi):
+        X = psi.reshape(self.nu, self.nd)
+        A = (self.Vu * np.exp(-1j * c * self.wu)) @ self.Vu.conj().T
+        B = (self.Vd * np.exp(-1j * c * self.wd)) @ self.Vd.conj().T
+        return (A @ X @ B.T).ravel()
+
+    def matvec(self, psi):
+        X = psi.reshape(self.nu, self.nd)
+        Ku = (self.Vu * self.wu) @ self.Vu.conj().T; Kd = (self.Vd * self.wd) @ self.Vd.conj().T
+        return (Ku @ X + X @ Kd.T).ravel()
+
+
+class DiagGroup:
+    """A diagonal term (the interaction U n_up n_dn): exp(-i c d) elementwise."""
+    def __init__(self, d):
+        self.d = np.asarray(d, float)
+
+    def apply(self, c, psi):
+        return np.exp(-1j * c * self.d) * psi
+
+    def matvec(self, psi):
+        return self.d * psi
+
+
+class ProjGroup:
+    """The embedded coarse term P X P^T (P a sparse isometry, X a dense coarse
+    matrix): exp(-i c P X P^T) = 1 + P (exp(-i c X) - 1) P^T, exact and cheap."""
+    def __init__(self, P, X):
+        self.P = csr_matrix(P); self.PT = self.P.T.tocsr()
+        self.w, self.V = np.linalg.eigh(np.asarray(X))
+
+    def apply(self, c, psi):
+        y = self.PT @ psi
+        return psi + self.P @ (self.V @ ((np.exp(-1j * c * self.w) - 1.0) * (self.V.conj().T @ y)))
+
+    def matvec(self, psi):
+        return self.P @ (self.V @ (self.w * (self.V.conj().T @ (self.PT @ psi))))
+
+
+def hubbard_groups(N, bonds, Nup, Ndn, U, t=1.0, layers=None):
+    """[LayerGroup(even bonds), LayerGroup(odd bonds), DiagGroup(U docc)] — the
+    product-formula groups of `hubbard_terms` in Kronecker form (any sector size
+    whose one-species dimension is dense-diagonalizable, e.g. 120 for 16 sites
+    at (2,2))."""
+    Sup, Sdn = spin_basis(N, Nup), spin_basis(N, Ndn)
+    if layers is None:
+        layers = [[k for k in range(len(bonds)) if k % 2 == 0], [k for k in range(len(bonds)) if k % 2 == 1]]
+    groups = []
+    for lay in layers:
+        bl = [bonds[k] for k in lay]
+        groups.append(LayerGroup(t * hop_spin(N, bl, Sup), t * hop_spin(N, bl, Sdn)))
+    groups.append(DiagGroup(U * docc(Sup, Sdn)))
+    return groups
+
+
+def trotter_path_groups(Phi0, groups, coefs, T, n_s, order=2):
+    """Product-formula evolution along H(s) = sum_i coefs[i](s) groups[i] with
+    n_s first- or second-order steps (midpoint rule in s), for group objects
+    with an `apply(c, psi)` method.  Returns the normalized final state."""
+    psi = np.asarray(Phi0, complex).copy(); dt = T / n_s
+    for m in range(n_s):
+        s = (m + 0.5) / n_s
+        c = [f(s) for f in coefs]
+        if order == 1:
+            for g_, ci in zip(groups, c):
+                psi = g_.apply(ci * dt, psi)
+        else:
+            for g_, ci in zip(groups, c):
+                psi = g_.apply(ci * dt / 2, psi)
+            for g_, ci in zip(reversed(groups), reversed(c)):
+                psi = g_.apply(ci * dt / 2, psi)
+    return psi / np.linalg.norm(psi)
+
+
+def step_apply_groups(groups, dt, psi, order=2):
+    """One product-formula step exp(-i sum(groups) dt) applied to psi."""
+    if order == 1:
+        for g_ in groups:
+            psi = g_.apply(dt, psi)
+        return psi
+    for g_ in groups:
+        psi = g_.apply(dt / 2, psi)
+    for g_ in reversed(groups):
+        psi = g_.apply(dt / 2, psi)
+    return psi
+
+
+def effective_step_state(groups, dt, psi0, E0, sigma, iters=60, seed=11, order=2):
+    """Trotter-effective ground state of the fixed-step filter for sectors too
+    large to diagonalize the step unitary: iterate the quantized-time
+    post-selection K_t = (1 + e^{i E t} U_step^n)/2 (n = t/dt, t half-Gaussian of
+    width sigma) on psi0 while updating E to the eigenphase estimate
+    -arg<psi|U_step|psi>/dt.  Returns (psi_eff, E_eff): the step eigenvector
+    closest to the input and its energy; 1-|<target|psi_eff>|^2 is the floor."""
+    rng = np.random.default_rng(seed)
+    psi = np.asarray(psi0, complex) / np.linalg.norm(psi0)
+    E = E0
+    for it in range(iters):
+        Upsi = step_apply_groups(groups, dt, psi, order)
+        E = -np.angle(np.vdot(psi, Upsi)) / dt
+        n = max(1, int(round(abs(rng.normal(0.0, sigma)) / dt)))
+        v = psi.copy()
+        for _ in range(n):
+            v = step_apply_groups(groups, dt, v, order)
+        psi = 0.5 * (psi + np.exp(1j * E * n * dt) * v); psi /= np.linalg.norm(psi)
+    Upsi = step_apply_groups(groups, dt, psi, order)
+    return psi, -np.angle(np.vdot(psi, Upsi)) / dt
+
+
+def rodeo_track_groups(v0, groups, ts, E, target, dt, order=2):
+    """Rodeo fidelity/acceptance tracking with a fixed-step product-formula
+    evolution built from group objects; cycle times are quantized to multiples
+    of dt (the convention of `rodeo_track_U(..., dt=)`)."""
+    v = np.asarray(v0, complex).copy(); P = 1.0; F, A = [], []
+    for t in ts:
+        n = max(1, int(round(abs(t) / dt))); u = v.copy()
+        for _ in range(n):
+            u = step_apply_groups(groups, dt, u, order)
+        w = 0.5 * (v + np.exp(1j * E * n * dt) * u)
+        p = float(np.vdot(w, w).real); v = w / np.sqrt(p); P *= p
+        F.append(abs(np.vdot(target, v)) ** 2); A.append(P)
+    return np.array(F), np.array(A)
+
+
+# ------------------------------------------------------------------ large sectors: UCCSD and ADAPT-VQE with sparse operators
+def _uccsd_pool_kron(N, bonds, Nup, Ndn, t=1.0):
+    """Orbital-basis machinery shared by `uccsd_hubbard_kron` and `adapt_hubbard`:
+    the free-fermion orbitals, the one-species orbital transforms Phi_u, Phi_d,
+    the HF reference in the orbital occupation basis, and the spin-resolved
+    singles/doubles pool as sparse generators K = tau - tau^T with their
+    projectors Pi = -K^2 (diagonal, so every factor is an exact Givens-type
+    rotation).  Returns a dict."""
+    T1 = np.zeros((N, N))
+    for i, j in bonds:
+        T1[i, j] -= t; T1[j, i] -= t
+    eps, phi = np.linalg.eigh(T1)
+    Phi_u, Phi_d = orbital_transform(N, Nup, phi), orbital_transform(N, Ndn, phi)
+    Su, Sd = spin_basis(N, Nup), spin_basis(N, Ndn)
+    Iu, Id = identity(len(Su), format="csr"), identity(len(Sd), format="csr")
+    Eu = lambda a, b: _one_body_spin(N, Su, a, b)
+    Ed = lambda a, b: _one_body_spin(N, Sd, a, b)
+    occ_u, vir_u = list(range(Nup)), list(range(Nup, N))
+    occ_d, vir_d = list(range(Ndn)), list(range(Ndn, N))
+    gens, labels = [], []
+    for (i, a) in product(occ_u, vir_u):
+        gens.append(kron(Eu(a, i), Id, format="csr")); labels.append(("u", i, a))
+    for (i, a) in product(occ_d, vir_d):
+        gens.append(kron(Iu, Ed(a, i), format="csr")); labels.append(("d", i, a))
+    for (i, j) in combinations(occ_u, 2):
+        for (a, b) in combinations(vir_u, 2):
+            gens.append(kron(Eu(a, i) @ Eu(b, j), Id, format="csr")); labels.append(("uu", i, j, a, b))
+    for (i, j) in combinations(occ_d, 2):
+        for (a, b) in combinations(vir_d, 2):
+            gens.append(kron(Iu, Ed(a, i) @ Ed(b, j), format="csr")); labels.append(("dd", i, j, a, b))
+    for (i, a) in product(occ_u, vir_u):
+        for (j, b) in product(occ_d, vir_d):
+            gens.append(kron(Eu(a, i), Ed(b, j), format="csr")); labels.append(("ud", i, j, a, b))
+    Ks = [(g - g.T).tocsr() for g in gens]
+    Pis = [(-(K @ K)).diagonal() for K in Ks]
+    ref = np.zeros(len(Su) * len(Sd), dtype=complex)
+    ju = int(np.searchsorted(Su, np.uint64(sum(1 << a for a in range(Nup)))))
+    jd = int(np.searchsorted(Sd, np.uint64(sum(1 << a for a in range(Ndn)))))
+    ref[ju * len(Sd) + jd] = 1.0
+    return dict(eps=eps, phi=phi, Phi_u=Phi_u, Phi_d=Phi_d, Ks=Ks, Pis=Pis, labels=labels, ref=ref,
+                nu=len(Su), nd=len(Sd))
+
+
+def _to_site(pool, psi_orb):
+    X = psi_orb.reshape(pool["nu"], pool["nd"])
+    return (pool["Phi_u"] @ X @ pool["Phi_d"].T).ravel()
+
+
+def _to_orb(pool, psi_site):
+    X = psi_site.reshape(pool["nu"], pool["nd"])
+    return (pool["Phi_u"].T @ X @ pool["Phi_d"]).ravel()
+
+
+def _product_state_opt(pool, H, idx, theta0, maxiter=500):
+    """Optimize <psi|H|psi> for psi = prod_m exp(theta_m K_{idx[m]}) |HF> (orbital
+    basis; H sparse in the site basis) with L-BFGS-B and the adjoint gradient.
+    Returns (theta, E, psi_site)."""
+    Ks, Pis = pool["Ks"], pool["Pis"]
+    def fac(m, th, psi):
+        return psi + np.sin(th) * (Ks[m] @ psi) + (np.cos(th) - 1.0) * (Pis[m] * psi)
+    def forward(th):
+        st = [pool["ref"]]
+        for n_, m in enumerate(idx):
+            st.append(fac(m, th[n_], st[-1]))
+        return st
+    def energy(th):
+        ps = _to_site(pool, forward(th)[-1])
+        return float(np.real(np.vdot(ps, H @ ps)))
+    def grad(th):
+        st = forward(th); ps = _to_site(pool, st[-1])
+        lam_ = _to_orb(pool, H @ ps); g = np.zeros(len(idx))
+        for n_ in range(len(idx) - 1, -1, -1):
+            m = idx[n_]
+            g[n_] = 2.0 * float(np.real(np.vdot(lam_, Ks[m] @ st[n_ + 1])))
+            lam_ = fac(m, -th[n_], lam_)
+        return g
+    if len(idx) == 0:
+        ps = _to_site(pool, pool["ref"]); return np.zeros(0), float(np.real(np.vdot(ps, H @ ps))), ps
+    res = minimize(energy, np.asarray(theta0, float), jac=grad, method="L-BFGS-B",
+                   options={"ftol": 1e-14, "gtol": 1e-10, "maxiter": maxiter})
+    ps = _to_site(pool, forward(res.x)[-1])
+    return res.x, float(res.fun), ps / np.linalg.norm(ps)
+
+
+def uccsd_hubbard_kron(N, bonds, Nup, Ndn, U, t=1.0, maxiter=500, H=None, keep=None, theta0=None):
+    """`uccsd_hubbard` for sectors too large for dense matrices: the same ansatz,
+    reference, pool and ordering, with H sparse and the orbital transform
+    applied as a Kronecker product.  Returns dict(E, psi, theta, nit, E_hf,
+    n_params, singles, doubles, labels)."""
+    if H is None:
+        H, _ = H_hubbard(N, bonds, Nup, Ndn, U, t)
+    H = csr_matrix(H)
+    pool = _uccsd_pool_kron(N, bonds, Nup, Ndn, t)
+    idx = list(range(len(pool["Ks"]))) if keep is None else sorted(keep)
+    x0 = np.zeros(len(idx)) if theta0 is None else np.asarray(theta0, float)
+    ps_ref = _to_site(pool, pool["ref"]); E_hf = float(np.real(np.vdot(ps_ref, H @ ps_ref)))
+    theta, E, psi = _product_state_opt(pool, H, idx, x0, maxiter)
+    labels = [pool["labels"][i] for i in idx]
+    return dict(E=E, psi=psi, theta=theta, E_hf=E_hf, n_params=len(idx), labels=labels,
+                singles=[l for l in labels if len(l) == 3], doubles=[l for l in labels if len(l) == 5])
+
+
+def adapt_hubbard(N, bonds, Nup, Ndn, U, t=1.0, grad_tol=1e-4, max_ops=60, H=None, target=None, maxiter=400):
+    """ADAPT-VQE for the Hubbard sector with the spin-resolved singles/doubles pool
+    of `uccsd_hubbard` (operators may repeat): at every iteration the operator
+    with the largest |<psi|[H,K]|psi>| is appended and all amplitudes are
+    re-optimized from the previous optimum.  Returns dict(history=[dict(n_ops,
+    E, infidelity, max_grad, op, psi)], ops, theta, psi, E, pool_size)."""
+    if H is None:
+        H, _ = H_hubbard(N, bonds, Nup, Ndn, U, t)
+    H = csr_matrix(H)
+    pool = _uccsd_pool_kron(N, bonds, Nup, Ndn, t); Ks = pool["Ks"]
+    ps = _to_site(pool, pool["ref"]); E = float(np.real(np.vdot(ps, H @ ps)))
+    ops, theta = [], np.zeros(0)
+    inf = lambda v: (1 - abs(np.vdot(target, v)) ** 2) if target is not None else None
+    hist = [dict(n_ops=0, E=E, infidelity=inf(ps), max_grad=None, op=None, psi=ps)]
+    psi_orb = pool["ref"]
+    while len(ops) < max_ops:
+        lam_ = _to_orb(pool, H @ ps)
+        grads = np.array([2.0 * float(np.real(np.vdot(lam_, K @ psi_orb))) for K in Ks])
+        m = int(np.argmax(np.abs(grads))); hist[-1]["max_grad"] = float(abs(grads[m]))
+        if abs(grads[m]) < grad_tol:
+            break
+        ops.append(m)
+        theta, E, ps = _product_state_opt(pool, H, ops, np.concatenate([theta, [0.0]]), maxiter)
+        # orbital-basis state for the next gradient
+        st = pool["ref"]
+        for n_, mm in enumerate(ops):
+            st = st + np.sin(theta[n_]) * (Ks[mm] @ st) + (np.cos(theta[n_]) - 1.0) * (pool["Pis"][mm] * st)
+        psi_orb = st
+        hist.append(dict(n_ops=len(ops), E=E, infidelity=inf(ps), max_grad=None, op=pool["labels"][m], psi=ps))
+    return dict(history=hist, ops=[pool["labels"][i] for i in ops], theta=theta, psi=ps, E=E, pool_size=len(Ks))

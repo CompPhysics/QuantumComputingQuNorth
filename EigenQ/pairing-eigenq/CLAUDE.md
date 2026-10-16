@@ -36,22 +36,30 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   Both are generated from the notebook's results and figures. Every number in
   either paper must trace to a notebook output.  Keep the two consistent:
   the f=0 row of paper II's tables is paper I's result.
-- Paper III, `paper3/eigenq_hubbard.tex` (RevTeX, PRC): LATTICE refinement of
-  the Hubbard model (chain 2->4->8->16, square 2x2->4x4), same authors and
-  pipeline.  It has its OWN notebook, `notebooks/ResolutionRefHubbard.ipynb`,
-  built from scratch by `scripts/build_notebook_hubbard.py` (nbformat, 31 cells,
-  10 figures, ~45 min clean run) on the module `src/pairinglib/hubbard.py`
-  (`import pairinglib.hubbard as hb`; tests in `tests/test_hubbard.py`).  Figures
-  are `paper3/figs/fig1-10.png` (`make figures-hubbard`; the paper uses 1-7, 9, 10);
-  `make check-hubbard` (10 figures) asserts the anchors (chain 4->8 U=4: E_low -4.976573, E_high -5.634427;
-  16 sites: -7.209813; 4x4 (2,2): -10.4197).  The ED reference and its
-  conventions are `paper3/Hubbard.ipynb` (unchanged); `paper3/prototype/` is the
-  superseded sector-exact prototype whose numbers the notebook reproduces;
-  `paper3/NOTES.md` is the running status; drafts are kept as
-  `paper3/eigenq_hubbard_v1_backup.tex` (prototype numbers) and `_v2_backup.tex`
-  (2026-10-14, before the assessment revision).  Paper III was revised on
-  2026-10-15 against the paper-I assessment (notebook Section 11, US spelling,
-  structured PRC abstract).
+- Paper III, `paper3/eigenq_hubbard.tex` (main text, `quantumarticle` class for
+  Quantum, two-column, `booktabs` tables) + `paper3/eigenq_hubbard_supp.tex`
+  (Supplemental Material, Secs. S1-S8, `xr` against the main .aux): LATTICE
+  refinement of the Hubbard model (chain 2->4->8->16, square 2x2->4x4), written
+  along the lines of paper I (reference implementation / matched benchmark at
+  8 AND 16 sites / transferable results; ADAPT-VQE comparator; cites paper I,
+  no "companion" references).  It has its OWN notebook,
+  `notebooks/ResolutionRefHubbard.ipynb`, built from scratch by
+  `scripts/build_notebook_hubbard.py` (nbformat, 33 cells, 12 figures; Sections
+  1-11 ~45 min, Section 12 = the 8->16 chain at the circuit level + ADAPT,
+  ~1.5 h more) on the module `src/pairinglib/hubbard.py` (`import
+  pairinglib.hubbard as hb`; tests in `tests/test_hubbard.py`).  Figures are
+  `paper3/figs/fig1-12.png` (`make figures-hubbard`; main text uses 1, 2, 3, 5,
+  10, 11, 12; the SM uses 4, 6, 7, 9; fig8 is superseded by fig10);
+  `make check-hubbard` (12 figures) asserts the anchors (chain 4->8 U=4: E_low
+  -4.976573, E_high -5.634427; 16 sites: -7.209813; 4x4 (2,2): -10.4197).  The
+  ED reference and its conventions are `paper3/Hubbard.ipynb` (unchanged);
+  `paper3/prototype/` is the superseded sector-exact prototype; `paper3/NOTES.md`
+  is the running status; drafts are kept as `paper3/eigenq_hubbard_v1_backup.tex`
+  (prototype numbers), `_v2_backup.tex` (2026-10-14), `_v3_backup.tex`
+  (2026-10-15 RevTeX/PRC third draft, structured abstract).  The standalone
+  16-site study that seeded notebook Section 12 is `scripts/hubbard16_checks.py`
+  (NOTE: it counted 2x the controlled step per filter cycle; the notebook is
+  the reference).
 
 ## Skills (in `.claude/skills/`) — read the matching one before working
 - `pairing-model`  — Hamiltonian conventions, encoding, benchmark anchors, API.
@@ -68,10 +76,10 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 6. `make paper`     — compile `paper/eigenq_pairing.tex` to PDF (paper I).
 7. `make paper-ph`  — copy the V_ph figures and compile paper II; `make papers` builds both.
 8. `make all`       — the whole chain end to end (papers I and II).
-9. `make hubbard`   — paper III: build+execute the Hubbard notebook, check it, extract
-   figures, compile `paper3/eigenq_hubbard.tex` (needs `texlive-publishers` for
-   revtex4-2; the individual targets are notebook-hubbard / check-hubbard /
-   figures-hubbard / paper-hubbard).
+9. `make hubbard`   — paper III: build+execute the Hubbard notebook (per-cell
+   timeout 7200 s), check it (12 figures), extract figures, compile the main text
+   and the SM (`quantumarticle` class, in texlive-publishers; the individual
+   targets are notebook-hubbard / check-hubbard / figures-hubbard / paper-hubbard).
 
 ## Conventions
 - Python: import `pairinglib as pl`. Keep new physics in the package + a test.
@@ -210,6 +218,24 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   the determinant has the same p0 and Delta_eff as the prolonged state at this
   size; refinement's case is larger L / stronger U, not demonstrated.  Response
   norm chi_u(0) = 0.375/0.527/0.715/0.874 (U=0/2/4/8), max at s=0.
+- Hubbard 8->16 at the circuit level (notebook Section 12, paper III Sec. 6,
+  Table 3, Figs. 11-12; U=4, (2,2), 14 400 states, 32 qubits): prolonged p0 =
+  0.8692 vs determinant 0.7162, Delta_eff = 0.1379 for both, sector gap 0.051.
+  Exact slices: ramp needs T=32 for 4e-3 and T=64 for 1e-3; Path A mu_buf=2
+  p(8/16/32) = 0.99237/0.99931/0.99995 (larger shifts worse); Path B ceiling
+  ~5e-3 (Lambda=8) / 4e-3 (Lambda=16).  Gates: step 304 (controlled 736), coarse
+  term 4856, Givens 480, prolongation 32; ramp T=32 n_s=256 78 304 CNOTs; Path A
+  T=16 n_s=128 1 282 080 (+ coarse prep); Path B Lambda=8 T=16 n_s=256 77 856
+  (+ coarse prep); Path A T=8 Trotter plateau 0.99079 (exact 0.99237).  UCCSD
+  1022 par. 6.98e-3 (pruned 255 par., 87 776 CNOTs); ADAPT 187 ops (68 008 CNOTs)
+  for 1e-2.  Filter: sigma 36.2, dt 0.1, floor 3.7e-5 (`effective_step_state`),
+  2.13e5 CNOTs/cycle (289 controlled steps).  Coarse eigenstate charged 18 544
+  CNOTs (8-site ramp T=16).  Min CNOTs/accepted at 3e-3/1e-3/3e-4: ramp T=32
+  3.0e5/7.9e5/1.3e6; Path B 3.2e5/8.1e5/1.3e6 (tie); ADAPT 5.4e5/1.0e6/1.4e6;
+  pruned 5.6e5/1.1e6/1.3e6; Path A 1.3e6/1.5e6/2.0e6.  VERDICT: ramp still
+  cheapest but Path B ties, Path A within x2 (was x16): the cost is set by the
+  filter cycles each input still needs.  ADAPT at 8 sites (149 ops, 22 816
+  CNOTs) does NOT beat the ramp there either (2.3e4/6.9e4/1.5e5).
 
 ## Definition of done
 A change is done only when `make test` and `make check` pass and (if a paper

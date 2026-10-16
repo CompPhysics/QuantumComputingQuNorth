@@ -7,6 +7,7 @@ FIGSPH := paper_ph/figs
 PHFIGS := fig12 fig13 fig14 fig15 fig16 fig18
 NBH    := notebooks/ResolutionRefHubbard.ipynb
 TEXH   := paper3/eigenq_hubbard.tex
+TEXHSM := paper3/eigenq_hubbard_supp.tex
 FIGSH  := paper3/figs
 SKILLS := .claude/skills
 PY     := python3
@@ -47,16 +48,17 @@ papers: paper paper-ph
 # ---- paper III: lattice refinement of the Hubbard model (own notebook, built by scripts/build_notebook_hubbard.py)
 notebook-hubbard:
 	$(PY) scripts/build_notebook_hubbard.py
-	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NBH) 3600
+	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NBH) 7200
 
 check-hubbard:
-	$(PY) scripts/check_notebook_hubbard.py $(NBH) 10
+	$(PY) scripts/check_notebook_hubbard.py $(NBH) 12
 
 figures-hubbard:
 	$(PY) $(SKILLS)/physics-paper/scripts/extract_figures.py $(NBH) $(FIGSH)
 
 paper-hubbard: figures-hubbard
 	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXH)
+	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXHSM)   # Supplemental Material (xr against the main .aux)
 
 hubbard: notebook-hubbard check-hubbard paper-hubbard
 
