@@ -36,8 +36,10 @@ def test_k8_n8_anchors_and_bookkeeping():
     chi = sum(abs(Va[:, n] @ (B - A) @ Va[:, i0])**2/(wa[n] - wa[i0])**2 for n in range(len(wa)) if n != i0)
     assert abs(chi - P*(k - P)*g**2/(4*b**2)) < 1e-9
     # gate bookkeeping of paper I reproduced and extended
-    assert sz.coarse_term_cnots(2, 4, 2) == 14 and sz.coarse_term_cnots(3, 4, 2) == 348
-    assert sz.coarse_term_cnots(4, 8, 4) == 254 and sz.coarse_term_cnots(6, 8, 4) == 4872
+    assert sz.coarse_term_cnots(2, 4, 2) == 14 and sz.coarse_term_cnots(3, 4, 2) == 350      # incl. the conditioned scalar phase
+    assert sz.coarse_term_cnots(4, 8, 4) == 254 and sz.coarse_term_cnots(6, 8, 4) == 4886
+    assert sz.coarse_term_cnots(4, 8, 4, "flag") == 44 and sz.coarse_term_cnots(3, 4, 2, "flag") == 224
+    assert sz.coarse_term_cnots(6, 8, 4, "flag") == 1028
     assert pl.cnot_counts(8)["step_uncontrolled"] == 1360 and sz.pair_encoding_cnots(8)["step_uncontrolled"] == 112
     a = sz.pair_double_ansatz(k, P, g, H=H)
     assert a["n_params"] == 16 and a["cnots"] == 768 and abs(1 - abs(np.vdot(V[:, 0], a["psi"]))**2 - 3.12e-3) < 2e-5

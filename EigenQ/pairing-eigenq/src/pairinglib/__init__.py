@@ -5,7 +5,8 @@ from .uccsd import uccsd_pool, setup_uccsd, uccsd_vqe
 from .gates import apply_1q, apply_cnot, Ry, Rz, pauli_exp
 from .gate_uccsd import gate_uccsd_setup, gate_uccsd_vqe, gate_uccsd_state
 from .refine import prolong_matrix, refine_state, refine_NK, refine_from_state
-from .rodeo import rodeo_post0, rodeo_cycle_ancilla, rodeo_sweep, rodeo_track, rodeo_allzero_prob
+from .rodeo import (rodeo_post0, rodeo_cycle_ancilla, rodeo_sweep, rodeo_track, rodeo_allzero_prob,
+                    half_gaussian_nodes, AveragedFilterMap, averaged_map_floor)
 from .trotter import (pairing_terms, ph_terms, model_terms, trotter_U, trotter_U_dt,
                       trotter_error, refine_state_trotter, trotter_path, rodeo_track_U, cnot_counts,
                       ph_pauli_costs)

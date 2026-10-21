@@ -1,6 +1,48 @@
 # Paper 3 — refinement + rodeo on the Hubbard model
 
-## Status 2026-10-16: fourth draft — `quantumarticle` (Quantum), main text + Supplemental Material, 8→16 at the circuit level, ADAPT-VQE
+## Status 2026-10-20: fifth draft — revision after `hubbard_pre_submission_critical_assessment.md`
+
+Response: `response_to_pre_submission_assessment.md` (verdict per point + the rebuilt
+numbers).  Backups of the fourth draft: `eigenq_hubbard_v4_backup.tex`,
+`eigenq_hubbard_supp_v4_backup.tex`.  All ten points of the assessment were agreed with
+and every numerical claim in it reproduced before the changes.
+
+What changed in the code (`src/pairinglib/hubbard.py`, tests in `tests/test_hubbard.py`,
+11 pass): the Galerkin constant of the embedded Path-A term at 8→16 is −t·N_particles
+(`galerkin_params("chain", 1, U, 2+2)`; the old −8t spoiled every 32-qubit Path-A
+number); `conditioned_term_cnots` returns the shared-flag cost (`flag` + `frame`:
+156 / 332 per application for 4→8 / 8→16, 52 rotations at eight coarse sites) besides
+the ladder (1132 / 4948); `chain_step_cnots(controlled=True)` absorbs the scalar single-Z
+sum (288 / 608); `uccsd_cnots` uses parity-support weights (1464 / 23 312 / 235 904;
+pruned 11 408 / 61 584); `exact_digital_ensemble` (ρ_ij = c_i c_j* Q_ij^M) gives the
+eight-site filter exactly; `effective_step_state(return_residual=True)`.
+
+Notebook: Section 13 (cells 32–35, figs 13–14; ~3.5 h on top of Sections 1–12) is the
+joint operating-point search — (T, n_s, M) for the ramp, (Λ, T, n_s, M) for Path B,
+(T, n_s, M) for Path A, M = 0 allowed, every ADAPT prefix — with the actually prepared
+coarse state charged and propagated (two options per level: 4-site ramp 8 216 CNOTs /
+6.7e-5 and 16 408 / 1.4e-5; 8-site ramp 27 760 / 1.8e-4 and 36 976 / 5.6e-5).  Sections
+11–12 keep the old fixed-input comparisons (exact-coarse oracle, sampled filter) as
+diagnostics.  36 cells, 14 figures; `check_notebook_hubbard.py ... 14`.  Long runs:
+`scripts/run_notebook_checkpoint.py` (dill checkpoint after Section 12, `--resume-from
+16 --source <rebuilt nb>`).
+
+Results (Tables 2–3 of the paper, SM Tables S5–S6): see the response doc.  Headline:
+the cheapest route from 3e-3 down at both sizes is an UNFILTERED ramp from the
+determinant (8 sites 1.4e4 / 2.8e4 / 3.7e4 at 1e-3 / 3e-4 / 1e-4; 16 sites 7.8e4 /
+7.8e4 / 1.56e5 / 1.56e5 at 1e-2 / 3e-3 / 1e-3 / 3e-4); Path A with the shared flag is
+×2.4–3.1 at 8 sites (was ×16) and ties the ramp at 1e-3 at 16 sites (1.52e5 vs
+1.56e5), ×1.15–1.9 elsewhere; ADAPT is cheapest only where it needs no cycle (1e-3,
+3e-4 at 8 sites; 1e-2 at 16); Path B ×6–9 / ×1.4–5.9; filter cycles are not needed by
+the adiabatic routes.  Bootstrap of the operating-point selection at 16 sites (400
+resamples of 40 schedules): ramp/Path A 100 % stable.  Main text figures now 1, 2, 3,
+5, 11, 13, 14 (10 and 12 superseded, kept in the notebook).
+
+Still open: `\bibitem{Code}` URL/DOI, `Hubbard.ipynb` authors, `make paper-hubbard`
+on the Mac (quantumarticle is not in the container; a shim compile passes without
+errors or undefined references).
+
+## Status 2026-10-16 (superseded by the 2026-10-20 revision; the 32-qubit Path-A numbers below carry the −8t bug): fourth draft — `quantumarticle` (Quantum), main text + Supplemental Material, 8→16 at the circuit level, ADAPT-VQE
 
 Files: `eigenq_hubbard.tex` / `.pdf` (main text, `quantumarticle` two-column, 16 pp.
 incl. refs; `booktabs` tables; unstructured abstract; cites paper I only — no

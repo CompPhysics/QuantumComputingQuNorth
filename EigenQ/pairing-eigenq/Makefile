@@ -25,7 +25,7 @@ notebook:
 	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NB) 1800
 
 check:
-	$(PY) $(SKILLS)/notebook-builder/scripts/check_notebook.py $(NB) 23
+	$(PY) $(SKILLS)/notebook-builder/scripts/check_notebook.py $(NB) 24
 
 figures:
 	$(PY) $(SKILLS)/physics-paper/scripts/extract_figures.py $(NB) $(FIGS)
@@ -51,7 +51,7 @@ notebook-hubbard:
 	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NBH) 7200
 
 check-hubbard:
-	$(PY) scripts/check_notebook_hubbard.py $(NBH) 12
+	$(PY) scripts/check_notebook_hubbard.py $(NBH) 14
 
 figures-hubbard:
 	$(PY) $(SKILLS)/physics-paper/scripts/extract_figures.py $(NBH) $(FIGSH)

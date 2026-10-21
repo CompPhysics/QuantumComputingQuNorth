@@ -538,34 +538,59 @@ def hubbard_pauli_counts(N, bonds):
                 total=4 * nb + 3 * N, max_weight=max(wmax, 2))
 
 
-def chain_step_cnots(N, bonds, order=1, controlled=False):
+def chain_step_cnots(N, bonds, order=1, controlled=False, absorb_scalar=True):
     """CNOT count of one product-formula step of the Hubbard Hamiltonian with the
     Pauli-rotation primitive of paper I: a weight-w rotation costs 2(w-1) CNOTs
     (XX+YY on adjacent qubits: 2 rotations x 2 CNOTs), a ZZ rotation 2 CNOTs,
     phases are free; controlling a step adds 2 CNOTs per rotation.  Second order
-    doubles the count."""
+    doubles the count.  At fixed particle number the sum of the 2N single-Z
+    terms of the interaction is a scalar, so in a CONTROLLED step those 2N
+    phases are a single phase on the control (absorbed into the objective-energy
+    phase gate) and are not charged when absorb_scalar=True (the default since
+    the revision of 2026-10-20; absorb_scalar=False gives the earlier counts,
+    352 / 736 instead of 288 / 608 at 8 / 16 sites)."""
     hop_cnots = sum(2 * 2 * (abs(i - j)) * 2 for i, j in bonds)   # 2 strings/bond/spin, weight |i-j|+1, 2 spins
     nrot = 4 * len(bonds) + N + 2 * N
+    nrot_ctrl = nrot - (2 * N if absorb_scalar else 0)
     cn = hop_cnots + 2 * N
     if controlled:
-        cn += 2 * nrot
-    return dict(cnots=cn * (2 if order == 2 else 1), rotations=nrot * (2 if order == 2 else 1))
+        cn += 2 * nrot_ctrl
+    f = 2 if order == 2 else 1
+    return dict(cnots=cn * f, rotations=nrot * f, rotations_controlled=nrot_ctrl * f)
 
 
 def conditioned_term_cnots(Nc, bonds_c, n_controls):
     """CNOTs per application of the embedded coarse term P(H_low-mu)P^T of Path A:
-    a coarse Hubbard step (bonding-mode register) in which every Pauli rotation is
-    conditioned on the n_controls antibonding qubits being empty.  Two conventions
-    are returned: 'gray' (Gray-code phase polynomial over the controls, the paper-I
-    convention: 2^(c+1)-2 extra CNOTs per rotation, exact for few controls) and
-    'toffoli' (a clean-ancilla Toffoli ladder with relative-phase Toffolis:
-    6(c-1)+2 extra CNOTs per rotation)."""
+    a coarse Hubbard step (bonding-mode register) in which every Pauli rotation
+    (single-qubit phases included, since conditioned they are no longer free)
+    is conditioned on the n_controls antibonding qubits being empty, plus the
+    conditioned scalar phase of the constant part of H_low - mu (a physical
+    relative phase after projection).  Conventions returned:
+      'gray'    Gray-code phase polynomial over the controls per rotation
+                (paper-I convention): 2^(c+1)-2 extra CNOTs per rotation,
+                2^c-2 for the scalar;
+      'toffoli' a clean-ancilla ladder of relative-phase Toffolis PER rotation:
+                6(c-1)+2 extra CNOTs per rotation and for the scalar;
+      'flag'    the conjunction of the c controls is computed ONCE into a clean
+                flag qubit (6(c-1) CNOTs for the ladder and its uncomputation),
+                every rotation is singly controlled by the flag (2 CNOTs) and
+                the scalar is one controlled phase (2): base + 2 n_rot + 6(c-1)
+                + 2, at the price of c-1 clean work qubits (122+2 = 124 CNOTs
+                for 4->8, 266+2 = 268 for 8->16; revision of 2026-10-20);
+      'frame'   the basis change between the site register and the
+                bonding/antibonding frame around one application (the
+                prolongation Givens network and its inverse, 2 x 4 N_c CNOTs),
+                to be added to 'flag' unless merged with a neighboring block.
+    The coarse evolution does not change the control qubits, so the flag is
+    valid for superpositions and can be reused across the whole coarse block."""
     base = chain_step_cnots(Nc, bonds_c, 1)
     nrot = base["rotations"]
     c = n_controls
     return dict(rotations=nrot, base=base["cnots"],
-                gray=base["cnots"] + nrot * (2 ** (c + 1) - 2),
-                toffoli=base["cnots"] + nrot * (6 * (c - 1) + 2))
+                gray=base["cnots"] + nrot * (2 ** (c + 1) - 2) + (2 ** c - 2),
+                toffoli=base["cnots"] + (nrot + 1) * (6 * (c - 1) + 2),
+                flag=base["cnots"] + 2 * nrot + 6 * (c - 1) + 2,
+                frame=2 * 4 * Nc)
 
 
 # ------------------------------------------------------------------ sector-level UCCSD
@@ -699,18 +724,24 @@ def uccsd_hubbard(N, bonds, Nup, Ndn, U, t=1.0, maxiter=500, H=None, verbose=Fal
 def uccsd_cnots(N, singles, doubles):
     """CNOT estimate of the UCCSD circuit on 2N qubits (block JW ordering): a single
     excitation i->a of one spin compiles into 2 Pauli strings of weight a-i+1
-    (2(w-1) CNOTs each), a double into 8 strings whose weight is the span of the
-    four orbitals; plus the Givens network that rotates the site register into the
-    orbital basis, N(N-1)/2 rotations per spin of 2 CNOTs each."""
+    (2(w-1) CNOTs each); a double with sorted JW indices p<q<r<s into 8 strings
+    of weight (q-p+1)+(s-r+1) --- the Z strings cancel in the gap between q and
+    r, so the support is the two intervals, NOT the full span s-p+1 (which the
+    counter used before the revision of 2026-10-20 and which over-charged
+    opposite-spin doubles: 1720 -> 1464 CNOTs for the four-site template,
+    30 864 -> 23 312 for eight sites, 335 360 -> 235 904 for sixteen); plus the
+    Givens network that rotates the site register into the orbital basis,
+    N(N-1)/2 rotations per spin of 2 CNOTs each (applied once, after the
+    excitation blocks that act in the orbital basis)."""
     cn = 0
     for (_, i, a) in singles:
         cn += 2 * 2 * (abs(a - i))
     for (kind, i, j, a, b) in doubles:
         if kind == "ud":
-            idx = [i, a, j + N, b + N]
+            idx = sorted([i, a, j + N, b + N])
         else:
-            idx = [i, j, a, b]
-        w = max(idx) - min(idx) + 1
+            idx = sorted([i, j, a, b])
+        w = (idx[1] - idx[0] + 1) + (idx[3] - idx[2] + 1)
         cn += 8 * 2 * (w - 1)
     givens = 2 * (N * (N - 1) // 2) * 2
     return dict(excitations=cn, givens=givens, total=cn + givens)
@@ -831,13 +862,15 @@ def step_apply_groups(groups, dt, psi, order=2):
     return psi
 
 
-def effective_step_state(groups, dt, psi0, E0, sigma, iters=60, seed=11, order=2):
+def effective_step_state(groups, dt, psi0, E0, sigma, iters=60, seed=11, order=2, return_residual=False):
     """Trotter-effective ground state of the fixed-step filter for sectors too
     large to diagonalize the step unitary: iterate the quantized-time
     post-selection K_t = (1 + e^{i E t} U_step^n)/2 (n = t/dt, t half-Gaussian of
     width sigma) on psi0 while updating E to the eigenphase estimate
     -arg<psi|U_step|psi>/dt.  Returns (psi_eff, E_eff): the step eigenvector
-    closest to the input and its energy; 1-|<target|psi_eff>|^2 is the floor."""
+    closest to the input and its energy; 1-|<target|psi_eff>|^2 is the floor.
+    With return_residual=True also returns ||U_step psi - e^{-i E dt} psi||,
+    the eigenvector residual that certifies the convergence of the iteration."""
     rng = np.random.default_rng(seed)
     psi = np.asarray(psi0, complex) / np.linalg.norm(psi0)
     E = E0
@@ -850,7 +883,50 @@ def effective_step_state(groups, dt, psi0, E0, sigma, iters=60, seed=11, order=2
             v = step_apply_groups(groups, dt, v, order)
         psi = 0.5 * (psi + np.exp(1j * E * n * dt) * v); psi /= np.linalg.norm(psi)
     Upsi = step_apply_groups(groups, dt, psi, order)
-    return psi, -np.angle(np.vdot(psi, Upsi)) / dt
+    E = -np.angle(np.vdot(psi, Upsi)) / dt
+    if return_residual:
+        return psi, E, float(np.linalg.norm(Upsi - np.exp(-1j * E * dt) * psi))
+    return psi, E
+
+
+def quantized_step_distribution(sigma, dt, xmax=8.0):
+    """Probability w_n of n = max(1, round(|t|/dt)) steps per cycle for the
+    half-Gaussian cycle time |t|, t ~ N(0, sigma^2); returns (n, w_n)."""
+    from scipy.stats import norm
+    nmax = int(xmax * sigma / dt) + 2
+    ns = np.arange(1, nmax + 1)
+    edges = (ns - 0.5) * dt; edges[0] = 0.0
+    cdf = lambda x: 2 * norm.cdf(x / sigma) - 1
+    w = cdf(np.append(edges[1:], np.inf)) - cdf(edges)
+    return ns, w / w.sum()
+
+
+def exact_digital_ensemble(tr, psi0, target, sigma, M, E_obj=None):
+    """EXACT ensemble of accepted runs of the fixed-step digital filter
+    (`trotter_evolution` output `tr`, cycle times quantized to n dt): because
+    every cycle is a function of the same step unitary U = W e^{i phi} W^+, the
+    accepted density matrix after M cycles is rho^(M)_ij = c_i c_j^* Q_ij^M in
+    the step eigenbasis, with c = W^+ psi0, f_j(n) = [1 + e^{i n (phi_j + E dt)}]/2
+    and Q_ij = E_n[f_i(n) f_j(n)^*] over the rounded Gaussian distribution of n.
+    Returns dict(inf, acc, mean_steps): the infidelity 1 - <target|rho|target>/Tr rho
+    (coherences kept: the exact and the digital eigenbases differ) and the
+    acceptance Tr rho for M = 0..M, and the mean number of steps per cycle.
+    Replaces the sampled 40-schedule averages wherever the step can be
+    diagonalized (revision of 2026-10-20)."""
+    W, ph, dt = tr["W"], tr["phases"], tr["dt"]
+    if E_obj is None:
+        E_obj = tr["E_eff"]
+    ns, wn = quantized_step_distribution(sigma, dt)
+    f = 0.5 * (1 + np.exp(1j * np.outer(ns, ph + E_obj * dt)))
+    Q = (f.T * wn) @ f.conj()
+    c = W.conj().T @ np.asarray(psi0, complex); g = W.conj().T @ np.asarray(target, complex)
+    rho = np.outer(c, c.conj())
+    inf = [1 - float((g.conj() @ rho @ g).real / np.trace(rho).real)]; acc = [1.0]
+    for _ in range(M):
+        rho = rho * Q
+        tr_ = float(np.trace(rho).real)
+        acc.append(tr_); inf.append(1 - float((g.conj() @ rho @ g).real) / tr_)
+    return dict(inf=np.array(inf), acc=np.array(acc), mean_steps=float(np.sum(ns * wn)))
 
 
 def rodeo_track_groups(v0, groups, ts, E, target, dt, order=2):

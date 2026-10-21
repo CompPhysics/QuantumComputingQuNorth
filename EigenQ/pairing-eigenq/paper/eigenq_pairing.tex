@@ -58,56 +58,43 @@ benchmark of eigenstate-preparation routes on the pairing Hamiltonian}
 \date{\today}
 
 \begin{abstract}
-\textbf{Background:} Projective spectral filters such as the rodeo algorithm
-prepare eigenstates with an accuracy that improves exponentially in the
-number of cycles, at a cost set by the squared overlap $p$ of the input
-with the target.  Several routes can supply that input --- variational circuits, an
-adiabatic ramp, or resolution refinement, the adiabatic transport of an
-eigenstate from a coarse to a fine single-particle basis --- and they have
-not been compared on equal terms.
-\textbf{Purpose:} To provide a validated, gate-counted reference
+\textbf{Background:} Projective spectral filters such as the rodeo
+algorithm prepare eigenstates to exponential accuracy in the number of
+cycles, at a cost set by the overlap of the input with the target.  The
+routes that can supply that input --- variational circuits, an adiabatic
+ramp, or resolution refinement, the adiabatic transport of an eigenstate
+from a coarse to a fine single-particle basis --- have not been compared on
+equal terms.
+\textbf{Purpose:} To give a validated, gate-counted reference
 implementation of resolution refinement followed by the rodeo algorithm on
-the exactly solvable constant-pairing Hamiltonian, and to benchmark it at
-matched accuracy against the alternative inputs to the same filter: the
-Hartree--Fock determinant, unitary coupled-cluster singles-and-doubles
-(UCCSD) and ADAPT-VQE states, and an adiabatic ramp from the Hartree--Fock
-Hamiltonian.
-\textbf{Methods:} All stages are compiled to single-qubit rotations and
-controlled-NOT (CNOT) gates, with second-order product formulas for the
-refinement and for the controlled evolution of the filter, and are simulated
-exactly within the particle-number sector against full configuration
-interaction, coupled-cluster doubles and the analytic success-probability
-formulas of the filter.  The figure of merit is the
-ground-state infidelity of the accepted ensemble against the CNOT count per
-accepted preparation, minimized over the number of filter cycles, at eight
-and at sixteen qubits.
-\textbf{Results:} Refinement raises the overlap of the prolonged determinant from $0.87$ to
-$0.998$ along a gapped path with no trained parameter, and the filter
-removes the remainder geometrically, following the exact Gaussian-ensemble
-expression derived here.  Three results transfer beyond the model: the response norm of the
-refinement path at its start is $P(k-P)g^2/(4b^2)$ for $P$ pairs on $k$
-levels and shift $b$, which fixes how the shift must scale; the long-run state and acceptance of the digital filter are the
+the constant-pairing Hamiltonian, benchmarked at matched accuracy against
+the same filter fed by the Hartree--Fock determinant, unitary
+coupled-cluster and ADAPT-VQE states, and an adiabatic ramp.
+\textbf{Methods:} Every stage is compiled to rotations and CNOTs with
+second-order product formulas and simulated exactly against full
+configuration interaction.  The figure of merit is the ground-state
+infidelity of the accepted ensemble against the CNOT count per accepted
+preparation, minimized jointly over evolution time, shift, step count and
+filter cycles, at eight and at sixteen qubits.
+\textbf{Results:} Refinement raises the overlap of the prolonged
+determinant from $0.87$ to $0.998$ with no trained parameter, and the
+filter removes the remainder geometrically, following the exact
+Gaussian-ensemble expression derived here.  The response norm of the path
+at its start, $\norm{Q\,\Hhigh P\psi_{\rm low}}^2/b^2$ for shift $b$, fixes
+how the shift must scale; the long-run state of the digital filter is the
 dominant eigenoperator of an averaged post-selection map, which sets its
-accuracy floor and rejects a too-coarse product formula outright; and the
-available sufficient adiabatic-time and Trotter-step conditions overestimate
-the empirical cost by two to three orders of magnitude.  At eight qubits a four-parameter pair-rotation ansatz
-of $192$ CNOTs reaches $1.8\times10^{-4}$ without any filter and the ramp
-beats refinement by a factor $2.5$--$3$;
-at sixteen qubits the single-layer ansatz degrades to $3\times10^{-3}$,
-filter cycles become eleven times dearer, and refinement plus filter is
-$1.5$--$2$ times cheaper than that route while staying within $4$--$19\%$
-of the ramp --- but an ADAPT-VQE ansatz grown from the seniority-zero pool
-reaches $10^{-4}$ with about a thousand CNOTs at both sizes, below the
-floor of the digital filter.
+accuracy floor; and the available sufficient adiabatic and Trotter
+conditions overestimate the cost by two to three orders of magnitude.  At
+the targets studied the cheapest adiabatic operating points use no filter
+cycle, refinement and the ramp travel at the same speed once the shift is
+tuned and differ only by the embedded coarse term, and an ADAPT-VQE ansatz
+grown from the seniority-zero pool reaches $10^{-4}$ with about a thousand
+CNOTs at both sizes, two orders of magnitude below every other route.
 \textbf{Conclusions:} Resolution refinement followed by the rodeo algorithm
-is a validated, optimizer-free and measurement-free route to a
-high-fidelity correlated eigenstate, but on the pairing model never the
-cheapest one: among the optimizer-free routes the adiabatic ramp from the
-same determinant is, by the cost of the embedded coarse term, and the
-adaptive variational ansatz undercuts every filtered route by two to three
-orders of magnitude.  The benchmark, its baselines and its shift rule fix
-the terms on which the method's advantages for larger spaces must be
-demonstrated.
+is a validated route to a high-fidelity correlated eigenstate that needs no
+variational training, but on the pairing model never the cheapest one; the
+benchmark and its shift rule fix the terms on which its advantages for
+larger spaces must be demonstrated.
 \end{abstract}
 
 \maketitle
@@ -236,28 +223,30 @@ ground-state infidelity as the common observable, matched
 evolution accuracy, a two-qubit-gate budget per accepted preparation that
 separates one-time training, repeated preparation and the filter, and the
 minimum cost at a given target accuracy, filter cycles included or not.
-(c) Three results that transfer beyond the model: the closed-form response
-norm of the refinement path, $P(k-P)g^2/(4b^2)$, which fixes how the shift
-of the path must scale with the size and the coupling; the characterization
+(c) Three results that transfer beyond the model: the response norm of
+the refinement path at its start, $\norm{Q\Hhigh P\psi_{\rm low}}^2/b^2$
+($P(k-P)g^2/(4b^2)$ for the pairing seed), which fixes how the shift of
+the path must scale with the size and the coupling; the characterization
 of the digital filter's long-run state and acceptance by the dominant
 eigenoperator of an averaged post-selection map, which sets its accuracy
-floor and explains why a too-coarse product formula is rejected; and the
+floor and the decay of its acceptance; and the
 evaluation of the rigorous sufficient conditions on the adiabatic time and
 on the Trotter step count of Ref.~\cite{Sadia2026} against the resources
-actually needed.  The outcome of (b) is stated plainly.  At eight qubits
-refinement followed by filtering does not outperform filtering a variational
-input, is roughly tied with filtering the unrefined prolonged state at
-matched fidelity, and costs $2.5$--$3$ times more than an ordinary adiabatic
-ramp from the Hartree--Fock Hamiltonian.  At sixteen qubits
-(Sec.~\ref{sec:large}) the single-layer variational input degrades and the
-filter cycles become expensive, so refinement plus filter is then
-$1.5$--$2$ times cheaper than that route --- but the plain ramp from the
-same determinant stays cheaper by the cost of the embedded coarse term, and
-an adaptively grown ansatz (Sec.~\ref{sec:adapt}) reaches the same accuracy
-with a thousand CNOTs and no filter.  The case for the
-refinement stage rests on its freedom from classical optimization and
-training measurements, and on coarse eigenstates that are better than the
-determinant, which this hierarchy does not exercise.
+actually needed.  The outcome of (b) is stated plainly.  Searched jointly
+over evolution time, shift and step count, the two adiabatic routes ---
+refinement and an ordinary ramp from the Hartree--Fock Hamiltonian ---
+reach the targets without any filter cycle and travel at the same speed
+once the shift is tuned, differing only by the cost of the embedded coarse
+term (a tie at eight qubits, $19\%$ in the ramp's favor at sixteen for
+$g=1$ and a tie at $g=2$); at eight qubits a four-parameter pair-rotation
+ansatz beats both by two orders of magnitude without any filter, and at
+sixteen (Sec.~\ref{sec:large}), where the single-layer ansatz degrades and
+needs a filter that costs $2$--$3$ times more than the adiabatic routes, an
+adaptively grown ansatz (Sec.~\ref{sec:adapt}) still reaches the same
+accuracy with a thousand CNOTs.  The case for the refinement stage rests
+on its freedom from classical optimization and training measurements, and
+on coarse eigenstates that are better than the determinant, which this
+hierarchy does not exercise.
 
 The pairing force conserves seniority, and that symmetry is what keeps the
 model transparent: the ground state lives in the seniority-zero subspace, the
@@ -366,8 +355,8 @@ acting on the four qubits of a pair-hopping double excitation
 $(2p,2p{+}1)\!\to\!(2q,2q{+}1)$: basis changes into the $Z$ eigenbasis ($H$ for
 $X$, $HS^\dagger$ for $Y$), a CNOT parity ladder, the single parametrized
 $R_z(\phi)$, and the uncompute.  Eight such blocks ($48$ CNOTs) build one
-double excitation; $160$ of them ($1312$ CNOTs) build the $k=4$ preparation of
-Table~\ref{tab:uccsd}.}
+pair-hopping double excitation; $160$ Pauli rotations of weights $3$--$8$
+($1312$ CNOTs) build the $k=4$ preparation of Table~\ref{tab:uccsd}.}
 \label{fig:circ-vqe}
 \end{figure*}
 
@@ -432,13 +421,18 @@ in initial gap saturates at the coarse excitation gap (for a one-dimensional
 coarse space, as in the $k=2$ start used below, it is simply $\mu-E_{\rm low}$).
 Along the path the instantaneous spectrum is found to stay smooth and gapped
 in all cases studied here.  A gapped path alone does not fix the adiabatic
-time scale; Ref.~\cite{Bogner2026} shows that when the squared norm of the
-first-order perturbative correction to the tracked state,
-$\chi(s)=\sum_{n>0}\abs{\mel{n}{\partial_sH}{0}}^2/(E_n-E_0)^2$, stays
+time scale; Ref.~\cite{Bogner2026} shows, for the affine interpolation
+$H(u)=(1-u)A+uB$ that Eq.~\eqref{eq:path} traverses with $u=\sin^2(\pi s/2)$,
+that when the squared norm of the first-order perturbative correction to the
+tracked state,
+$\chi_u=\sum_{n>0}\abs{\mel{n}{\partial_uH}{0}}^2/(E_n-E_0)^2$, stays
 uniformly bounded along the path, the adiabatic time scales as
 $T\sim1/\Delta E$ rather than as the $O(1/\Delta E_{\min}^2)$ of the generic
-adiabatic theorem~\cite{Albash2018}.  Section~\ref{sec:res-gscan} evaluates
-$\chi$ for our path family and treats the overlap
+adiabatic theorem~\cite{Albash2018}.  ($\chi_u$ is a squared eigenvector
+response, not by itself a leakage probability; the response to the scheduled
+parameter is $\chi_s=[\tfrac{\pi}{2}\sin\pi s]^2\chi_u$ and vanishes at both
+ends.)  Section~\ref{sec:res-gscan} evaluates
+$\chi_u$ for our path family and treats the overlap
 $p=\abs{\braket{\Psi_{\rm high}}{\Phi(T)}}^2$ as the figure of merit of the
 stage.  Refinement is unitary and does not purify an imperfect coarse
 input: if the coarse state carries infidelity $\epsilon_{\rm low}$, ideal
@@ -792,7 +786,9 @@ $A=-b\ket{\rm HF}\!\bra{\rm HF}$, $b=\mu-E_{\rm low}$, and at $u=0$ the HF
 determinant couples through $\partial_uH$ to four pair-transfer
 configurations with amplitude $-g/2$, all at excitation energy $b$, so
 $\chi_u(0)=g^2/b^2$ exactly: $11.1$ at $b=0.3$ and $0.44$ at $b=1.5$, a
-factor $25$, and the maximum of $\chi_u(s)$ sits at $s=0$ for every shift.
+factor $25$, and the maximum of $\chi_u(s)$ sits at $s=0$ for every shift
+(the scheduled response $\chi_s$ peaks at $s=0.13$--$0.35$ and varies by a
+factor $3.4$, from $1.40$ to $0.41$).
 The quantity that the inverse-gap argument of Ref.~\cite{Bogner2026} assumes
 uniformly bounded is thus itself varied by the shift scan, which cannot then
 test that argument by attributing the timing changes to the gap alone.  Two
@@ -1044,12 +1040,22 @@ costs $34$ CNOTs).  We verified that this operator reproduces the sector
 matrix exponential of $A$ exactly.  For a chain that starts from a nontrivial
 coarse space the term is $(\Hlow-\mu)$ on the coarse register conditioned on
 the appended qubits being empty; for the $3\to4$ chain each of the $33$ Pauli
-rotations of a $k=3$ step acquires a double control ($6$ CNOTs per rotation
-with a three-qubit Gray-code phase polynomial), for about $350$ CNOTs per
-application, which is the figure used in Sec.~\ref{sec:res-k34}.  All
-refinement budgets below include the coarse term; for the $2\to4$ chain it
-adds $14$ CNOTs to the $296$ of a first-order step, i.e.\ $2\times80\times14
-=2\,240$ CNOTs or $5\%$ over the $T=30$ path.
+rotations of a $k=3$ step (single-qubit phases included, since they are no
+longer free) acquires a double control ($6$ CNOTs per rotation with a
+three-qubit Gray-code phase polynomial), and the constant part of $\Hlow-\mu$
+becomes a conditioned phase ($2$ CNOTs) rather than a global one, for $350$
+CNOTs per application, the figure used in Sec.~\ref{sec:res-k34}.  These
+are the costs of an ancilla-free reference compilation, not lower bounds:
+with $c-1$ clean work qubits the conjunction of the $c$ appended controls
+can be computed once into a flag, every rotation singly controlled by it
+and the flag uncomputed, which gives $224$ CNOTs per application of the
+$3\to4$ term, $1\,028$ instead of $4\,886$ for the $6\to8$ term of
+Sec.~\ref{sec:large} and $44$ instead of $254$ for its filled $4\to8$ term,
+at the price of a register wider than the $2k+1$ qubits assumed throughout.
+All refinement budgets below include the coarse term in the ancilla-free
+convention; for the $2\to4$ chain it adds $14$ CNOTs to the $296$ of a
+first-order step, i.e.\ $2\times80\times14=2\,240$ CNOTs or $5\%$ over the
+$T=30$ path.
 
 Figure~\ref{fig:trotter} shows the two pipeline stages under this compilation.
 For the refinement (left), $n_s=80$ second-order steps along the $T=30$ path
@@ -1079,15 +1085,24 @@ averaged map $\mathcal K(\rho)=\mathbb E_t[\tilde K_t\rho\tilde K_t^\dagger]$.
 The long-run state is the dominant eigenoperator of this trace-decreasing map
 --- not the ground state of one effective Hamiltonian, and not a mixture of
 the separate filters' ground states --- and its eigenvalue is the long-run
-acceptance per cycle.  Evaluating $\mathcal K$ in the six-dimensional
-seniority-zero block by quadrature over the half-Gaussian cycle times
-(notebook, Sec.~19) gives an asymptotic infidelity of $1.2\times10^{-4}$ at
-$\delta t=0.25$ with eigenvalue $0.9979$, $1.5\times10^{-3}$ at
-$\delta t=0.5$ with eigenvalue $0.966$, and $0.21$ at $\delta t=1$ with
-eigenvalue $0.64$; these reproduce the floors of Fig.~\ref{fig:trotter} and
-show that the long-run acceptance of the digital filter decays geometrically,
-by $0.2\%$ per cycle at $\delta t=0.25$, rather than tending to $p$ as the
-ideal theorem states.  Coherent product-formula errors thus both shift the
+acceptance per cycle (assuming, as the power iteration verifies here, that
+the dominant eigenvalue is nondegenerate and its eigenoperator is reached
+from the input).  The expectation over the cycle times must respect the
+integrand: the product formula changes at every boundary $\abs{t}=n\,\delta
+t$, so we integrate the half-Gaussian piecewise between these boundaries
+with a Gauss--Legendre rule whose refinement changes no quoted digit, and
+report the residual of the eigen-equation ($<10^{-12}$); a global
+Gauss--Hermite rule with tens of nodes is not converged for this integrand
+and, at sixteen qubits, produces spurious dominant states.  Evaluated in the
+six-dimensional seniority-zero block (notebook, Secs.~19 and 22) the map
+gives an asymptotic infidelity of $1.1\times10^{-4}$ at $\delta t=0.25$ with
+eigenvalue $0.9978$, $1.9\times10^{-3}$ at $\delta t=0.5$ with eigenvalue
+$0.965$, and $0.15$ at $\delta t=1$ with eigenvalue $0.63$; these reproduce
+the floors of Fig.~\ref{fig:trotter} and show that the long-run acceptance of
+the digital filter decays geometrically, by $0.2\%$ per cycle at
+$\delta t=0.25$, rather than tending to $p$ as the ideal theorem states.  A
+floor is an asymptote: a finite-cycle track of an input that starts below it
+is read off the track, not inferred.  Coherent product-formula errors thus both shift the
 located energy and bias the prepared state; the rejection of grossly
 inaccurate evolutions seen at $\delta t=1$ is a useful diagnostic, not a
 guarantee that smaller coherent errors are removed.
@@ -1104,7 +1119,7 @@ size $\delta t$ (input: the $n_s=80$ circuit-level refined state,
 $p=0.9977$).  Too-coarse steps are rejected by the filter itself (the
 $\delta t=1$ acceptance collapses to $0.10$); $\delta t=0.25$ tracks the exact
 evolution down to the floor of the averaged post-selection map,
-$1.2\times10^{-4}$.}
+$1.1\times10^{-4}$.}
 \label{fig:trotter}
 \end{figure*}
 
@@ -1152,9 +1167,11 @@ where $c_m=2\times416\,n_m$ is the cost of the $m$-th controlled cycle, the
 expectation is over the random schedules, and the factor $P_{m-1}$ inside it
 accounts for early termination of a run at the first ancilla outcome $1$
 (without early termination the numerator is simply
-$C_{\rm prep}+\sum_m\langle c_m\rangle$; the difference is below $5\%$ for
-all inputs).  Rejected attempts add to the total work but not to the
-coherent depth of the accepted state.  Equation~\eqref{eq:cost} counts
+$C_{\rm prep}+\sum_m\langle c_m\rangle$; the difference is $9\%$ for the
+determinant at six cycles and below $2\%$ for the inputs with $p>0.99$).
+Rejected attempts add to the total work but not to the coherent depth of
+the accepted state; $C^{\rm att}_M$ is a full-length proxy for that depth,
+not the mean conditioned on acceptance.  Equation~\eqref{eq:cost} counts
 repeated state preparation only.  One-time costs are reported separately
 and are not comparable across routes without a shot model: the UCCSD
 training took eight L-BFGS iterations in a noiseless simulation, each
@@ -1186,19 +1203,28 @@ filter is the HF ramp, with $1.7\times10^{4}$, $4.0\times10^{4}$ and
 $6.4\times10^{4}$ CNOTs per accepted preparation after one, three and five
 cycles; and the cheapest refinement route, the $T^{*}=16$ chain, costs
 $4.9\times10^{4}$, $7.4\times10^{4}$ and $9.4\times10^{4}$ after two, four
-and six cycles.  Refinement followed by the filter is therefore tied within a
-factor $1.5$ with filtering the unrefined determinant (which reaches
-$1.8\times10^{-3}$ after six cycles for $7.0\times10^{4}$ CNOTs), costs
-$2.5$--$3$ times more than the plain adiabatic ramp at every target, and
-costs $200$--$500$ times more than the four-pair preparation, which needs no
-filter; the prolonged $k=3$ coarse state filtered directly reaches
-$7.6\times10^{-4}$ after six cycles for $6.7\times10^{4}$ CNOTs, cheaper
-than refining it first.  Comparisons at a fixed cycle number would compare
-states at different achieved errors, and a comparison of the UCCSD
-\emph{energy error} with the pipeline \emph{infidelity} would favor the
-pipeline by orders of magnitude; neither survives the comparison of like
-with like, and none of the operating points is a globally optimized
-minimum, since refinement time, shift and step size were not searched.
+and six cycles.  Among these fixed inputs, refinement followed by the
+filter is tied within a factor $1.5$ with filtering the unrefined
+determinant ($1.8\times10^{-3}$ after six cycles for $7.0\times10^{4}$
+CNOTs), costs $2.9$, $1.9$ and $1.5$ times more than the plain ramp at the
+three targets and $200$--$500$ times more than the four-pair preparation,
+and the prolonged $k=3$ state filtered directly ($7.6\times10^{-4}$ after
+six cycles, $6.7\times10^{4}$ CNOTs) is cheaper than refining it first.
+Comparisons at a fixed cycle number, or of the UCCSD \emph{energy error}
+with the pipeline \emph{infidelity}, would favor the pipeline by orders of
+magnitude; neither survives the comparison of like with like.  Nor are
+these fixed operating points optimized minima: the step counts were chosen to reproduce the
+exact-slice overlap within $10^{-3}$ while the targets reach
+$2\times10^{-4}$, and paying for a finer unfiltered evolution can be
+cheaper than paying for controlled filter cycles.  Searching both
+adiabatic routes jointly over time, shift, step count and cycle number
+(Table~\ref{tab:frontier}, Sec.~\ref{sec:large}) confirms this: at eight
+qubits the three targets are reached without any cycle by the ramp for
+$9.5\times10^{3}$, $1.9\times10^{4}$ and $2.5\times10^{4}$ CNOTs and by
+the refinement with $\mu_{\rm buf}=3$ at $T=6$ for $9.9\times10^{3}$,
+$1.4\times10^{4}$ and $2.0\times10^{4}$, a tie in which the shift-set gap
+of the projector path ($3$, against the ramp's $2$) outweighs its
+coarse-term overhead ($14$ of $310$ CNOTs per step).
 
 Table~S2 of the \SM{} records the operating points behind the different
 fidelities quoted in this paper, which are not contradictory because they
@@ -1219,10 +1245,12 @@ the variational landscape is.  Whether this trade --- trainability for depth
 --- pays off is a question about regimes in which the full-space variational
 input is poor or expensive to train.  For the pairing model with $N=4$ that
 regime is not reached at $k=4$ or $k=6$, nor at $N=6$ (Sec.~S7 of the
-\SM{}); with four pairs on eight levels it is (Sec.~\ref{sec:large}), and there refinement plus filter beats the
-variational route, while the ramp baseline adds that, where an adiabatic
-stage is wanted, the shift-controlled path is never the cheapest one; we
-state the latter as the main negative finding of the present assessment.
+\SM{}); with four pairs on eight levels it is (Sec.~\ref{sec:large}), and
+there both adiabatic routes beat the single-layer variational one, while
+the ramp baseline adds that, where an adiabatic stage is wanted, the
+shift-controlled path is at best tied with the plain ramp from the same
+determinant; we state the latter as the main negative finding of the
+present assessment.
 
 \begin{figure*}[t]
 \centering
@@ -1247,8 +1275,10 @@ four-pair ansatz is below every target before any cycle.}
 
 \begin{table*}[t]
 \caption{\label{tab:depth}Gate budget at $k=4$ ($N=4$, $g=1$, eight system
-qubits) for eight inputs to the same Trotterized rodeo filter
-($\delta t=0.25$, $\sigma=4$, $40$ time sets).  $p$ is the input overlap,
+qubits) for eight fixed inputs to the same Trotterized rodeo filter
+($\delta t=0.25$, $\sigma=4$, $40$ sampled time sets); the minimum costs at
+the targets over the adiabatic controls are in Table~\ref{tab:frontier}.
+$p$ is the input overlap,
 $C_{\rm prep}$ the CNOT count of the input (refinement: $2\,n_s$ second-order
 half-steps of $296+14$ CNOTs for the $2\to4$ chains and of $296+350$ for the
 $3\to4$ chain, plus the coarse preparation; ramp: $2n_s\times296$),
@@ -1311,9 +1341,12 @@ $4\times10^{-2}$; the restricted pool with repeated operators is slower
 ($29$ operators for $10^{-4}$ at $g=1$, no $3\times10^{-4}$ within $40$ at
 $g=2$).  Fed to the Trotterized filter of Sec.~\ref{sec:large}, the
 $1\,104$-CNOT state at $g=1$ starts \emph{below} the floor of the digital
-filter ($1.7\times10^{-5}$ against $4.6\times10^{-5}$), so the filter can
-only degrade it, and the $1\,488$-CNOT state at $g=2$ gains a factor two in
-six cycles at four hundred times the cost.  Qubit-ADAPT-VQE~\cite{Tang2021}
+filter ($1.7\times10^{-5}$ against $4.8\times10^{-5}$) and the computed track
+degrades it to $4.8\times10^{-5}$ in six cycles, while the $1\,488$-CNOT
+state at $g=2$ ($8.9\times10^{-5}$, above the floor $2.7\times10^{-5}$)
+improves by a factor three in six cycles at four hundred times its
+preparation cost (Table~\ref{tab:largebudget}); either way the filter adds
+little to a state that already meets the targets.  Qubit-ADAPT-VQE~\cite{Tang2021}
 would push further by drawing the pool from individual Pauli strings.  The
 usual qualifications apply: the amplitudes are trained noise-free with
 exact gradients, each iteration measures $\abs{\rm pool}$ gradients and
@@ -1360,8 +1393,9 @@ versus the number of operators for the restricted (dashed) and the
 generalized (solid) pool at $(k,N)=(4,4)$, $(6,4)$ and $(8,8)$.  Right:
 infidelity against CNOTs for the generalized pool; the dotted curves feed
 the $(8,8)$ ADAPT states at the first iteration below $10^{-4}$ to the
-Trotterized filter of Sec.~\ref{sec:large} ($M=0$ to $6$), which cannot
-improve on an input that already lies below its floor.}
+Trotterized filter of Sec.~\ref{sec:large} ($M=0$ to $6$), which degrades
+the $g=1$ input, already below its floor, and improves the $g=2$ input by
+a factor three.}
 \label{fig:adapt}
 \end{figure*}
 
@@ -1386,7 +1420,7 @@ Sec.~\ref{sec:circuits}: a first-order step costs $1\,360$ CNOTs at $k=8$
 chain is a phase conditioned on the eight appended qubits, $2^8-2=254$ CNOTs
 with the Gray-code convention that gave $14$ for the $2\to4$ chain, and the
 coarse term of a $6\to8$ chain is the $k=6$ step with every rotation
-conditioned on four qubits, $4\,872$ CNOTs.  The one-qubit-per-level pair
+conditioned on four qubits, $4\,886$ CNOTs (ancilla-free convention; $1\,028$ with a shared flag, Sec.~\ref{sec:trotterized}).  The one-qubit-per-level pair
 encoding, available because the model conserves seniority, is quoted
 alongside: there a step costs $112$ CNOTs, a controlled step $240$, a
 pair-double rotation $4$ and the $4\to8$ coarse term $14$.
@@ -1398,12 +1432,23 @@ grows to $1.1$ and $5.5$, and the restricted pair-double ansatz --- now
 $16$ occupied-pair$\to$virtual-pair rotations, $768$ CNOTs --- degrades from
 the $1.8\times10^{-4}$ of $k=4$ to $3.1\times10^{-3}$ at $g=1$ and
 $4.2\times10^{-2}$ at $g=2$: the single-reference variational input is no
-longer good.  The response norm of the projector path at its start has the
-closed form $\chi_u(0)=P(k-P)\,g^2/(4b^2)$ with $P=N/2$ (verified to
-$10^{-9}$ for every $g$; it reduces to $g^2/b^2$ at $k=4$, $N=4$), so at
-the shift $\mu_{\rm buf}=0.6$ of Sec.~\ref{sec:res-refine} it is four
-times larger than at $k=4$, and the refinement time grows accordingly:
-$T^*=50$ for $1-p<10^{-3}$ instead of $16$.  The shift is the remedy.
+longer good.  For an exact coarse eigenstate and a Galerkin pair of
+Hamiltonians, $P^\dagger\Hhigh P=\Hlow$, the response norm of the projector
+path at its start is
+\begin{equation}
+  \chi_u(0)=\frac{\norm{Q\,\Hhigh P\ket{\psi_{\rm low}}}^2}{b^2},
+  \qquad Q=\mathbb1-PP^\dagger,
+  \label{eq:chi0}
+\end{equation}
+since $\partial_uH=B-A$ does not couple the tracked state to the other
+coarse states and the null space of $P^\dagger$ sits at energy $b$ above it;
+for the filled coarse seed of the pairing model the numerator counts pair
+transfers, $\chi_u(0)=P(k-P)\,g^2/(4b^2)$ with $P=N/2$ (verified to
+$10^{-9}$ for every $g$; $g^2/b^2$ at $k=4$, $N=4$).  At the shift
+$\mu_{\rm buf}=0.6$ of Sec.~\ref{sec:res-refine} it is four times larger
+than at $k=4$, and the refinement time grows, at matched target, from
+$T^*=40$ to $50$ for $1-p<10^{-3}$ and from $16$ to $30$ for $10^{-2}$.
+The shift is the remedy.
 Table~\ref{tab:shift} scans $\mu_{\rm buf}$ from $0.6$ to $16$: $T^*$ falls to $8$ at $\mu_{\rm buf}=2$ and $6$ at $\mu_{\rm buf}=4$
 for $g=1$, and to $8$ at $\mu_{\rm buf}=8$ for $g=2$, while the number of
 second-order steps that reproduce the exact-slice overlap first falls with
@@ -1414,9 +1459,11 @@ one curve (Fig.~S8 of the \SM{}, left): the transport is controlled by the
 shift-set gap, not by the starting overlap, and a better coarse state buys
 nothing once $\mu_{\rm buf}\gtrsim2$.  The HF ramp from the same
 determinant, $H(s)=D+\sin^2(\pi s/2)\sum_{pq}h_{pq}$, reaches
-$1-p=7\times10^{-5}$ at $T=6$ and its minimum gap is $2\delta$ at every
-coupling, so it does not slow down with $g$ (Fig.~S8 of the \SM{}, right),
-whereas the refinement at fixed shift does ($\chi_u(0)\propto g^2$) and must
+$1-p=7\times10^{-5}$ at $T=6$, its minimum gap is $2\delta$ at every
+coupling and, empirically, its transport time does not grow with $g$ over
+the range studied (Fig.~S8 of the \SM{}, right) --- the gap alone does not
+establish this, since the derivative couplings matter as well --- whereas
+the refinement at fixed shift slows down ($\chi_u(0)\propto g^2$) and must
 be re-tuned.
 
 
@@ -1450,146 +1497,220 @@ The Hamiltonian norm is five times larger than at $k=4$, and the
 fixed-step filter of Sec.~\ref{sec:trotterized} does not survive the
 $\delta t=0.25$ operating point: the averaged post-selection map
 $\mathcal K$ at $\sigma=4$ (the width that keeps $\sigma\Delta\simeq10$ as
-before) has dominant eigenvalue $0.960$ and its eigenoperator has
-\emph{zero} overlap with the ground state --- the filter locks onto a
-different state of the corrupted evolution, which is the diagnostic
-rejection of Fig.~\ref{fig:trotter} in its extreme form.  At
-$\delta t=0.1$ the floor is $4.6\times10^{-5}$ with eigenvalue $0.9933$
-(acceptance decaying by $0.7\%$ per cycle), at $\delta t=0.05$ it is
-$3.1\times10^{-6}$.  We operate at $\delta t=0.1$, where a cycle costs on
+before) has dominant eigenvalue $0.79$ --- the acceptance decays by a fifth
+per cycle --- and a floor of $2.3\times10^{-3}$, above every target; this
+is the diagnostic rejection of Fig.~\ref{fig:trotter} in a stronger form
+(an earlier, unconverged quadrature had suggested an eigenoperator with
+zero ground-state overlap; the converged map keeps $0.998$ of the ground
+state).  At $\delta t=0.1$ the floor is $4.8\times10^{-5}$ with eigenvalue
+$0.9932$ (acceptance decaying by $0.7\%$ per cycle), at $\delta t=0.05$ it
+is $3.1\times10^{-6}$.  We operate at $\delta t=0.1$, where a cycle costs on
 average $32$ controlled second-order steps, $1.2\times10^{5}$ CNOTs ---
-eleven times the $k=4$ cycle, which is the single most important change: the
-filter cycles now dominate every budget.  At $g=2$ the wider spectrum
-requires $\sigma=1.5$ ($\sigma\Delta=9$) and $\delta t=0.05$ (floor
-$2.5\times10^{-5}$; $3.2\times10^{-4}$ at $0.1$), $9.0\times10^{4}$ CNOTs
-per cycle.
+eleven times the $k=4$ cycle, which is the single most important change: a
+filter cycle now costs as much as doubling the step count of the adiabatic
+stage.  At $g=2$ the wider spectrum requires $\sigma=1.5$ ($\sigma\Delta=9$)
+and $\delta t=0.05$ (floor $2.7\times10^{-5}$; $4.0\times10^{-4}$ at $0.1$),
+$9.0\times10^{4}$ CNOTs per cycle.
 
 \paragraph{Matched comparison.}
-Table~\ref{tab:largebudget} and Fig.~\ref{fig:largebudget} repeat the
-comparison of Sec.~\ref{sec:depth} with eleven inputs at $g=1$ and seven at
-$g=2$ (forty common time sets, $M=0$ to $6$, bootstrap standard errors
-below $10\%$ for every input with $p>0.99$).  Three things have changed
-relative to $k=4$ among the fixed-ansatz and adiabatic routes; the adaptive
-ansatz, discussed last, stands apart.  First, the unfiltered single-layer
-variational preparation no longer meets any target: the $16$-pair ansatz
-needs two, four and six cycles for
-$10^{-3}$, $3\times10^{-4}$ and $10^{-4}$, at $2.4\times10^{5}$,
-$5.1\times10^{5}$ and $7.4\times10^{5}$ CNOTs per accepted preparation, and
-at $g=2$ it needs six cycles for $10^{-3}$ and does not reach
-$3\times10^{-4}$.  Refinement followed by the filter is now \emph{cheaper}
-than this variational route at every target --- $1.3\times10^{5}$,
-$2.4\times10^{5}$ and $5.0\times10^{5}$ CNOTs with the shift
-$\mu_{\rm buf}=4$ ($T=6$, $40$ steps), i.e.\ by factors $1.8$, $2.1$ and
-$1.5$ --- where at $k=4$ it was $200$--$500$ times more expensive; the
-reversal is the combined effect of a poorer ansatz and of costlier cycles.
-Second, filtering the bare determinant, which was tied with refinement at
-$k=4$, is no longer an option: from $p=0.69$ six cycles reach only
-$1.0\times10^{-2}$ ($8.4\times10^{5}$ CNOTs, acceptance $0.67$), and from
-$p=0.25$ at $g=2$ only $3\times10^{-2}$.  Third, the ordinary adiabatic
-ramp from the same determinant remains the cheapest route at every target
-and both couplings --- $1.1\times10^{5}$, $2.2\times10^{5}$ and
-$4.8\times10^{5}$ at $g=1$; $2.2\times10^{5}$, $4.0\times10^{5}$ and
-$6.0\times10^{5}$ at $g=2$ --- but the margin over refinement, which was a
-factor $2.5$--$3$ at $k=4$ with the shift of Sec.~\ref{sec:res-refine},
-shrinks to the cost of the embedded coarse term once the shift is tuned:
-$18$--$19\%$ at $M=0$, $9$--$10\%$ at the targets that need one or two
-cycles and $4$--$7\%$ at those that need three or four, with the same $40$
-($g=1$) or $80$ ($g=2$) product-formula steps.  The two adiabatic routes start from the same state and, at a
-shift of order the pair-coupling scale $g\sqrt{P(k-P)}/2$, travel at the
-same speed; what distinguishes them is only that the projector path
-carries a conditioned phase.  A nontrivial coarse stage does not help here:
-the $6\to8$ chain from the eight-parameter coarse ansatz starts from
-$p_0=0.926$ but its coarse term costs $4\,872$ CNOTs per application, so the
-chain costs $10^{6}$ CNOTs before any cycle, and the prolonged $k=6$ state
-filtered directly reaches $1.8\times10^{-3}$ after six cycles.  In the pair
-encoding every adiabatic cost drops by a factor $12$ and every cycle by $8$,
-and the ranking is unchanged (ramp $9.0\times10^{3}$, $2.3\times10^{4}$ and
-$5.7\times10^{4}$; refinement $1.0\times10^{4}$, $2.5\times10^{4}$ and
-$5.8\times10^{4}$; ansatz $3.1\times10^{4}$, $6.6\times10^{4}$ and
-$9.6\times10^{4}$ at $g=1$).
+Table~\ref{tab:largebudget} repeats the fixed-input comparison of
+Sec.~\ref{sec:depth} with eleven inputs at $g=1$ and seven at $g=2$ (forty
+common time sets, $M=0$ to $6$, bootstrap standard errors below $10\%$ for
+every input with $p>0.99$).  Table~\ref{tab:frontier} and
+Fig.~\ref{fig:largebudget} add the operating-point search that fixed inputs
+cannot give: the ensemble of accepted runs is evaluated exactly as
+$\mathcal K^M(\rho_{\rm in})/\Tr\mathcal K^M(\rho_{\rm in})$ with the
+averaged map of Sec.~\ref{sec:trotterized} (independent cycle times make
+the cost of Eq.~\eqref{eq:cost} deterministic as well, so no sampling error
+enters), the two adiabatic routes are searched jointly over time, shift,
+step count and cycle number with the same grid density, $M=0$ included, and
+the adaptive ansatz is admitted at every prefix; the sampled values of
+Table~\ref{tab:largebudget} agree with the exact ones within their
+bootstrap errors.
+
+Three things have changed relative to $k=4$ among the fixed-ansatz and
+adiabatic routes; the adaptive ansatz, discussed last, stands apart.
+First, the unfiltered single-layer preparation no longer meets any target:
+the $16$-pair ansatz needs two, four and six cycles for $10^{-3}$,
+$3\times10^{-4}$ and $10^{-4}$, at $2.4\times10^{5}$, $4.9\times10^{5}$ and
+$7.4\times10^{5}$ CNOTs per accepted preparation, and at $g=2$ six cycles
+for $10^{-3}$ without reaching $3\times10^{-4}$; both adiabatic routes are
+now cheaper than it by factors $2$--$3$, where at $k=4$ they were
+$50$--$130$ times dearer than the four-pair ansatz.  Second, filtering the
+bare determinant is no longer an option: from $p=0.69$ six cycles reach
+only $7\times10^{-3}$ ($8.4\times10^{5}$ CNOTs, acceptance $0.67$), from
+$p=0.25$ at $g=2$ only $4\times10^{-2}$.  Third --- and this is where the
+joint search matters --- the cheapest adiabatic operating points at $g=1$
+use \emph{no filter cycle}: a cycle costs $1.2\times10^{5}$ CNOTs, as much
+as doubling the step count of a $T=6$ sweep, and the finer digital
+evolution buys more.  The ramp reaches the three targets at $T=6$ with
+$40$, $60$ and $80$ steps for $1.1\times10^{5}$, $1.6\times10^{5}$ and
+$2.2\times10^{5}$ CNOTs, the refinement with $\mu_{\rm buf}=4$ at the same
+$T$ and step counts for $1.3\times10^{5}$, $1.9\times10^{5}$ and
+$2.6\times10^{5}$: once the shift is of order the pair-coupling scale
+$g\sqrt{P(k-P)}/2$ the two routes travel at the same speed, and the $19\%$
+between them is exactly the conditioned phase of the coarse term ($254$ of
+$1\,614$ CNOTs per step).  At $g=2$ the ramp needs cycles for the two
+tighter targets ($4.0\times10^{5}$ and $5.8\times10^{5}$ CNOTs) while the
+refinement at $\mu_{\rm buf}=16$ reaches $3\times10^{-4}$ unfiltered and
+$10^{-4}$ with two cycles ($3.9\times10^{5}$ and $5.7\times10^{5}$): a tie
+within $3\%$, with the refinement $19\%$ dearer at $10^{-3}$.  At $k=4$
+the same search turns the $1.5$--$2.9$ margin of the fixed inputs of
+Table~\ref{tab:depth} into a tie as well: the ramp reaches the targets for
+$9.5\times10^{3}$, $1.9\times10^{4}$ and $2.5\times10^{4}$ CNOTs and the
+refinement with $\mu_{\rm buf}=3$ (a shift-set gap of $3$ against the
+ramp's $2$) at $T=6$ for $9.9\times10^{3}$, $1.4\times10^{4}$ and
+$2.0\times10^{4}$, again without any cycle.  A nontrivial coarse stage
+does not help: the $6\to8$ chain from the eight-parameter coarse ansatz
+starts from $p_0=0.926$ but its coarse term costs $4\,886$ CNOTs per
+application in the ancilla-free compilation, so the chain costs $10^{6}$
+CNOTs before any cycle ($3.8\times10^{5}$ with the shared-flag compilation
+of Sec.~\ref{sec:trotterized}, still above the ramp), and the prolonged
+$k=6$ state filtered directly reaches $1.4\times10^{-3}$ after six cycles.
+In the pair encoding every adiabatic cost drops by a factor $12$ and every
+cycle by $8$, and the ranking is unchanged.
+
+\begin{table*}[t]
+\caption{\label{tab:frontier}Minimum CNOTs per accepted preparation
+reaching the target infidelity, from the exact averaged channel of the
+digital filter, per route.  The adiabatic routes are searched jointly over
+the time $T$, the second-order step count $n_s$ and the cycle number
+$M=0,\ldots,6$ (ramp: $T\in\{4,6,8,12\}$ at $k=4$, $\{4,6,8\}$ and
+$\{8,12,16\}$ at $k=8$ for $g=1$ and $2$; refinement: in addition the shift
+$\mu_{\rm buf}\in\{0.6,1.5,3\}$ at $k=4$, $\{2,4,8\}$ and $\{4,8,16\}$ at
+$k=8$, with $T\in\{6,8,12,16,30\}$, $\{6,8,12\}$ and $\{8,12,16\}$; $n_s$
+from $8$ to $128$ at $k=4$ and $20$ to $320$ at $k=8$), the fixed inputs
+over $M$, and ADAPT over its prefixes.  The operating point is given in
+parentheses as $(T,n_s,M)$, $(\mu_{\rm buf},T,n_s,M)$ or (operators);
+filter settings as in Tables~\ref{tab:depth} and \ref{tab:largebudget};
+$2k$-qubit encoding, coarse terms in the ancilla-free convention; a dash:
+not reached within six cycles.}
+\footnotesize
+\begin{ruledtabular}
+\begin{tabular}{lccc}
+route & \multicolumn{3}{c}{target infidelity}\\
+\colrule
+\multicolumn{4}{l}{$k=4$, $N=4$, $g=1$ ($\delta t=0.25$, $\sigma=4$, cycle $1.1\times10^{4}$ CNOTs)} \\
+ & $2\times10^{-3}$ & $5\times10^{-4}$ & $2\times10^{-4}$\\
+ADAPT, generalized pool & $240$ (5) & $240$ (5) & $240$ (5)\\
+four-pair ansatz & $192$ ($M{=}0$) & $192$ ($M{=}0$) & $192$ ($M{=}0$)\\
+HF ramp & $9.5\times10^{3}$ (4, 16, 0) & $1.9\times10^{4}$ (6, 32, 0) & $2.5\times10^{4}$ (8, 43, 0)\\
+refinement $2\to4$ & $9.9\times10^{3}$ (3, 6, 16, 0) & $1.4\times10^{4}$ (3, 6, 22, 0) & $2.0\times10^{4}$ (3, 6, 32, 0)\\
+refinement $3\to4$, $T=8$ & $6.2\times10^{4}$ (22, $M{=}3$) & $8.5\times10^{4}$ (22, $M{=}5$) & ---\\
+prolonged $k{=}3$ state + filter & $5.7\times10^{4}$ ($M{=}5$) & --- & ---\\
+determinant + filter & --- & --- & ---\\
+\colrule
+\multicolumn{4}{l}{$k=8$, $N=8$, $g=1$ ($\delta t=0.1$, $\sigma=4$, cycle $1.2\times10^{5}$ CNOTs)} \\
+ & $10^{-3}$ & $3\times10^{-4}$ & $10^{-4}$\\
+ADAPT, generalized pool & $912$ (19) & $912$ (19) & $1\,104$ (23)\\
+$16$-pair ansatz + filter & $2.4\times10^{5}$ ($M{=}2$) & $4.9\times10^{5}$ ($M{=}4$) & $7.4\times10^{5}$ ($M{=}6$)\\
+HF ramp & $1.1\times10^{5}$ (6, 40, 0) & $1.6\times10^{5}$ (6, 60, 0) & $2.2\times10^{5}$ (6, 80, 0)\\
+refinement $4\to8$ & $1.3\times10^{5}$ (4, 6, 40, 0) & $1.9\times10^{5}$ (4, 6, 60, 0) & $2.6\times10^{5}$ (4, 6, 80, 0)\\
+refinement $6\to8$ (coarse ansatz) & $1.1\times10^{6}$ ($M{=}1$) & $1.4\times10^{6}$ ($M{=}3$) & $1.7\times10^{6}$ ($M{=}5$)\\
+prolonged $k{=}6$ ansatz + filter & --- & --- & ---\\
+determinant + filter & --- & --- & ---\\
+\colrule
+\multicolumn{4}{l}{$k=8$, $N=8$, $g=2$ ($\delta t=0.05$, $\sigma=1.5$, cycle $9.1\times10^{4}$ CNOTs)} \\
+ & $10^{-3}$ & $3\times10^{-4}$ & $10^{-4}$\\
+ADAPT, generalized pool & $1\,200$ (25) & $1\,392$ (29) & $1\,488$ (31)\\
+$16$-pair ansatz + filter & $5.6\times10^{5}$ ($M{=}6$) & --- & ---\\
+HF ramp & $2.2\times10^{5}$ (8, 80, 0) & $4.0\times10^{5}$ (8, 80, 2) & $5.8\times10^{5}$ (8, 80, 4)\\
+refinement $4\to8$ & $2.6\times10^{5}$ (8, 8, 80, 0) & $3.9\times10^{5}$ (16, 8, 120, 0) & $5.7\times10^{5}$ (16, 8, 120, 2)\\
+prolonged $k{=}6$ ansatz + filter & --- & --- & ---\\
+determinant + filter & --- & --- & ---\\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
 
 \begin{table*}[t]
 \caption{\label{tab:largebudget}Gate budget at $k=8$, $N=8$ (sixteen
 qubits) for the inputs to the same Trotterized rodeo filter (second order,
 $\sigma=4$ and $\delta t=0.1$ at $g=1$, $\sigma=1.5$ and $\delta t=0.05$ at
 $g=2$, forty time sets, $\Eobj=E_0$), in the $2k$-qubit encoding of
-Sec.~\ref{sec:circuits}.  Columns as in Table~\ref{tab:depth} ($C_6$ omitted); the last
-three columns give the minimum CNOTs per accepted preparation reaching the
-target infidelity, with the number of cycles in parentheses (a dash: not
-reached within six cycles).  Refinement costs include the coarse term
-($254$ CNOTs per application for $4\to8$, $4\,872$ for $6\to8$) and, for the
+Sec.~\ref{sec:circuits}.  Columns as in Table~\ref{tab:depth} ($C^{\rm att}_M$, $P_M$ and $C_M$
+omitted; the minimum costs at the targets, from the exact averaged channel
+and a joint search over the adiabatic controls, are in
+Table~\ref{tab:frontier}).  Refinement costs include the coarse term
+($254$ CNOTs per application for $4\to8$, $4\,886$ for $6\to8$) and, for the
 $6\to8$ chain, the $384$-CNOT coarse ansatz.}
 \scriptsize
 \begin{ruledtabular}
-\begin{tabular}{lcc ccc ccc}
-input to the filter & $p$ & $C_{\rm prep}$ & $1-\mathcal F_0$ & $1-\mathcal F_2$ & $1-\mathcal F_6$ & $10^{-3}$ & $3\times10^{-4}$ & $10^{-4}$\\
+\begin{tabular}{lcc ccc}
+input to the filter & $p$ & $C_{\rm prep}$ & $1-\mathcal F_0$ & $1-\mathcal F_2$ & $1-\mathcal F_6$\\
 \colrule
-\multicolumn{9}{l}{$g=1$ ($E_0=8.88917$, cycle $1.2\times10^{5}$ CNOTs)}\\
-HF determinant & $0.690$ & $0$ & $3.1\times10^{-1}$ & $9.7\times10^{-2}$ & $1.0\times10^{-2}$ & --- & --- & ---\\
-$16$-pair ansatz & $0.9969$ & $768$ & $3.1\times10^{-3}$ & $7.2\times10^{-4}$ & $9.8\times10^{-5}$ & $2.4\times10^{5}$ (2) & $5.1\times10^{5}$ (4) & $7.4\times10^{5}$ (6)\\
-prolonged $k{=}6$ ansatz & $0.926$ & $384$ & $7.4\times10^{-2}$ & $1.8\times10^{-2}$ & $1.8\times10^{-3}$ & --- & --- & ---\\
-HF ramp, $T{=}4$ ($n_s{=}20$) & $0.9960$ & $54\,400$ & $4.0\times10^{-3}$ & $1.0\times10^{-3}$ & $1.4\times10^{-4}$ & $4.2\times10^{5}$ (3) & $7.0\times10^{5}$ (5) & ---\\
-HF ramp, $T{=}6$ ($n_s{=}40$) & $0.9996$ & $108\,800$ & $3.5\times10^{-4}$ & $1.2\times10^{-4}$ & $5.3\times10^{-5}$ & $1.1\times10^{5}$ (0) & $2.2\times10^{5}$ (1) & $4.8\times10^{5}$ (3)\\
-ref.\ $4{\to}8$, $\mu_{\rm buf}{=}1$, $T{=}25$ ($n_s{=}160$) & $0.9994$ & $516\,480$ & $5.7\times10^{-4}$ & $1.7\times10^{-4}$ & $5.9\times10^{-5}$ & $5.2\times10^{5}$ (0) & $6.3\times10^{5}$ (1) & $1.0\times10^{6}$ (4)\\
-ref.\ $4{\to}8$, $\mu_{\rm buf}{=}2$, $T{=}8$ ($n_s{=}40$) & $0.9987$ & $129\,120$ & $1.3\times10^{-3}$ & $3.4\times10^{-4}$ & $6.9\times10^{-5}$ & $2.4\times10^{5}$ (1) & $5.0\times10^{5}$ (3) & $7.8\times10^{5}$ (5)\\
-ref.\ $4{\to}8$, $\mu_{\rm buf}{=}2$, $T{=}10$ ($n_s{=}80$) & $0.9997$ & $258\,240$ & $3.3\times10^{-4}$ & $1.1\times10^{-4}$ & $5.1\times10^{-5}$ & $2.6\times10^{5}$ (0) & $3.7\times10^{5}$ (1) & $6.3\times10^{5}$ (3)\\
-ref.\ $4{\to}8$, $\mu_{\rm buf}{=}4$, $T{=}6$ ($n_s{=}40$) & $0.9996$ & $129\,120$ & $3.5\times10^{-4}$ & $1.2\times10^{-4}$ & $5.3\times10^{-5}$ & $1.3\times10^{5}$ (0) & $2.4\times10^{5}$ (1) & $5.0\times10^{5}$ (3)\\
-ref.\ $6{\to}8$ (coarse ansatz), $\mu_{\rm buf}{=}2$, $T{=}8$ ($n_s{=}80$) & $0.9987$ & $997\,504$ & $1.3\times10^{-3}$ & $3.3\times10^{-4}$ & $7.1\times10^{-5}$ & $1.1\times10^{6}$ (1) & $1.4\times10^{6}$ (3) & $1.7\times10^{6}$ (5)\\
+\multicolumn{6}{l}{$g=1$ ($E_0=8.88917$, cycle $1.2\times10^{5}$ CNOTs)}\\
+HF determinant & $0.690$ & $0$ & $3.1\times10^{-1}$ & $9.7\times10^{-2}$ & $1.0\times10^{-2}$\\
+$16$-pair ansatz & $0.9969$ & $768$ & $3.1\times10^{-3}$ & $7.2\times10^{-4}$ & $9.8\times10^{-5}$\\
+prolonged $k{=}6$ ansatz & $0.926$ & $384$ & $7.4\times10^{-2}$ & $1.8\times10^{-2}$ & $1.8\times10^{-3}$\\
+HF ramp, $T{=}4$ ($n_s{=}20$) & $0.9960$ & $54\,400$ & $4.0\times10^{-3}$ & $1.0\times10^{-3}$ & $1.4\times10^{-4}$\\
+HF ramp, $T{=}6$ ($n_s{=}40$) & $0.9996$ & $108\,800$ & $3.5\times10^{-4}$ & $1.2\times10^{-4}$ & $5.3\times10^{-5}$\\
+ref.\ $4{\to}8$, $\mu_{\rm buf}{=}1$, $T{=}25$ ($n_s{=}160$) & $0.9994$ & $516\,480$ & $5.7\times10^{-4}$ & $1.7\times10^{-4}$ & $5.9\times10^{-5}$\\
+ref.\ $4{\to}8$, $\mu_{\rm buf}{=}2$, $T{=}8$ ($n_s{=}40$) & $0.9987$ & $129\,120$ & $1.3\times10^{-3}$ & $3.4\times10^{-4}$ & $6.9\times10^{-5}$\\
+ref.\ $4{\to}8$, $\mu_{\rm buf}{=}2$, $T{=}10$ ($n_s{=}80$) & $0.9997$ & $258\,240$ & $3.3\times10^{-4}$ & $1.1\times10^{-4}$ & $5.1\times10^{-5}$\\
+ref.\ $4{\to}8$, $\mu_{\rm buf}{=}4$, $T{=}6$ ($n_s{=}40$) & $0.9996$ & $129\,120$ & $3.5\times10^{-4}$ & $1.2\times10^{-4}$ & $5.3\times10^{-5}$\\
+ref.\ $6{\to}8$ (coarse ansatz), $\mu_{\rm buf}{=}2$, $T{=}8$ ($n_s{=}80$) & $0.9987$ & $999\,744$ & $1.3\times10^{-3}$ & $3.3\times10^{-4}$ & $7.1\times10^{-5}$\\
 \colrule
-ADAPT, generalized pool ($23$ op.) & $0.99998$ & $1\,104$ & $1.7\times10^{-5}$ & $4.1\times10^{-5}$ & $4.8\times10^{-5}$ & $1.1\times10^{3}$ (0) & $1.1\times10^{3}$ (0) & $1.1\times10^{3}$ (0)\\
+ADAPT, generalized pool ($23$ op.) & $0.99998$ & $1\,104$ & $1.7\times10^{-5}$ & $4.1\times10^{-5}$ & $4.8\times10^{-5}$\\
 \colrule
-\multicolumn{9}{l}{$g=2$ ($E_0=2.48659$, cycle $9.0\times10^{4}$ CNOTs)}\\
-HF determinant & $0.253$ & $0$ & $7.5\times10^{-1}$ & $3.8\times10^{-1}$ & $3.1\times10^{-2}$ & --- & --- & ---\\
-$16$-pair ansatz & $0.958$ & $768$ & $4.2\times10^{-2}$ & $8.8\times10^{-3}$ & $6.9\times10^{-4}$ & $5.5\times10^{5}$ (6) & --- & ---\\
-HF ramp, $T{=}8$ ($n_s{=}80$) & $0.9992$ & $217\,600$ & $8.1\times10^{-4}$ & $1.9\times10^{-4}$ & $3.5\times10^{-5}$ & $2.2\times10^{5}$ (0) & $4.0\times10^{5}$ (2) & $6.0\times10^{5}$ (4)\\
-HF ramp, $T{=}12$ ($n_s{=}160$) & $0.9998$ & $435\,200$ & $2.3\times10^{-4}$ & $7.0\times10^{-5}$ & $2.9\times10^{-5}$ & $4.4\times10^{5}$ (0) & $4.4\times10^{5}$ (0) & $6.1\times10^{5}$ (2)\\
-ref.\ $4{\to}8$, $\mu_{\rm buf}{=}2$, $T{=}25$ ($n_s{=}320$) & $0.9997$ & $1\,032\,960$ & $2.9\times10^{-4}$ & $8.4\times10^{-5}$ & $3.0\times10^{-5}$ & $1.0\times10^{6}$ (0) & $1.0\times10^{6}$ (0) & $1.2\times10^{6}$ (2)\\
-ref.\ $4{\to}8$, $\mu_{\rm buf}{=}8$, $T{=}8$ ($n_s{=}80$) & $0.9992$ & $258\,240$ & $7.6\times10^{-4}$ & $1.8\times10^{-4}$ & $3.5\times10^{-5}$ & $2.6\times10^{5}$ (0) & $4.4\times10^{5}$ (2) & $6.4\times10^{5}$ (4)\\
-ADAPT, generalized pool ($31$ op.) & $0.99991$ & $1\,488$ & $8.9\times10^{-5}$ & $4.2\times10^{-5}$ & $2.8\times10^{-5}$ & $1.5\times10^{3}$ (0) & $1.5\times10^{3}$ (0) & $1.5\times10^{3}$ (0)\\
+\multicolumn{6}{l}{$g=2$ ($E_0=2.48659$, cycle $9.0\times10^{4}$ CNOTs)}\\
+HF determinant & $0.253$ & $0$ & $7.5\times10^{-1}$ & $3.8\times10^{-1}$ & $3.1\times10^{-2}$\\
+$16$-pair ansatz & $0.958$ & $768$ & $4.2\times10^{-2}$ & $8.8\times10^{-3}$ & $6.9\times10^{-4}$\\
+HF ramp, $T{=}8$ ($n_s{=}80$) & $0.9992$ & $217\,600$ & $8.1\times10^{-4}$ & $1.9\times10^{-4}$ & $3.5\times10^{-5}$\\
+HF ramp, $T{=}12$ ($n_s{=}160$) & $0.9998$ & $435\,200$ & $2.3\times10^{-4}$ & $7.0\times10^{-5}$ & $2.9\times10^{-5}$\\
+ref.\ $4{\to}8$, $\mu_{\rm buf}{=}2$, $T{=}25$ ($n_s{=}320$) & $0.9997$ & $1\,032\,960$ & $2.9\times10^{-4}$ & $8.4\times10^{-5}$ & $3.0\times10^{-5}$\\
+ref.\ $4{\to}8$, $\mu_{\rm buf}{=}8$, $T{=}8$ ($n_s{=}80$) & $0.9992$ & $258\,240$ & $7.6\times10^{-4}$ & $1.8\times10^{-4}$ & $3.5\times10^{-5}$\\
+ADAPT, generalized pool ($31$ op.) & $0.99991$ & $1\,488$ & $8.9\times10^{-5}$ & $4.2\times10^{-5}$ & $2.8\times10^{-5}$\\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\linewidth]{figs/fig22.png}
-\caption{Matched-observable comparison at $k=8$, $N=8$: ensemble infidelity
-of the accepted runs against CNOTs per accepted preparation,
-Eq.~\eqref{eq:cost}, as the number of cycles grows from $M=0$ to $6$, for
-the inputs of Table~\ref{tab:largebudget} at $g=1$ (left; $\delta t=0.1$,
-$\sigma=4$) and $g=2$ (right; $\delta t=0.05$, $\sigma=1.5$).  Dotted lines
-mark the targets $10^{-3}$, $3\times10^{-4}$ and $10^{-4}$.}
+\includegraphics[width=\linewidth]{figs/fig24.png}
+\caption{Matched-observable comparison at $k=8$, $N=8$ with the exact
+averaged channel of the digital filter: ensemble infidelity of the accepted
+runs against CNOTs per accepted preparation, Eq.~\eqref{eq:cost}, at $g=1$
+(left; $\delta t=0.1$, $\sigma=4$) and $g=2$ (right; $\delta t=0.05$,
+$\sigma=1.5$).  Lines with markers: the fixed inputs of
+Table~\ref{tab:largebudget} as $M$ grows from $0$ to $6$, the ADAPT
+prefixes unfiltered (crosses) and the three prefixes at the target
+crossings through the filter (dotted); faint symbols: every point of the
+$(T,n_s,M)$ grid of the ramp and of the $(\mu_{\rm buf},T,n_s,M)$ grid of
+the $4\to8$ refinement, with their lower envelopes drawn (the minima of
+Table~\ref{tab:frontier}).  Dotted lines mark the targets $10^{-3}$,
+$3\times10^{-4}$ and $10^{-4}$.}
 \label{fig:largebudget}
 \end{figure*}
 
 The adaptive variational ansatz of Sec.~\ref{sec:adapt} changes the scale
-of the whole table: $23$ operators ($1\,104$ CNOTs) reach $1.7\times10^{-5}$
-at $g=1$ and $31$ ($1\,488$ CNOTs) reach $8.9\times10^{-5}$ at $g=2$,
-without any filter cycle, two to three orders of magnitude below every
-other route at every target, and below the floor of the digital filter, so
-that the filter has nothing to add to them.  Among the routes that need no
-classical optimization the ramp is the cheapest; among all routes the
-adaptive ansatz is, at both sizes and both couplings.
+of the whole table: $19$ operators ($912$ CNOTs) reach $1.5\times10^{-4}$
+and $23$ ($1\,104$ CNOTs) $1.7\times10^{-5}$ at $g=1$, and $25$--$31$
+operators ($1\,200$--$1\,488$ CNOTs) reach the three targets at $g=2$,
+without any filter cycle, two orders of magnitude below every other route
+at every target; the $g=1$ state lies below the floor of the digital filter
+and the $g=2$ state within a factor three of it, so the filter has little
+to add to them.  Among the routes that need no classical optimization the
+ramp is the cheapest at $g=1$ and tied with the refinement at $g=2$; among
+all routes the adaptive ansatz is, at both sizes and both couplings.
 
 The answer to the question that motivates this subsection is therefore
-split three ways.  A larger and more correlated space does favor
-refinement followed by the filter over a \emph{fixed} single-layer
-variational preparation, and over filtering the bare determinant, because
-the single-reference ansatz degrades and the cycles become expensive while
-the adiabatic transport, properly shifted, does not slow down.  It does not
-favor it over an \emph{adaptively} grown ansatz, which reaches the targets
-with of order a thousand CNOTs because the seniority-zero pool is small and
-exactly the right one.  And it does not favor the shift-controlled
-projector path over the ordinary adiabatic ramp from the same determinant,
-which is cheaper by the coarse-term overhead at every size and coupling
-studied; the specific
-contribution of resolution refinement --- a coarse eigenstate that is better
-than the determinant --- is not exercised by a hierarchy whose coarsest
-member is the determinant itself, and a coarse state that is better costs,
-in this model, more to prepare and to embed than it saves.  The shift must
-be chosen with the size: keeping $\chi_u(0)=P(k-P)g^2/(4b^2)$ of order unity
-reproduces the optimum found here, and the value $\mu_{\rm buf}=0.6$ used
-at $k=4$ would make the $k=8$ refinement six times slower than necessary.
+split three ways.  A larger and more correlated space favors the adiabatic
+routes, refinement included, over a \emph{fixed} single-layer variational
+preparation and over filtering the bare determinant, because the
+single-reference ansatz degrades and the cycles become expensive while the
+adiabatic transport, properly shifted, does not slow down.  It does not
+favor them over an \emph{adaptively} grown ansatz, whose seniority-zero
+pool is small and exactly the right one.  And it does not separate the
+shift-controlled projector path from the ordinary ramp: once the shift is
+tuned the two differ by the coarse-term overhead, in the ramp's favor at
+$g=1$ and within $3\%$ at $g=2$; the specific asset of resolution
+refinement --- a coarse eigenstate better than the determinant --- is not
+exercised by a hierarchy seeded by the determinant, and a better coarse
+state costs, with the ancilla-free compilation used here, more to embed
+than it saves.  The shift must be chosen with the size: keeping
+$\chi_u(0)$ of Eq.~\eqref{eq:chi0} of order unity or below reproduces the
+optimum found here, and the $\mu_{\rm buf}=0.6$ of Sec.~\ref{sec:res-refine}
+would make the $k=8$ refinement six times slower than necessary.
 
 % ===========================================================================
 \section{Discussion and outlook}
@@ -1611,20 +1732,25 @@ small variational inputs available here do rely on the seniority
 conservation of the pairing force.
 
 Second, three results that do not depend on the model.  The response norm
-of the refinement path at its start, $\chi_u(0)=P(k-P)g^2/(4b^2)$, says how
-the shift must grow with the size and the coupling for the transport to
-keep its speed --- the shift that is right at $k=4$ is six times too slow at
-$k=8$ --- and shows why a scan of the refinement time against the
-shift-controlled gap cannot identify a scaling law, since the scan varies
-the quantity that the inverse-gap argument assumes bounded.  The digital
-filter's long-run state and acceptance are the dominant eigenoperator and
-eigenvalue of the averaged post-selection map, which sets the accuracy
-floor ($1.2\times10^{-4}$ at $\delta t=0.25$ for eight qubits,
-$4.6\times10^{-5}$ at $\delta t=0.1$ for sixteen) and the slow geometric
-decay of the acceptance, and whose eigenoperator loses the ground state
-altogether when the step is too coarse for the Hamiltonian norm, so that the
-filter rejects the corrupted evolution --- a useful diagnostic, not a
-guarantee against smaller coherent errors.  And the rigorous sufficient
+of the refinement path at its start, Eq.~\eqref{eq:chi0}, says how the
+shift must grow with the size and the coupling for the transport to keep
+its speed --- for the pairing seed it is $P(k-P)g^2/(4b^2)$, and the shift
+that is right at $k=4$ is six times too slow at $k=8$ --- and shows why a
+scan of the refinement time against the shift-controlled gap cannot
+identify a scaling law, since the scan varies the quantity that the
+inverse-gap argument assumes bounded; the pair-counting coefficient is
+specific to this seed, the identity is not, and keeping $\chi_u(0)$ of
+order one is a tested shift rule rather than a theorem that fixes the
+transport time.  The digital filter's long-run state and acceptance are the
+dominant eigenoperator and eigenvalue of the averaged post-selection map,
+which sets the accuracy floor ($1.1\times10^{-4}$ at $\delta t=0.25$ for
+eight qubits, $4.8\times10^{-5}$ at $\delta t=0.1$ for sixteen) and the
+slow geometric decay of the acceptance, and which, when the step is too
+coarse for the Hamiltonian norm, puts the floor above every target while
+the acceptance decays by a fifth per cycle, so that the filter rejects the
+corrupted evolution --- a useful diagnostic, not a guarantee against
+smaller coherent errors; the map must be integrated piecewise between the
+step-count boundaries to be trusted.  And the rigorous sufficient
 conditions on the adiabatic time and the Trotter step count overestimate the
 resources actually needed by two to three orders of magnitude, for an
 identifiable reason: they pay for the global norm and gap where the dynamics
@@ -1632,30 +1758,29 @@ pays only for the couplings of the tracked state.
 
 Third, and this is the finding the benchmark was built for, the ranking of
 the routes.  Compared on the same observable --- the ground-state
-infidelity --- and with the same Trotterized filter, refinement followed by
-the rodeo algorithm is, at $N=4$ and $N=6$ on four and six levels, tied with
-filtering the unrefined prolonged determinant, costs $2.5$--$3$ times more
-than an ordinary adiabatic ramp from the Hartree--Fock Hamiltonian at every
-target accuracy, and is beaten by two orders of magnitude by the
+infidelity --- with the same Trotterized filter and with the adiabatic
+controls searched jointly, refinement is at $N=4$ on four levels tied with
+an ordinary adiabatic ramp from the Hartree--Fock Hamiltonian (both
+unfiltered, within $30\%$ either way), beats filtering the unrefined
+determinant, and is beaten by two orders of magnitude by the
 four-parameter pair-rotation ansatz, which needs no filter at all
-(Table~\ref{tab:depth} and Sec.~S7 of the \SM{}).  At four pairs on eight
-levels (Sec.~\ref{sec:large}) the single-layer ansatz is no longer good,
-the cycles are eleven times dearer, and refinement plus filter overtakes
-both that route and the filtered determinant by factors $1.5$--$2$ and
-more; but the ordinary ramp from the same determinant stays ahead by the
-cost of the conditioned coarse term, at $g=1$ and at $g=2$, once the shift
-is scaled with the size, and an ADAPT-VQE ansatz grown from the
+(Tables~\ref{tab:depth} and \ref{tab:frontier}, Sec.~S7 of the \SM{}).  At
+four pairs on eight levels (Sec.~\ref{sec:large}) the single-layer ansatz
+is no longer good and the cycles are eleven times dearer, so both
+adiabatic routes overtake it and the filtered determinant by factors
+$2$--$3$ and more; the ramp stays ahead of refinement by the cost of the
+conditioned coarse term at $g=1$ and ties with it at $g=2$, once the shift
+is scaled with the size; and an ADAPT-VQE ansatz grown from the
 seniority-zero pool (Sec.~\ref{sec:adapt}) reaches $10^{-4}$ with
-$1\,100$--$1\,500$ CNOTs at both couplings, two to three orders of
-magnitude below every filtered route and below the floor of the digital
-filter.  The reason is simple, and
+$1\,100$--$1\,500$ CNOTs at both couplings, two orders of magnitude below
+every other route.  The reason is simple, and
 Sec.~\ref{sec:depth} states it as the ideal large-gap law
 $1-\mathcal F_M\simeq\tfrac{1-p}{p}2^{-M}$: a better input saves cycles only
 logarithmically in its odds ratio, so whether a preparation stage repays its
 gates depends on the price of a cycle relative to the price of the stage,
 and the size dependence of the verdict follows from the size dependence of
 that ratio.  What the refinement offers in exchange is that it is
-optimizer-free and measurement-free during preparation, and that its cost is
+optimizer-free and free of training measurements during preparation, and that its cost is
 set by the Hamiltonian evolution rather than by the trainability of a
 landscape.  Whether that trade pays off against a fixed variational preparation
 is, as Sec.~\ref{sec:large} shows, a question of size and coupling, and the
@@ -1748,18 +1873,13 @@ size in a coarse basis and then refined to the full basis, or the reverse,
 with the same Trotterized machinery and the same filter at the end.
 
 What Ref.~\cite{Sadia2026} adds to the present assessment is twofold.  First,
-it provides the rigorous sufficient conditions on the total time and on the
-Trotter step count of each stage quoted in Sec.~\ref{sec:refine}, and shows on
-a twelve-site transverse-field Ising chain that they overestimate the
-resources actually needed by orders of magnitude: an overlap of $0.997$ is
-reached with $T\simeq40$ and some $2\times10^{3}$ Trotter steps in total,
-against bounds of $T\ge2.6\times10^{3}$ and $N\ge2\times10^{10}$.  Section~\ref{sec:res-gscan} and Sec.~S4 of the \SM{} make the same comparison for the refinement
-path: the time bound of Eq.~\eqref{eq:Tbound} overshoots the empirical
-$T^{*}$ by a factor $3\times10^{2}$ and the step bound overshoots
-the steps actually needed by a factor $2\times10^{2}$, because the bound charges the full norm of $B-A$
-where the dynamics only pays for the matrix elements that couple the tracked
-state to its neighbors; the distance between bound and practice is the room
-in which the inverse-gap scaling of Ref.~\cite{Bogner2026} operates.  Second, and more directly
+the sufficient conditions of Sec.~\ref{sec:refine}, which overestimate the
+resources of a twelve-site Ising nucleation by orders of magnitude
+($T\simeq40$ and $2\times10^{3}$ Trotter steps suffice against bounds of
+$2.6\times10^{3}$ and $2\times10^{10}$) and those of the refinement path by
+the factors $3\times10^{2}$ and $2\times10^{2}$ of Sec.~\ref{sec:res-gscan}; the
+distance between bound and practice is the room in which the inverse-gap
+scaling of Ref.~\cite{Bogner2026} operates.  Second, and more directly
 relevant to our negative finding, Ref.~\cite{Sadia2026} introduces
 \emph{optimized nucleation}: the Trotterized growth circuit is kept as the
 ansatz structure and its Trotter angles as the initial parameters, and a
@@ -1784,11 +1904,12 @@ it among the extensions below.
 \paragraph{Hardware requirements.}
 The Trotterized pipeline quantifies the dominant coherent error of an ideal
 device, and the requirements it implies are explicit: $2k+1$ qubits ($9$ at
-$k=4$, $17$ at $k=8$); a mid-circuit measurement with reset and reuse of one
-ancilla; arbitrary-angle $R_z$ rotations; and a coherent budget that ranges
-from $192$ two-qubit gates for the cheapest route of Table~\ref{tab:depth}
-through $1.7\times10^{4}$ per accepted preparation for the HF ramp with one
-cycle to $10^{5}$ for the refined input with six cycles at eight qubits,
+$k=4$, $17$ at $k=8$; $c-1$ more for the shared-flag coarse term of
+Sec.~\ref{sec:trotterized}); a mid-circuit measurement with reset and reuse
+of one ancilla; arbitrary-angle $R_z$ rotations; and a coherent budget that
+ranges from $192$ two-qubit gates for the cheapest route of
+Table~\ref{tab:depth} through $10^{4}$ per accepted preparation for the
+unfiltered HF ramp to $10^{5}$ for the refined input with six cycles at eight qubits,
 and ten times these at sixteen, on top of the energy scan and the
 repetitions needed to estimate acceptance probabilities.  At the two-qubit
 error rates of large-scale experiments today --- of order $10^{-2}$ on the
@@ -1816,20 +1937,21 @@ refinement followed by the rodeo algorithm behaves at the circuit level ---
 every stage compiled, counted and validated against exact results --- and
 what it is worth: it prepares the correlated ground state to the accuracy of
 the Trotterized evolution without any variational optimization, at a gate
-cost that, for the pairing model, exceeds that of an adiabatic ramp from
-the same determinant at every size studied, that of a fixed variational
-input at eight but not at sixteen qubits, and that of an adaptively grown
-variational input by two to three orders of magnitude at both.  Three extensions would sharpen the assessment.
+cost that, for the pairing model, matches that of an adiabatic ramp from
+the same determinant to within the embedded coarse term at every size
+studied, exceeds that of a fixed variational input at eight but not at
+sixteen qubits, and exceeds that of an adaptively grown variational input
+by two orders of magnitude at both.  Three extensions would sharpen the assessment.
 First, comparators and compilation: a qubit-ADAPT run with a Pauli-string
 pool, a pair-encoded (one qubit per level) variational and filtering
 baseline and a symmetry-projected BCS-like input, an optimized refinement in the sense of
 Ref.~\cite{Sadia2026} --- the Trotterized path of Eq.~\eqref{eq:path} as a
 warm-started variational circuit with a few layers per stage --- and a
 compilation effort applied equally to every route (merged half-steps,
-optimized excitation circuits, routing on a concrete connectivity), the
-minimum-cost search of Table~\ref{tab:depth} being then repeated over
-refinement time, shift and step size with the shot budgets of training and
-energy search amortized over the number of states requested.  Second, Hamiltonians for which single-reference
+optimized excitation circuits, the shared-flag coarse term, routing on a
+concrete connectivity), the search of Table~\ref{tab:frontier} being then
+extended to the filter width and step and to the shot budgets of training
+and energy search amortized over the number of states requested.  Second, Hamiltonians for which single-reference
 variational inputs fail --- shell-model interactions with competing
 deformations, or the strong-coupling regime of Sec.~\ref{sec:res-gscan}
 treated with a nontrivial coarse space --- which is where the trainability

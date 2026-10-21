@@ -23,9 +23,9 @@ import sys, os
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, "src")
 import pairinglib as pl
+import pairinglib.seniority as sz
 from pairinglib._exc import apply_exc_circuit
 from scipy.optimize import minimize
-from numpy.polynomial.hermite_e import hermegauss
 
 import sys as _sys
 OUT = _sys.argv[1] if len(_sys.argv) > 1 and not _sys.argv[1].startswith("-") else None   # None inside a notebook kernel
@@ -208,21 +208,16 @@ D_gap_s0 = np.sort(np.diag(D)[sen == 0]); print(f"   gap of D within seniority z
 
 # =============================================================== (e) long-run state of the digital filter
 print("\n(e) the averaged post-selection map K(rho) = E_t[K_t rho K_t^+] of the Trotterized filter (second order, |t| half-Gaussian, sigma = 4):")
+print("    quadrature split at the step-count boundaries |t| = n dt_max (6 Gauss-Legendre points per interval, 8 sigma; `pl.averaged_map_floor`), with the change under m -> 12 as the convergence check")
 tm = pl.model_terms(k, G, N)
 idx0 = np.where(sen == 0)[0]; d0 = len(idx0); GS0 = GS[idx0]/np.linalg.norm(GS[idx0])
-xg, wg = hermegauss(80); wg = wg/np.sqrt(2*np.pi)
+tm0 = [T[np.ix_(idx0, idx0)] for T in tm]                     # the seniority-zero blocks of the Trotter terms
 floors = {}
 for dtm in (0.25, 0.5, 1.0):
-    K = np.zeros((d0*d0, d0*d0), complex)
-    for xk, wk in zip(xg, wg):
-        t = abs(4.0*xk)
-        U = pl.trotter_U_dt(k, G, N, t, dtm, order=2, terms=tm)[0][np.ix_(idx0, idx0)]
-        Kt = 0.5*(np.eye(d0) + np.exp(1j*E0*t)*U)
-        K += wk*np.kron(Kt, Kt.conj())
-    lam, Vk = np.linalg.eig(K); j = np.argmax(np.abs(lam))
-    rho = Vk[:, j].reshape(d0, d0); rho = rho/np.trace(rho); rho = 0.5*(rho + rho.conj().T)
-    floors[dtm] = (abs(lam[j]), 1 - np.real(GS0 @ rho @ GS0))
-    print(f"   dt_max = {dtm:4.2f}: leading eigenvalue {floors[dtm][0]:.6f} (long-run acceptance decays by {100*(1-floors[dtm][0]):.2f}% per cycle), asymptotic infidelity {floors[dtm][1]:.3e}")
+    out = pl.averaged_map_floor(sz.fixed_step_evolution(tm0, dtm), E0, GS0, 4.0, dtm)
+    floors[dtm] = (out["eigenvalue"], out["floor"])
+    print(f"   dt_max = {dtm:4.2f}: leading eigenvalue {out['eigenvalue']:.6f} (long-run acceptance decays by {100*(1-out['eigenvalue']):.2f}% per cycle), asymptotic infidelity {out['floor']:.3e}"
+          f"  [m=12: {out['floor_check']:.3e}, {out['eigenvalue_check']:.6f}; residual {out['residual']:.0e}]")
 
 # =============================================================== (f) matched comparison, eight inputs, M = 0..6
 print("\n(f) the same Trotterized filter (second order, dt = 0.25, sigma = 4, 40 time sets, seed 3) on eight inputs:")

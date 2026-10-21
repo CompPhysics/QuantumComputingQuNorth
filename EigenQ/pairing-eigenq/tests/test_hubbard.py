@@ -172,3 +172,56 @@ def test_kronecker_groups_match_dense_and_adapt():
     ad = hb.adapt_hubbard(N, bonds, 2, 2, 4.0, grad_tol=1e-5, max_ops=12, H=Hs, target=V[:, 0])
     inf = [d["infidelity"] for d in ad["history"]]
     assert all(b <= a + 1e-9 for a, b in zip(inf, inf[1:])) and inf[-1] < 1e-2 and ad["history"][-1]["E"] > w[0] - 1e-9
+
+
+def test_galerkin_decomposition_with_unequal_site_and_particle_counts():
+    """The constant of the Galerkin model is -t N_particles, not -t N_coarse: the
+    embedded coarse groups of Path A must sum to P(H_low - mu)P^T also when the
+    coarse site count (8) differs from the particle number (4) --- the case
+    the 16-site study got wrong before the revision of 2026-10-20."""
+    import numpy as np
+    import pairinglib.hubbard as hb
+    (Nc, bc), (Nf, bf), blocks, intra = hb.refine_chain(8)
+    Hf, _ = hb.H_hubbard(Nf, bf, 2, 2, 4.0)
+    P = hb.prolong(Nc, Nf, blocks, 2, 2, sparse=True); ps = hb.prolonged_state(Hf, P)
+    mu = ps["El"] + 2.0
+    tl, Ul, cst = hb.galerkin_params("chain", 1.0, 4.0, 2 + 2)
+    Kc_e, Kc_o, Dc = [t_.toarray() for t_ in hb.hubbard_terms(8, bc, 2, 2, Ul, t=tl)]
+    assert abs(Dc + (cst - mu) * np.eye(784) + Kc_e + Kc_o - (ps["Hl"] - mu * np.eye(784))).max() < 1e-12
+    tl8, Ul8, cst8 = hb.galerkin_params("chain", 1.0, 4.0, 8)
+    assert abs(cst8 - cst) == 4.0
+
+
+def test_cnot_conventions_of_the_revision():
+    import pairinglib.hubbard as hb
+    # JW double-excitation weight = parity support of the two intervals, not the full span
+    assert hb.uccsd_cnots(8, [], [("ud", 0, 0, 2, 2)])["excitations"] == 8 * 2 * (6 - 1)     # indices 0,2,8,10 -> weight 6
+    pool = hb._uccsd_pool_kron(4, hb.chain(4)[1], 2, 2)
+    lab = pool["labels"]
+    assert hb.uccsd_cnots(4, [l for l in lab if len(l) == 3], [l for l in lab if len(l) == 5])["total"] == 1464
+    # controlled step: the scalar single-Z sum is absorbed into the ancilla phase
+    assert hb.chain_step_cnots(8, hb.chain(8)[1], 2, controlled=True)["cnots"] == 288
+    assert hb.chain_step_cnots(8, hb.chain(8)[1], 2, controlled=True, absorb_scalar=False)["cnots"] == 352
+    assert hb.chain_step_cnots(16, hb.chain(16)[1], 2, controlled=True)["cnots"] == 608
+    # shared-flag coarse term (52 rotations at eight coarse sites, not 48)
+    ca = hb.conditioned_term_cnots(8, hb.chain(8)[1], 16)
+    assert ca["rotations"] == 52 and ca["flag"] == 72 + 2 * 52 + 6 * 15 + 2 and ca["frame"] == 64
+    assert hb.conditioned_term_cnots(4, hb.chain(4)[1], 8)["flag"] == 124
+
+
+def test_exact_digital_ensemble_matches_assessment_anchor():
+    """Deterministic quantized-time ensemble at eight sites: the T=8 ramp with 64
+    steps reaches 1.05045e-4 after six cycles (the sampled 40-schedule value
+    was 8.9e-5, which wrongly passed the 1e-4 target)."""
+    import numpy as np
+    import pairinglib.hubbard as hb
+    N, b = hb.chain(8); U = 4.0
+    H, _ = hb.H_hubbard(N, b, 2, 2, U); w, V = np.linalg.eigh(H.toarray()); GS = V[:, 0]
+    FF = np.linalg.eigh(hb.H_hubbard(N, b, 2, 2, 0.0)[0].toarray())[1][:, 0]
+    Kev, Kod, D = [t_.toarray() for t_ in hb.hubbard_terms(N, b, 2, 2, U)]
+    psi = hb.trotter_refine(FF, [Kev, Kod, D], [lambda s: 1.0, lambda s: 1.0, lambda s: np.sin(np.pi * s / 2) ** 2], 8.0, 64, order=2)
+    tr = hb.trotter_evolution(hb.hubbard_terms(N, b, 2, 2, U), 0.1, order=2, target=GS)
+    sigma = 5.0 / hb.effective_gap(FF, w, V)[0]
+    out = hb.exact_digital_ensemble(tr, psi, GS, sigma, 6)
+    assert abs(out["inf"][6] / 1.05045e-4 - 1) < 1e-4 and abs(out["acc"][6] - 0.99696) < 1e-4
+    assert abs(out["inf"][0] - (1 - abs(np.vdot(GS, psi)) ** 2)) < 1e-12

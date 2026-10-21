@@ -44,13 +44,17 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   8 AND 16 sites / transferable results; ADAPT-VQE comparator; cites paper I,
   no "companion" references).  It has its OWN notebook,
   `notebooks/ResolutionRefHubbard.ipynb`, built from scratch by
-  `scripts/build_notebook_hubbard.py` (nbformat, 33 cells, 12 figures; Sections
-  1-11 ~45 min, Section 12 = the 8->16 chain at the circuit level + ADAPT,
-  ~1.5 h more) on the module `src/pairinglib/hubbard.py` (`import
-  pairinglib.hubbard as hb`; tests in `tests/test_hubbard.py`).  Figures are
-  `paper3/figs/fig1-12.png` (`make figures-hubbard`; main text uses 1, 2, 3, 5,
-  10, 11, 12; the SM uses 4, 6, 7, 9; fig8 is superseded by fig10);
-  `make check-hubbard` (12 figures) asserts the anchors (chain 4->8 U=4: E_low
+  `scripts/build_notebook_hubbard.py` (nbformat, 36 cells, 14 figures; Sections
+  1-11 ~70 min, Section 12 = the 8->16 chain at the circuit level + ADAPT,
+  ~1 h, Section 13 = the pre-submission revision of 2026-10-20, ~3.5 h) on the
+  module `src/pairinglib/hubbard.py` (`import pairinglib.hubbard as hb`; tests
+  in `tests/test_hubbard.py`).  `scripts/run_notebook_checkpoint.py` executes
+  it in-process with a dill checkpoint (`--checkpoint-after 15` = after
+  Section 12) so that Section 13 can be fixed and resumed without the earlier
+  hours; the builder takes an optional output path.  Figures are
+  `paper3/figs/fig1-14.png` (`make figures-hubbard`; main text uses 1, 2, 3, 5,
+  11, 13, 14; the SM uses 4, 6, 7, 9; figs 8, 10, 12 are superseded by 13-14);
+  `make check-hubbard` (14 figures) asserts the anchors (chain 4->8 U=4: E_low
   -4.976573, E_high -5.634427; 16 sites: -7.209813; 4x4 (2,2): -10.4197).  The
   ED reference and its conventions are `paper3/Hubbard.ipynb` (unchanged);
   `paper3/prototype/` is the superseded sector-exact prototype; `paper3/NOTES.md`
@@ -58,8 +62,35 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   (prototype numbers), `_v2_backup.tex` (2026-10-14), `_v3_backup.tex`
   (2026-10-15 RevTeX/PRC third draft, structured abstract).  The standalone
   16-site study that seeded notebook Section 12 is `scripts/hubbard16_checks.py`
-  (NOTE: it counted 2x the controlled step per filter cycle; the notebook is
-  the reference).
+  (superseded; it counted 2x the controlled step per filter cycle and had the
+  Galerkin-constant bug below; the notebook is the reference).
+  PRE-SUBMISSION REVISION 2026-10-20 (`paper3/hubbard_pre_submission_critical_assessment.md`,
+  response `paper3/response_to_pre_submission_assessment.md`, previous tex
+  `eigenq_hubbard_v4_backup.tex` / `eigenq_hubbard_supp_v4_backup.tex`), all
+  points agreed and confirmed numerically: (1) `galerkin_params(kind, t, U, N)`
+  takes the PARTICLE number — Section 12 passed the coarse site count 8 instead
+  of 4, i.e. an extra -4t cos^2 P P^T in the 16-site Path A (p(8,128) 0.99078 ->
+  0.99237, p(16,128) 0.99835 -> 0.99930; the "plateau at T=8" was this bug, not
+  the split coarse groups); (2) `uccsd_cnots` now uses the parity-support
+  weight (q-p+1)+(s-r+1) of a double (templates 1720->1464, 30864->23312,
+  335360->235904; pruned 8 sites 11408, 16 sites 61584; ADAPT 8 sites
+  66/101/149/194 ops = 8832/11672/17168/22608, 16 sites 187 ops = 48008);
+  (3) `conditioned_term_cnots` has 'flag' (shared flag, base + 2 n_rot + 6(c-1)
+  + 2: 124 for 4->8, 268 for 8->16; 52 rotations, not 48) and 'frame' (32/64);
+  Path A is costed flag+frame = 156 / 332 per application (was 1088 / 4856 with
+  a ladder per rotation; `toffoli` now 1132/4948 incl. the scalar); (4)
+  `chain_step_cnots(controlled=True)` absorbs the scalar single-Z sum
+  (288 / 608 instead of 352 / 736; `absorb_scalar=False` for the old counts);
+  (5) `exact_digital_ensemble` (rho_ij = c_i c_j^* Q_ij^M) replaces the sampled
+  schedule averages at 8 sites (T=8 ramp n_s=64: 1.05045e-4 at M=6, NOT 8.9e-5);
+  `effective_step_state(return_residual=True)` (16 sites: residual 1.9e-15);
+  (6) the coarse state of the hierarchy is PREPARED and PROPAGATED (4-site ramp
+  for 4->8, the cheapest 8-site unfiltered route for 8->16; two options each,
+  'c' and 'a'), and the adiabatic routes are searched jointly over
+  (T, n_s, M) / (Lambda, T, n_s, M) with M=0 allowed (notebook Section 13,
+  figs 13-14, paper III Tables 2-3).  The old verdict ("ramp cheapest at every
+  target, x16 Path A") is WITHDRAWN; the new numbers are in the "Hubbard
+  8->16" entry below and in `paper3/response_to_pre_submission_assessment.md`.
 
 ## Skills (in `.claude/skills/`) — read the matching one before working
 - `pairing-model`  — Hamiltonian conventions, encoding, benchmark anchors, API.
@@ -111,14 +142,24 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   tab:shift/tab:largebudget, SM tab:large/fig:large), EXT:ADAPT (2026-10-16:
   ADAPT-VQE comparator in the pair basis, `scripts/adapt_checks.py` via
   `scripts/extend_notebook_adapt.py`, fig 23; paper I Sec. V.D, Table tab:adapt;
-  `make check` now expects 23 figures).
+  `make check` expected 23 figures), EXT:FRONTIER (2026-10-20, after
+  `paper/pairing_pre_submission_critical_assessment.md`, response in
+  `paper/response_to_pre_submission_assessment.md`, previous tex
+  `eigenq_pairing_v8_backup.tex`: converged averaged map + exact-channel joint
+  operating-point search, `scripts/frontier_checks.py` via
+  `scripts/extend_notebook_frontier.py`, fig 24 = paper I fig:largebudget,
+  Table tab:frontier; `make check` now expects 24 figures).  The averaged map of
+  the digital filter MUST be integrated piecewise between the step-count
+  boundaries |t| = n dt (`pl.half_gaussian_nodes` / `pl.AveragedFilterMap` /
+  `pl.averaged_map_floor`); never use a global Gauss-Hermite rule for it.
   `scripts/verify_assessment.py` recomputes every number claimed in the assessment.
 - Seniority-zero pair basis: `pairinglib.seniority` (`import pairinglib.seniority as sz`;
   `pair_basis`, `H_pair`, `pair_terms` = [D, h_pq] (the seniority-zero blocks of
   `model_terms`, verified), `prolong_pair`, `refine_pair`/`refine_pair_overlaps`,
   `ramp_terms`, `pair_double_ansatz` (the restricted P(k-P)-parameter UCCSD, 48
-  CNOTs per rotation), `coarse_term_cnots` (Gray-code convention: 2->4 14,
-  3->4 348, 4->8 (P=4) 254, 6->8 4872), `pair_encoding_cnots` (one qubit per
+  CNOTs per rotation), `coarse_term_cnots` (Gray-code convention incl. the
+  conditioned scalar phase: 2->4 14, 3->4 350, 4->8 (P=4) 254, 6->8 4886;
+  convention="flag" = shared flag with c-1 clean work qubits: 224 / 44 / 1028), `pair_encoding_cnots` (one qubit per
   level: step 112/240 at k=8), `adapt_vqe(k, P, g, pool='pairs'|'generalized')`
   (gradient selection with repeats, warm-started L-BFGS re-optimization,
   history[n] holds the state after n operators)); tests in
@@ -128,24 +169,35 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   the four-pair ansatz, 5 ops (240 CNOTs) EXACT; (6,4): 9 ops (432) < 1e-5;
   (8,8) g=1: 19 (912) 1.5e-4, 23 (1104) 1.7e-5, 27 (1296) 4e-6; g=2: 25/29/31
   ops (1200/1392/1488) for 1e-3/3e-4/1e-4.  The 23-op state is BELOW the
-  dt=0.1 filter floor (4.6e-5): the filter only degrades it.  VERDICT (final):
-  the adaptive ansatz undercuts every filtered route by 2-3 orders of magnitude
-  at both sizes; among optimizer-free routes the HF ramp is cheapest; refinement
-  beats only the fixed single-layer ansatz at 16 qubits.
+  dt=0.1 filter floor (4.8e-5): the filter only degrades it; the g=2 31-op state
+  (8.9e-5) is ABOVE the floor 2.7e-5 and improves x3 in six cycles.  VERDICT
+  (final, 2026-10-20): the adaptive ansatz undercuts every other route by 2
+  orders of magnitude at both sizes; with the adiabatic controls searched
+  jointly (Table tab:frontier) ramp and refinement TIE within the coarse-term
+  overhead at every size/coupling and need NO filter cycle at the targets.
 - k=8, N=8, g=1 anchors (paper I Sec. V.F): E0 = 8.889170, E_HF = 10, gap 2.592,
   p_HF = 0.690; 16-pair ansatz 1-F 3.1e-3 (768 CNOTs); chi_u(0) = P(k-P) g^2/(4 b^2)
   (= 11.1 at b=0.6); T*(1e-3) = 50/25/8/6/8/10 for mu_buf = 0.6/1/2/4/8/16 (n_s =
   -/160/40/40/40/80); HF ramp exact p(6) = 0.99993, min gap 2 at all g; step
-  1360/1856 CNOTs; digital filter: dt=0.25 REJECTED (map eigenvalue 0.96, floor 1),
-  dt=0.1 floor 4.6e-5 (eigenvalue 0.9933), dt=0.05 3.1e-6; cycle 1.2e5 CNOTs
-  (sigma=4); g=2: sigma=1.5, dt=0.05 (floor 2.5e-5), cycle 9.0e4.  Min cost per
-  accepted prep at 1e-3/3e-4/1e-4 (g=1): ramp T=6 1.1e5/2.2e5/4.8e5; refined
-  mu_buf=4 T=6 1.3e5/2.4e5/5.0e5; 16-pair ansatz 2.4e5/5.1e5/7.4e5; determinant
-  none (1.0e-2 at M=6).  g=2: ramp T=8 2.2e5/4.0e5/6.0e5; refined mu_buf=8 T=8
-  2.6e5/4.4e5/6.4e5; ansatz 5.5e5/-/-.  VERDICT: at 16 qubits refinement+filter
-  beats the variational route (x1.5-2) and the filtered determinant, but the
-  HF ramp stays cheaper by the coarse-term overhead (4-19%) at g=1 and g=2 once
-  the shift is scaled with the size (mu_buf=0.6 of k=4 is 6x too slow at k=8).
+  1360/1856 CNOTs; digital filter (CONVERGED boundary-split quadrature,
+  `pl.averaged_map_floor`, 2026-10-20): dt=0.25 REJECTED (eigenvalue 0.794,
+  acceptance -21%/cycle, floor 2.3e-3 — NOT "zero overlap", that was a
+  Gauss-Hermite artifact), dt=0.1 floor 4.8e-5 (eigenvalue 0.99324), dt=0.05
+  3.1e-6; cycle 1.2e5 CNOTs (sigma=4); g=2: sigma=1.5, dt=0.1 4.0e-4, dt=0.05
+  floor 2.7e-5 (0.99887), cycle 9.1e4.  Fixed-input (sampled, Table V) costs:
+  ramp T=6 1.1e5/2.2e5/4.8e5; refined mu_buf=4 T=6 1.3e5/2.4e5/5.0e5; ansatz
+  2.4e5/5.1e5/7.4e5.  JOINT SEARCH with the exact channel (Table tab:frontier,
+  `scripts/frontier_checks.py`, fig24) at 1e-3/3e-4/1e-4, g=1: ramp T=6
+  n_s=40/60/80 M=0 1.1e5/1.6e5/2.2e5; refined mu_buf=4 T=6 same n_s M=0
+  1.3e5/1.9e5/2.6e5 (+19% = coarse term 254/1614); ansatz+filter
+  2.4e5/4.9e5/7.4e5; ADAPT 912/912/1104.  g=2: ramp T=8 n_s=80 M=0/2/4
+  2.2e5/4.0e5/5.8e5; refined mu_buf=8 (T=8,80,M=0) 2.6e5, mu_buf=16
+  (T=8,120,M=0) 3.9e5, (M=2) 5.7e5; ADAPT 1200/1392/1488.  k=4 (2e-3/5e-4/2e-4):
+  ramp (4,16,0) 9.5e3, (6,32,0) 1.9e4, (8,43,0) 2.5e4; refined mu_buf=3 T=6
+  n_s=16/22/32 M=0 9.9e3/1.4e4/2.0e4.  VERDICT: the cheapest adiabatic operating
+  points use NO filter cycle (a cycle = doubling n_s and buys less); ramp and
+  refinement tie within the coarse-term overhead; mu_buf=0.6 of k=4 is 6x too
+  slow at k=8 (matched thresholds: T*(1e-3) 40 -> 50, T*(1e-2) 16 -> 30).
   Pair encoding: all adiabatic costs /12, cycles /8, same ranking.
 - Compare like with like: an energy error is NOT an infidelity
   (<H>-E0 >= gap*(1-F)).  UCCSD k=4, g=1 infidelities: 1.78e-4 (f=0),
@@ -153,8 +205,10 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   acceptance-weighted ensemble infidelity of the accepted runs.
 - Gate budgets must include the embedded coarse term A = P(H_low-mu)P^T of the
   refinement path (2->4: 4-qubit conditional phase, 14 CNOTs/application;
-  3->4: doubly-conditioned k=3 step, ~350 CNOTs).  `cnot_counts` counts the
-  high-space step only.
+  3->4: doubly-conditioned k=3 step incl. the conditioned scalar phase, 350
+  CNOTs; ancilla-free reference compilation — quote the shared-flag alternative
+  and its extra work qubits when discussing the penalty).  `cnot_counts` counts
+  the high-space step only.
 - Bounds vs. practice (k=2->4, N=4, g=1): T_bound(eps=1e-2)=5.1e3 vs T*=16;
   first-order step bound 3.4e4 at T* vs 160 (order 1) / 40 (order 2) in practice
   (different criteria: operator norm vs one overlap — say so).
@@ -164,7 +218,10 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   (exact ensemble, sigma=3, M=6): d=0.05/0.1/0.2 -> acceptance 0.965/0.873/0.596.
 - Scaling claims: the mu-scan points (0.3,50),(0.6,16),(1.0,8),(1.5,6) fit
   17.05/D-8.42 (SSR 28) AND 4.13/D^2+4.16 (SSR 0.22) — NO exponent is identified;
-  chi_u(0)=g^2/b^2 varies x25 across the scan. Never write "confirms 1/Delta" or
+  chi_u(0)=g^2/b^2 (affine-path response) varies x25 across the scan, the
+  scheduled chi_s = (pi/2 sin pi s)^2 chi_u only x3.4 (max 1.40/0.76/0.52/0.41).
+  General identity: chi_u(0) = ||Q H_high P psi_low||^2 / b^2 (Eq. chi0);
+  P(k-P)g^2/(4b^2) is its value for the filled pairing seed only. Never write "confirms 1/Delta" or
   "incompatible with 1/Delta^2".  Gaps: shift 0.6 / sector 1.823 / seniority-zero 2.300.
 - Comparators that must appear in any gate-budget statement: the four-pair
   restricted ansatz (192 CNOTs, 1-F=1.78e-4, identical to the 26-operator UCCSD
@@ -172,8 +229,10 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   CNOTs, exact) and the HF adiabatic ramp D -> H (T=4, 11 second-order steps,
   6512 CNOTs, p=0.9978, no shift/coarse term).  Minimum cost at targets
   2e-3/5e-4/2e-4: four-pair 192 (M=0); HF ramp 1.7e4/4.0e4/6.4e4; refined T=16
-  4.9e4/7.4e4/9.4e4.  Digital filter (dt=0.25): averaged-map floor 1.2e-4,
-  eigenvalue 0.9979 (acceptance decays 0.2%/cycle); dt=0.5: 1.5e-3; dt=1: 0.21.
+  4.9e4/7.4e4/9.4e4 (ratios 2.9/1.9/1.5, NOT "2.5-3 at every target").  Digital
+  filter (dt=0.25): averaged-map floor 1.14e-4, eigenvalue 0.99782 (acceptance
+  decays 0.2%/cycle); dt=0.5: 1.9e-3 (0.9651); dt=1: 0.15 (0.6297) — boundary-split
+  quadrature; the old Gauss-Hermite values 1.2e-4/1.5e-3/0.21 were unconverged.
   3->4 chain: T*=8, 22 steps with the coarse term SPLIT into coarse groups
   (`pl.trotter_path`), 28 520 CNOTs.
 - Review history: `paper/revisions.txt` + `paper/response_to_revisions.md`
@@ -218,24 +277,33 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   the determinant has the same p0 and Delta_eff as the prolonged state at this
   size; refinement's case is larger L / stronger U, not demonstrated.  Response
   norm chi_u(0) = 0.375/0.527/0.715/0.874 (U=0/2/4/8), max at s=0.
-- Hubbard 8->16 at the circuit level (notebook Section 12, paper III Sec. 6,
-  Table 3, Figs. 11-12; U=4, (2,2), 14 400 states, 32 qubits): prolonged p0 =
+- Hubbard 8->16 at the circuit level (notebook Sections 12-13, paper III Sec. 6,
+  Table 3, Figs. 11 and 14; U=4, (2,2), 14 400 states, 32 qubits): prolonged p0 =
   0.8692 vs determinant 0.7162, Delta_eff = 0.1379 for both, sector gap 0.051.
-  Exact slices: ramp needs T=32 for 4e-3 and T=64 for 1e-3; Path A mu_buf=2
+  Exact slices: ramp p(32/48/64) = 0.99591/0.99887/0.99919; Path A mu_buf=2
   p(8/16/32) = 0.99237/0.99931/0.99995 (larger shifts worse); Path B ceiling
-  ~5e-3 (Lambda=8) / 4e-3 (Lambda=16).  Gates: step 304 (controlled 736), coarse
-  term 4856, Givens 480, prolongation 32; ramp T=32 n_s=256 78 304 CNOTs; Path A
-  T=16 n_s=128 1 282 080 (+ coarse prep); Path B Lambda=8 T=16 n_s=256 77 856
-  (+ coarse prep); Path A T=8 Trotter plateau 0.99079 (exact 0.99237).  UCCSD
-  1022 par. 6.98e-3 (pruned 255 par., 87 776 CNOTs); ADAPT 187 ops (68 008 CNOTs)
-  for 1e-2.  Filter: sigma 36.2, dt 0.1, floor 3.7e-5 (`effective_step_state`),
-  2.13e5 CNOTs/cycle (289 controlled steps).  Coarse eigenstate charged 18 544
-  CNOTs (8-site ramp T=16).  Min CNOTs/accepted at 3e-3/1e-3/3e-4: ramp T=32
-  3.0e5/7.9e5/1.3e6; Path B 3.2e5/8.1e5/1.3e6 (tie); ADAPT 5.4e5/1.0e6/1.4e6;
-  pruned 5.6e5/1.1e6/1.3e6; Path A 1.3e6/1.5e6/2.0e6.  VERDICT: ramp still
-  cheapest but Path B ties, Path A within x2 (was x16): the cost is set by the
-  filter cycles each input still needs.  ADAPT at 8 sites (149 ops, 22 816
-  CNOTs) does NOT beat the ramp there either (2.3e4/6.9e4/1.5e5).
+  ~5e-3 (Lambda=8) / 4e-3 (Lambda=16).  Gates: step 304 (controlled 608), coarse
+  term 332 (shared flag + frame; ladder 4948), Givens 480, prolongation 32;
+  Trotter: ramp T=16/32 n_s=128/256, Path A T=8/16 n_s=64/128 (0.99228/0.99930,
+  converged — no plateau once the Galerkin constant is -t N), Path B Lambda=8
+  T=16 n_s=256.  UCCSD 1022 par. 235 904 CNOTs 6.98e-3 (pruned 255 par.,
+  61 584); ADAPT 187 ops (48 008 CNOTs) for 1e-2, 9.45e-3 after 200.  Filter:
+  sigma 36.2, dt 0.1, E_eff-E0 +4.92e-3, floor 3.7e-5, residual 1.9e-15,
+  1.75e5 CNOTs/cycle (289 controlled steps).  Section-13 search (40 schedules,
+  coarse state 'c' = 8-site ramp T=16 n_s=192 27 760 CNOTs 1.8e-4, 'a' = T=24
+  n_s=256 36 976 5.6e-5), min CNOTs/accepted at 1e-2/3e-3/1e-3/3e-4: ramp
+  7.8e4 (32,256,0)/7.8e4 (48,256,0)/1.56e5 (48,512,0)/1.56e5 (64,512,0);
+  Path A 9.0e4/1.52e5/1.52e5/2.76e5 (all M=0, coarse c); ADAPT 4.8e4 (0)/
+  3.9e5 (2)/7.9e5 (4)/1.1e6 (6); pruned 6.2e4/4.1e5/5.9e5/9.8e5; Path B
+  1.06e5/2.7e5/5.3e5/9.2e5; prolonged 8.1e5/1.1e6/-/-; determinant 1.2e6/-.
+  Bootstrap of the selection (400 resamples): ramp/Path A 100 % stable.
+  Eight sites (exact ensemble, cycle 1.95e4) at 1e-3/3e-4/1e-4: ramp 1.4e4
+  (12,96,0)/2.8e4 (16,192,0)/3.7e4 (24,256,0); ADAPT 1.7e4 (149)/2.3e4 (194)/
+  7.9e4 (177, M=3); Path A 3.7e4/6.7e4/1.1e5; pruned 5.1e4/9.0e4/-; Path B
+  1.2e5/1.6e5/2.7e5.  VERDICT: unfiltered ramp cheapest from 3e-3 down at both
+  sizes; Path A (shared flag) x2.4-3.1 at 8 sites, tied at 1e-3 at 16 sites and
+  x1.15-1.9 elsewhere; ADAPT cheapest only where it needs no cycle; Path B
+  x6-9 / x1.4-5.9; no adiabatic route needs a filter cycle at these targets.
 
 ## Definition of done
 A change is done only when `make test` and `make check` pass and (if a paper

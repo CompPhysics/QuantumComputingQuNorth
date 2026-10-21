@@ -160,36 +160,20 @@ for name, (Phi0, groups, coefs, T, pex, per_step, pe_step) in {
     steps[name] = dict(ns=ns, p=p, psi=pl.trotter_path(Phi0.astype(complex), groups, coefs, T, ns, order=2), cost=2 * ns * per_step, pe_cost=2 * ns * pe_step)
     print(f"  {name}: exact {pex:.5f}; " + " ".join(f"n_s={n}: {pp:.5f}" for n, pp in out) + f"  -> n_s = {ns}, {steps[name]['cost']} CNOTs (pair encoding {steps[name]['pe_cost']})")
 
-# averaged post-selection map of the digital filter (quadrature over half-Gaussian times, E_obj = E0)
-from numpy.polynomial.hermite_e import hermegauss
-xg, wq = hermegauss(60); wq = wq / np.sqrt(2 * np.pi)
-def make_Ufun(terms_, DT_):
-    eig_terms = [np.linalg.eigh(T) for T in terms_]; dim = terms_[0].shape[0]
-    def Ustep(dt):
-        U = np.eye(dim, dtype=complex)
-        for lam, Vt in eig_terms: U = (Vt * np.exp(-1j * lam * dt / 2)) @ Vt.conj().T @ U
-        for lam, Vt in reversed(eig_terms): U = (Vt * np.exp(-1j * lam * dt / 2)) @ Vt.conj().T @ U
-        return U
-    def Ufun(t):
-        n = max(1, int(np.ceil(t / DT_))); return np.linalg.matrix_power(Ustep(t / n), n)
-    return Ufun
-def filter_floor(terms_, E0_, GS_, SIG_, DT_, iters=400):
-    """Dominant eigenoperator of the averaged post-selection map K(rho) =
-    E_t[K_t rho K_t^+] by power iteration (K_t = (1 + e^{iE0 t} U(t))/2 with the
-    product-formula U), started from the ground-state projector."""
-    Uf = make_Ufun(terms_, DT_); dim = len(GS_)
-    Ks = [0.5 * (np.eye(dim) + np.exp(1j * E0_ * abs(SIG_ * xk)) * Uf(abs(SIG_ * xk))) for xk in xg]
-    rho = np.outer(GS_, GS_).astype(complex); ev = 1.0
-    for it in range(iters):
-        new = sum(wk * (Kt @ rho @ Kt.conj().T) for Kt, wk in zip(Ks, wq))
-        ev_new = np.real(np.trace(new)); rho = new / ev_new
-        if it > 20 and abs(ev_new - ev) < 1e-10: break
-        ev = ev_new
-    return ev_new, 1 - np.real(GS_ @ rho @ GS_)
+# averaged post-selection map of the digital filter (E_obj = E0); the expectation over the half-Gaussian
+# cycle times is integrated piecewise between the step-count boundaries |t| = n dt (`pl.averaged_map_floor`)
+make_Ufun = lambda terms_, DT_: sz.fixed_step_evolution(terms_, DT_)
+def filter_floor(terms_, E0_, GS_, SIG_, DT_):
+    """Dominant eigenvalue and eigenoperator (asymptotic infidelity) of the averaged
+    post-selection map K(rho) = E_t[K_t rho K_t^+], K_t = (1 + e^{iE0 t} U(t))/2 with
+    the product-formula U; boundary-split quadrature with a refinement check."""
+    out = pl.averaged_map_floor(make_Ufun(terms_, DT_), E0_, GS_, SIG_, DT_)
+    print(f"      [quadrature check m=6 -> 12: floor {out['floor']:.3e} -> {out['floor_check']:.3e}, eigenvalue {out['eigenvalue']:.6f} -> {out['eigenvalue_check']:.6f}; residual {out['residual']:.0e}]")
+    return out["eigenvalue"], out["floor"]
 SIG = 4.0                                      # sigma * gap = 10.4 at g=1 (paper I: 4 x 2.3 = 9.2)
 print(f"averaged post-selection map K of the digital filter (second order, sigma={SIG}, |t| half-Gaussian, E_obj = E0): dominant eigenvalue and asymptotic infidelity")
 for DTm in (0.25, 0.1, 0.05):
-    ev, fl = filter_floor(terms, E0, GS, SIG, DTm); print(f"  g=1, dt_max = {DTm}: eigenvalue {ev:.5f}, floor {fl:.2e}")
+    ev, fl = filter_floor(terms, E0, GS, SIG, DTm); print(f"  g=1, dt_max = {DTm}: eigenvalue {ev:.5f} (acceptance decays by {100*(1-ev):.1f}% per cycle), floor {fl:.2e}")
 DT = 0.1; Ufun = make_Ufun(terms, DT)
 
 # matched comparison, g = 1

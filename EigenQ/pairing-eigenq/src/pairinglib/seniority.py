@@ -140,6 +140,18 @@ def refine_pair_overlaps(r, Ts):
     return np.array([abs(np.vdot(r["Psih"], _evolve(r["Phi0"], r["eigs"], T))) ** 2 for T in Ts])
 
 
+def fixed_step_evolution(terms, dt_max, order=2):
+    """Ufun(t) = product formula for exp(-i sum terms t) with a FIXED maximum
+    step dt_max: n = ceil(|t|/dt_max) steps of size t/n (as on hardware), each
+    term exponentiated exactly from its eigendecomposition (done once)."""
+    from .trotter import _eigterms, _step_U
+    eigs = _eigterms(terms)
+    def Ufun(t):
+        n = max(1, int(np.ceil(abs(t) / dt_max)))
+        return np.linalg.matrix_power(_step_U(terms, t / n, order, eigs), n)
+    return Ufun
+
+
 def ramp_terms(k, g, P, delta=1.0):
     """Groups and coefficients of the ordinary HF adiabatic ramp
     H(s) = D + sin^2(pi s/2) sum_pq h_pq (the baseline (v) of paper I)."""
@@ -210,20 +222,34 @@ def pair_double_ansatz(k, P, g, delta=1.0, maxiter=500, theta0=None, H=None):
 # ------------------------------------------------------------------ gate bookkeeping
 def coarse_term_cnots(k_low, k_high, P, convention="gray"):
     """CNOTs per application of the embedded coarse term A = P(H_low-mu)P^T of a
-    basis refinement k_low -> k_high in the 2k-qubit encoding of paper I.
-    The coarse space of a filled coarse model (P = k_low) is one determinant:
-    A is a phase conditioned on the c = 2(k_high-k_low) appended qubits being
-    empty, a c-qubit Gray-code phase polynomial of 2^c - 2 CNOTs (14 for
-    c = 4, the 2->4 figure of paper I).  Otherwise A is the k_low step with
-    every rotation conditioned on the c appended qubits: 'gray' adds
-    2^(c+1) - 2 CNOTs per rotation (6 for c = 2, the ~350-CNOT 3->4 figure),
-    'toffoli' a clean-ancilla ladder of 6(c-1) + 2."""
+    basis refinement k_low -> k_high in the 2k-qubit encoding of paper I,
+    conditioned on the c = 2(k_high-k_low) appended qubits being empty.
+    * Filled coarse model (P = k_low): A is a single conditioned phase.
+      'gray': a c-qubit Gray-code phase polynomial, 2^c - 2 CNOTs (14 for the
+      2->4 chain, 254 for 4->8); 'toffoli'/'flag': a clean-ancilla AND ladder of
+      relative-phase Toffolis, 6(c-1) + 2 CNOTs (44 for 4->8).
+    * Nontrivial coarse space: the k_low step with every rotation (single-qubit
+      phases included, since they are no longer free) conditioned on the c
+      qubits, PLUS the conditioned scalar phase of the constant part of
+      H_low - mu, which is a physical relative phase after projection.
+      'gray': 2^(c+1) - 2 extra CNOTs per rotation and 2^c - 2 for the scalar
+      (350 for 3->4, 4 886 for 6->8); 'toffoli': a clean-ancilla ladder per
+      rotation, 6(c-1) + 2 each; 'flag': the conjunction of the c controls is
+      computed ONCE into a clean flag qubit, every rotation is singly
+      controlled by it (2 CNOTs) and the flag is uncomputed,
+      base + 2 n_rot + 6(c-1) + 2 (224 for 3->4, 1 028 for 6->8; needs c-1
+      clean work qubits beyond the 2k+1 of the ancilla-free compilation)."""
     c = 2 * (k_high - k_low)
     if P == k_low:
         return 2 ** c - 2 if convention == "gray" else 6 * (c - 1) + 2
     base = cnot_counts(k_low); nrot = base["rotations"]; un = base["step_uncontrolled"]
-    extra = (2 ** (c + 1) - 2) if convention == "gray" else (6 * (c - 1) + 2)
-    return un + nrot * extra
+    if convention == "gray":
+        return un + nrot * (2 ** (c + 1) - 2) + (2 ** c - 2)
+    if convention == "toffoli":
+        return un + (nrot + 1) * (6 * (c - 1) + 2)
+    if convention == "flag":
+        return un + 2 * nrot + 6 * (c - 1) + 2
+    raise ValueError(convention)
 
 
 def pair_encoding_cnots(k):

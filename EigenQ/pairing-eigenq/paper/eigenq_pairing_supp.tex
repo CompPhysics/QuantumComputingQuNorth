@@ -118,8 +118,8 @@ gate-level UCCSD state at $k=3$ (Sec.~\ref{sec:res-k34}).
 \includegraphics[width=\linewidth]{figs/fig6.png}
 \caption{Four-particle refinement up to $k=4$: overlap (left) and physical energy
 $\expval{\Hhigh}{\Phi(T)}$ (right) versus $T$ for $k_{\rm high}=3,4$.  The energy
-approaches the FCI value (dotted) from above while the overlap approaches unity, both
-on a $\sim1/\Delta E$ timescale.}
+approaches the FCI value (dotted) from above while the overlap approaches unity
+(the time scale is empirical; the scan of Sec.~\ref{sec:res-gscan} of the main text identifies no exponent).}
 \label{fig:fourparticle}
 \end{figure*}
 
@@ -142,8 +142,9 @@ points of Fig.~\ref{fig:gapscan} of the main text, in $1/\Delta E_{\min}$
 and in $1/\Delta E_{\min}^2$, with their sums of squared residuals ($28$
 and $0.2$), and the first-order response norm $\chi_u(s)$ along the
 $k=2\to4$ path for the four shifts; at $s=0$ it equals $g^2/b^2$ with
-$b=\mu-E_{\rm low}$, the $k=4$, $N=4$ case of the closed form
-$P(k-P)g^2/(4b^2)$ of Sec.~\ref{sec:large} of the main text.
+$b=\mu-E_{\rm low}$, the $k=4$, $N=4$ case of the identity
+$\chi_u(0)=\norm{Q\Hhigh P\psi_{\rm low}}^2/b^2$, Eq.~\eqref{eq:chi0} of
+the main text, which gives $P(k-P)g^2/(4b^2)$ for the filled pairing seed.
 
 \begin{figure*}[t]
 \centering
@@ -156,7 +157,10 @@ $\chi_u(s)=\sum_{n>0}\abs{\mel{n}{\partial_uH}{0}}^2/(E_n-E_0)^2$ of the
 $k=2\to4$ path, $u=\sin^2(\pi s/2)$, for the four shifts; at $s=0$ it equals
 $g^2/b^2$ with $b=\mu-E_{\rm low}$ and it is largest there, so the quantity
 that the inverse-gap argument assumes bounded changes by a factor $25$ across
-the scan.}
+the scan ($\chi_u$ is the response along the affine path of
+Ref.~\cite{Bogner2026}; the response to the scheduled parameter,
+$\chi_s=[\frac{\pi}{2}\sin\pi s]^2\chi_u$, vanishes at both ends and its
+maximum varies by a factor $3.4$).}
 \label{fig:assess}
 \end{figure*}
 
@@ -310,7 +314,7 @@ prolongation (Sec.~\ref{sec:res-refine}) & nested bare Hamiltonians, empty appen
 adiabatic guarantee, Eq.~\eqref{eq:Tbound} & exact coarse eigenstate, isolated branch, ideal continuous evolution & conditional bound, not the complete digital budget\\
 refinement (Sec.~\ref{sec:res-refine}) & $T=25$ or $30$, exact midpoint slices ($160$) & ideal; slice error $\sim10^{-6}$\\
 filter (Sec.~\ref{sec:res-rodeo}) & $T=25$ refined input, $\sigma=3$, exact controlled evolution, $40$ schedules & ideal; sampling error up to $80\%$ at $M=10$\\
-circuit comparison (Secs.~\ref{sec:trotterized}--\ref{sec:depth}) & product formulas, $T=16$ or $30$, $\sigma=4$, step ceiling $\delta t=0.25$ & digital; floor $1.2\times10^{-4}$, acceptance decaying $0.2\%$ per cycle\\
+circuit comparison (Secs.~\ref{sec:trotterized}--\ref{sec:depth}) & product formulas, $T=16$ or $30$, $\sigma=4$, step ceiling $\delta t=0.25$ & digital; floor $1.1\times10^{-4}$ (converged averaged map), acceptance decaying $0.2\%$ per cycle; sampled $40$-schedule values in Table~\ref{tab:depth}, exact-channel minima in Table~\ref{tab:frontier}\\
 \end{tabular}
 \end{ruledtabular}
 \end{table*}
@@ -335,9 +339,10 @@ parameters at $k=6$, $N=6$ --- and the training of those parameters, which the
 refinement avoids at the cost of $2n_s(N_{\rm CNOT}^{\rm step}+N_{\rm CNOT}^{A})$
 CNOTs with $N_{\rm CNOT}^{\rm step}=732$ at $k=6$.  This is a controlled
 small-system demonstration, not a scaling study; a regime in which refinement
-wins over the variational input requires a space for which that input is
-poor, and Sec.~\ref{sec:large} of the main text shows that four pairs on
-eight levels is already such a space.
+wins over the single-layer variational input requires a space for which that
+input is poor, and Sec.~\ref{sec:large} of the main text shows that four
+pairs on eight levels is already such a space (the adaptively grown ansatz
+remains far cheaper there).
 
 \begin{table*}[t]
 \caption{\label{tab:sizes}The pipeline and the UCCSD comparator at other
@@ -436,10 +441,8 @@ coarse ansatz at $k=6$ ($384$ CNOTs) with the overlap of its prolongation,
 the response norm $\chi_u(0)=P(k-P)g^2/(4b^2)$ at $b=0.6$, and the
 exact-slice $1-p$ at $T=8$ of the HF ramp, of the $4\to8$ chain
 ($\mu_{\rm buf}=2$) and of the $6\to8$ chain from the exact coarse state
-($\mu_{\rm buf}=2$).  Bottom: shift scan of the $4\to8$ chain, $T^*$ for
-$1-p<10^{-3}$ on the grid $2,4,6,8,10,12,16,20,25,\ldots$, the second-order
-steps reproducing the exact-slice overlap within $10^{-3}$ and the
-resulting refinement cost $2n_s(1\,360+254)$ CNOTs.}
+($\mu_{\rm buf}=2$).  The shift scan of the $4\to8$ chain is
+Table~\ref{tab:shift} of the main text.}
 \scriptsize
 \begin{ruledtabular}
 \begin{tabular}{c cc c c cc c c c ccc}

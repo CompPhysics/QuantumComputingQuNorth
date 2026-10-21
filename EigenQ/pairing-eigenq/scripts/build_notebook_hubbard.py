@@ -593,8 +593,12 @@ I (a weight-$w$ rotation costs $2(w-1)$ CNOTs; a controlled rotation two more). 
 groups the bonds into two layers of disjoint bonds (each layer is a product of commuting two-qubit
 blocks, realized exactly) plus the diagonal interaction.  The embedded coarse term of Path A is
 the coarse Hubbard step on the bonding register conditioned on all $2N_c$ antibonding qubits being
-empty; we quote its cost with the Gray-code phase-polynomial convention of paper I and with a
-Toffoli-ladder decomposition.  We then (i) find the number of second-order steps that reproduces
+empty; its cost is quoted with the shared-flag convention of the revision of 2026-10-20 (the
+conjunction of the antibonding controls is computed once into a clean flag qubit, every coarse
+rotation is singly controlled by it, the conditioned scalar phase is one controlled phase, and the
+frame change to the bonding basis is charged around each application), with the Gray-code and
+per-rotation Toffoli-ladder conventions for comparison.  The controlled fine step absorbs the
+scalar sum of the single-$Z$ terms (fixed particle number) into the ancilla phase.  We then (i) find the number of second-order steps that reproduces
 the exact-slice overlap at $T=16$ to within $1-p_{\rm exact}$, for both paths, and (ii) feed the
 same Trotterized rodeo filter (second order, $\delta t=0.25$, forty Gaussian time sets) the
 prolonged, refined and UCCSD inputs and count CNOTs per accepted preparation, exactly as in Sec. V.C
@@ -609,7 +613,8 @@ for L in (4, 8):
     st1 = hb.chain_step_cnots(N, bonds, 1); st2 = hb.chain_step_cnots(N, bonds, 2); ct2 = hb.chain_step_cnots(N, bonds, 2, controlled=True)
     print(f"L={L} ({2*L} qubits): {pc['total']} strings of weight <= {pc['max_weight']}; CNOTs per step: order 1 {st1['cnots']}, order 2 {st2['cnots']}, controlled order 2 {ct2['cnots']} ({st1['rotations']} rotations)")
 Nc, bc = hb.chain(4); ca = hb.conditioned_term_cnots(Nc, bc, n_controls=8)
-print(f"Path A coarse term for 4->8: {ca['rotations']} rotations conditioned on 8 antibonding qubits: {ca['toffoli']} CNOTs (Toffoli ladder) / {ca['gray']} (Gray-code phase polynomial) per application, vs {ca['base']} unconditioned")
+print(f"Path A coarse term for 4->8: {ca['rotations']} rotations conditioned on 8 antibonding qubits: shared flag {ca['flag']} CNOTs + frame change {ca['frame']} per application (c-1 = 7 clean work qubits); per-rotation Toffoli ladder {ca['toffoli']}; Gray-code phase polynomial {ca['gray']}; unconditioned {ca['base']}")
+CA_FLAG = ca["flag"] + ca["frame"]
 CN_PROL = 2*4*2            # Givens rotations: N_c per spin, 2 CNOTs each
 print(f"prolongation 4->8: {CN_PROL} CNOTs")
 
@@ -662,7 +667,7 @@ NSAMP, M_MAX, SEED = 40, 6, 3
 SIG = rodeo48[U]["sigma"]
 N8, b8 = hb.chain(8)
 st2 = hb.chain_step_cnots(N8, b8, 2)["cnots"]; ct2 = hb.chain_step_cnots(N8, b8, 2, controlled=True)["cnots"]
-ca = hb.conditioned_term_cnots(4, hb.chain(4)[1], n_controls=8)["toffoli"]
+ca = CA_FLAG                                                     # shared-flag coarse term incl. the frame change
 terms = hb.hubbard_terms(N8, b8, 2, 2, U)
 print("Trotterized controlled evolution (second order): the fixed step is diagonalized once; the filter then projects on the")
 print("eigenvector of the step unitary closest to the ground state, whose eigenphase is what an energy scan on the device locates:")
@@ -753,7 +758,7 @@ for ns in (64, 128, 256, 512):
     p2 = abs(np.vdot(Psih, hb.trotter_refine(r["Phi0"], groupsA_split, coefA_split, 16.0, ns, order=2)))**2
     trotA[ns] = p2; print(f"    n_s = {ns:3d}: one block {p1:.6f}   split {p2:.6f}")
 nA_split = next(ns for ns in (64, 128, 256, 512) if abs(trotA[ns] - pA_ex) <= 1e-3)
-ca = hb.conditioned_term_cnots(4, hb.chain(4)[1], n_controls=8)["toffoli"]; st2 = hb.chain_step_cnots(8, hb.chain(8)[1], 2)["cnots"]
+ca = CA_FLAG; st2 = hb.chain_step_cnots(8, hb.chain(8)[1], 2)["cnots"]
 print(f"    steps within 1e-3 of the exact-slice overlap (split groups): n_s = {nA_split}; cost {CN_PROL} + {nA_split}*({st2} + 2*{ca}) = {CN_PROL + nA_split*(st2 + 2*ca)} CNOTs")
 
 # --- (b) pruned UCCSD on the fine chain
@@ -916,8 +921,8 @@ for Lam in (8.0, 16.0):
 c2f = lambda s: np.cos(np.pi*s/2)**2; s2f = lambda s: np.sin(np.pi*s/2)**2
 groups16 = hb.hubbard_groups(Nf, bf, 2, 2, U)
 st16 = hb.chain_step_cnots(Nf, bf, 2)["cnots"]; ct16 = hb.chain_step_cnots(Nf, bf, 2, controlled=True)["cnots"]
-ca16 = hb.conditioned_term_cnots(8, bc, n_controls=16)["toffoli"]; CN_GIVENS16 = 2*(Nf*(Nf-1)//2)*2; CN_PROL16 = 2*8*2
-print(f"(c) 16-site step {st16} CNOTs (second order; controlled {ct16}); coarse term of Path A (8-site step conditioned on 16 qubits) {ca16}; Givens network {CN_GIVENS16}; prolongation 8->16 {CN_PROL16}")
+ca16d = hb.conditioned_term_cnots(8, bc, n_controls=16); ca16 = ca16d["flag"] + ca16d["frame"]; CN_GIVENS16 = 2*(Nf*(Nf-1)//2)*2; CN_PROL16 = 2*8*2
+print(f"(c) 16-site step {st16} CNOTs (second order; controlled {ct16}); coarse term of Path A (8-site step, {ca16d['rotations']} rotations, conditioned on 16 qubits): shared flag {ca16d['flag']} + frame {ca16d['frame']} = {ca16} per application (per-rotation ladder {ca16d['toffoli']}); Givens network {CN_GIVENS16}; prolongation 8->16 {CN_PROL16}")
 def n_needed16(Phi, grp, coefs, T, pex, tol=1e-3):
     out, prev = [], None
     for ns in (32, 64, 128, 256, 512):
@@ -931,9 +936,10 @@ for T in (16, 32):
     ns, p, out = n_needed16(FF16, groups16, ramp_coefs, float(T), ramp_ex[T])
     trot16[("ramp", T)] = dict(ns=ns, p=p, psi=hb.trotter_path_groups(FF16, groups16, ramp_coefs, float(T), ns), cost=CN_GIVENS16 + ns*st16)
     print(f"    U-ramp T={T}: exact {ramp_ex[T]:.5f}; " + " ".join(f"{n}:{pp:.5f}" for n, pp in out) + f" -> n_s={ns}, {trot16[('ramp', T)]['cost']} CNOTs   [{time.time()-t0:.0f} s]")
-tl, Ul, cst = hb.galerkin_params("chain", 1.0, U, 8)
+tl, Ul, cst = hb.galerkin_params("chain", 1.0, U, 2 + 2)        # the constant is -t N_particles (N = 4), NOT -t N_coarse: with 8 the embedded path differed from Eq. (6) by -4t cos^2 P P^T (bug fixed 2026-10-20)
 Kc_e, Kc_o, Dc = [t_.toarray() for t_ in hb.hubbard_terms(8, bc, 2, 2, Ul, t=tl)]
 mu = El16 + 2.0
+assert abs(Dc + (cst - mu)*np.eye(784) + Kc_e + Kc_o - (Hl16 - mu*np.eye(784))).max() < 1e-10, "coarse groups must sum to H_low - mu"
 gA16 = [hb.ProjGroup(P16, Dc + (cst - mu)*np.eye(784)), hb.ProjGroup(P16, Kc_e), hb.ProjGroup(P16, Kc_o), groups16[0], groups16[1], hb.DiagGroup(groups16[2].d - mu)]
 cA16 = [c2f]*3 + [s2f]*3
 for T in (8, 16):
@@ -976,12 +982,12 @@ if d8 is not None:
     print("      minimum cost at 1e-3 / 3e-4 / 1e-4: " + " / ".join((lambda ok: f"{cacc8[ok[np.argmin(cacc8[ok])]]:.1e} (M={ok[np.argmin(cacc8[ok])]})" if ok.size else "-")(np.where(inf8 <= tgt)[0]) for tgt in (1e-3, 3e-4, 1e-4)))
 # --- (e) the filter at 16 sites and the matched comparison
 SIG16 = 5.0/Deff_p; DT16 = 0.1
-psi_eff, E_eff16 = hb.effective_step_state(groups16, DT16, GS16, E016, SIG16, iters=80); floor16 = 1 - abs(np.vdot(GS16, psi_eff))**2
-print(f"(e) filter at 16 sites: sigma = 5/D_eff = {SIG16:.1f}, dt = {DT16}: E_eff - E0 = {E_eff16-E016:+.2e}, floor {floor16:.1e}; mean {SIG16*np.sqrt(2/np.pi)/DT16:.0f} steps = {ct16*SIG16*np.sqrt(2/np.pi)/DT16:.2e} CNOTs per cycle   [{time.time()-t0:.0f} s]")
+psi_eff, E_eff16, resid16 = hb.effective_step_state(groups16, DT16, GS16, E016, SIG16, iters=80, return_residual=True); floor16 = 1 - abs(np.vdot(GS16, psi_eff))**2
+print(f"(e) filter at 16 sites: sigma = 5/D_eff = {SIG16:.1f}, dt = {DT16}: E_eff - E0 = {E_eff16-E016:+.2e}, floor {floor16:.1e}, eigenvector residual ||U psi - e^(-iE dt) psi|| = {resid16:.1e}; mean {SIG16*np.sqrt(2/np.pi)/DT16:.0f} steps = {ct16*SIG16*np.sqrt(2/np.pi)/DT16:.2e} CNOTs per cycle   [{time.time()-t0:.0f} s]")
 NS16 = 20
 rng = np.random.default_rng(SEED); tsets16 = [np.abs(rng.normal(0.0, SIG16, M_MAX)) for _ in range(NS16)]
 cyc16 = np.array([[max(1, int(round(t/DT16)))*ct16 for t in ts] for ts in tsets16])        # controlled second-order steps per cycle, as in Section 11
-CN_COARSE8 = 18544                                   # the cheapest 8-site route of Section 11 reaching 3e-4: the U-ramp at T=16
+CN_COARSE8 = CN_GIVENS + ramp[16][0]*st2             # the 8-site U-ramp at T=16 (3.4e-4; an exact coarse-state oracle is used here, the actual coarse state is propagated in Section 13)
 inputs16 = {"free-fermion determinant": (FF16, CN_GIVENS16),
             "prolonged 8-site ground state": (Phi016, CN_COARSE8 + CN_PROL16),
             f"UCCSD pruned ({up16['n_params']} par.)": (up16["psi"], cn_pr16),
@@ -1033,9 +1039,248 @@ ax.set_title(f"chain $8\\to16$, $U=4t$: inputs to the same filter ($\\delta t={D
 plt.tight_layout(); plt.show()
 """)
 
-# ============================================================================ 13 summary
+# ============================================================================ 13 pre-submission revision (2026-10-20)
 md(r"""---
-## 13&nbsp; Summary
+## 13&nbsp; Pre-submission revision: corrected conventions, propagated coarse states and the cost frontiers
+
+The pre-submission assessment of 19 October 2026 (`paper3/hubbard_pre_submission_critical_assessment.md`)
+found four errors in the circuit-level study, all confirmed and corrected in the library and in
+Sections 10–12 above: the sixteen-site Path-A path used the Galerkin constant $-tN_c$ instead of
+$-tN$ (an embedded term $-4t\cos^2(\pi s/2)PP^\dagger$ that is not a global phase; corrected
+$p(16/t)=0.9993$ instead of $0.9983$); the double-excitation Pauli weight was charged as the full
+span of the four indices instead of the parity support of the two intervals (UCCSD templates
+$1\,720\to1\,464$, $30\,864\to23\,312$, $335\,360\to235\,904$ CNOTs); the coarse term of Path A
+was priced with a multi-control ladder per rotation although one shared flag suffices
+($1\,088\to124{+}32$ and $4\,856\to268{+}64$ CNOTs per application, with $c-1$ clean work qubits);
+and the scalar sum of the single-$Z$ terms was charged in the controlled step ($352\to288$,
+$736\to608$).  Two further points are settled here: the fixed-input tables were not cost
+frontiers (longer unfiltered ramps are cheaper at every target), and the coarse state of the
+hierarchy was exact where its preparation was charged.  This section therefore (a) replaces the
+sampled schedule averages at eight sites by the **exact** quantized-time ensemble
+(`hb.exact_digital_ensemble`: $\rho^{(M)}_{ij}=c_ic_j^*Q_{ij}^M$ in the eigenbasis of the step
+unitary, coherences kept), (b) prepares and **propagates the actual coarse state** at every level
+(a four-site ramp for $4\to8$, the cheapest eight-site route for $8\to16$), and (c) searches the
+adiabatic routes **jointly** over time, step count, shift or $\Lambda$ and cycle number, $M=0$
+included, with the same grid density for the ramp and for both refinement paths, and admits every
+ADAPT prefix.  Figures 13 (eight sites) and 14 (sixteen sites) show the lower envelopes; the
+minima per route are the new Tables 2 and 3 of the paper.""")
+code(PRE + r"""
+t0 = time.time()
+U = 4.0; r = chain48[U]; Psih = r["Vf"][:, 0]; E0 = r["E_high"]
+c2f = lambda s: np.cos(np.pi*s/2)**2; s2f = lambda s: np.sin(np.pi*s/2)**2
+M_MAX = 6
+# ---- (a) conventions after the revision
+print("(a) conventions: controlled second-order step", hb.chain_step_cnots(8, hb.chain(8)[1], 2, controlled=True)["cnots"], "(8 sites),", hb.chain_step_cnots(16, hb.chain(16)[1], 2, controlled=True)["cnots"], "(16 sites) CNOTs (scalar single-Z sum absorbed; 352 / 736 before)")
+for Nc_, nctl in ((4, 8), (8, 16)):
+    d_ = hb.conditioned_term_cnots(Nc_, hb.chain(Nc_)[1], nctl)
+    print(f"    Path-A coarse term {Nc_}->{2*Nc_}: {d_['rotations']} rotations; shared flag {d_['flag']} + frame {d_['frame']} = {d_['flag']+d_['frame']} CNOTs per application ({nctl-1} clean work qubits); per-rotation ladder {d_['toffoli']}; Gray code {d_['gray']}")
+def cn_of(N_, ops): return hb.uccsd_cnots(N_, [l for l in ops if len(l) == 3], [l for l in ops if len(l) == 5])["total"]
+for L_ in (4, 8, 16):
+    pool_ = hb._uccsd_pool_kron(L_, hb.chain(L_)[1], 2, 2)
+    print(f"    UCCSD template, {L_} sites: {cn_of(L_, pool_['labels'])} CNOTs (parity-support weights)")
+cn_pr = cn_of(8, up["singles"] + up["doubles"]); cn_full = cn_of(8, ucc_fine[U]["singles"] + ucc_fine[U]["doubles"]); cn_pr16 = cn_of(16, up16["labels"])
+print(f"    pruned UCCSD 8 sites ({up['n_params']} par.) {cn_pr}; full {cn_full}; pruned 16 sites ({up16['n_params']} par.) {cn_pr16}")
+
+# ---- (b) the actual coarse states of the 4->8 hierarchy: four-site U-ramps from the free-fermion determinant
+#      (two options, both prolonged and transported, so that the joint search can trade coarse accuracy against filter cycles)
+N4, b4 = hb.chain(4); H4, _ = hb.H_hubbard(4, b4, 2, 2, U); w4, V4 = np.linalg.eigh(H4.toarray()); GS4 = V4[:, 0]
+FF4 = np.linalg.eigh(hb.H_hubbard(4, b4, 2, 2, 0.0)[0].toarray())[1][:, 0]
+K4e, K4o, D4 = [t_.toarray() for t_ in hb.hubbard_terms(4, b4, 2, 2, U)]
+g4 = [K4e, K4o, D4]; c4 = [lambda s: 1.0, lambda s: 1.0, s2f]
+st4 = hb.chain_step_cnots(4, b4, 2)["cnots"]; CN_GIVENS4 = 2*(4*3//2)*2
+grid4 = {}
+for T4 in (8, 12, 16, 24):
+    for ns4 in (32, 64, 128, 256, 512):
+        psi4 = hb.trotter_refine(FF4, g4, c4, float(T4), ns4, order=2); grid4[(T4, ns4)] = dict(T=T4, ns=ns4, psi=psi4, inf=1 - abs(np.vdot(GS4, psi4))**2, cost=CN_GIVENS4 + ns4*st4)
+coarse4 = {}
+for tag, thr in (("c", 1e-4), ("a", 2e-5)):
+    coarse4[tag] = min((d for d in grid4.values() if d["inf"] < thr), key=lambda d: d["cost"])
+    print(f"(b) four-site coarse state '{tag}' (cheapest ramp below {thr:.0e}): T={coarse4[tag]['T']}, n_s={coarse4[tag]['ns']}: 1-F = {coarse4[tag]['inf']:.1e}, {coarse4[tag]['cost']} CNOTs (Givens {CN_GIVENS4} + {coarse4[tag]['ns']} x {st4})")
+    v = r["P"] @ coarse4[tag]["psi"]; coarse4[tag]["Phi0"] = v/np.linalg.norm(v); coarse4[tag]["cprep"] = coarse4[tag]["cost"] + CN_PROL
+    print(f"    prolonged: p0 = {abs(np.vdot(Psih, coarse4[tag]['Phi0']))**2:.6f} (exact coarse eigenstate {r['p0']:.6f})")
+
+# ---- (c) eight sites: exact quantized-time ensemble, joint search
+tr8 = hb.trotter_evolution(hb.hubbard_terms(8, hb.chain(8)[1], 2, 2, U), DT, order=2, target=Psih)
+ct2 = hb.chain_step_cnots(8, hb.chain(8)[1], 2, controlled=True)["cnots"]
+Kev, Kod, D = [t_.toarray() for t_ in hb.hubbard_terms(8, hb.chain(8)[1], 2, 2, U)]
+mu = r["E_low"] + 2.0
+tl, Ul, cst = hb.galerkin_params("chain", 1.0, U, 2 + 2)
+Kc_e, Kc_o, Dc = [t_.toarray() for t_ in hb.hubbard_terms(4, b4, 2, 2, Ul, t=tl)]
+gA = [r["P"] @ (Dc + (cst - mu)*np.eye(36)) @ r["P"].T, r["P"] @ Kc_e @ r["P"].T, r["P"] @ Kc_o @ r["P"].T, Kev, Kod, D - mu*np.eye(784)]; cA = [c2f]*3 + [s2f]*3
+gR = [Kev, Kod, D]; cR = [lambda s: 1.0, lambda s: 1.0, s2f]
+gB = [Kev, Kod, D]
+caA = CA_FLAG
+inputs8 = {"free-fermion determinant": (FF.astype(complex), CN_GIVENS, "determinant + filter"),
+           "prolonged (coarse c)": (coarse4["c"]["Phi0"].astype(complex), coarse4["c"]["cprep"], "prolonged + filter"),
+           "prolonged (coarse a)": (coarse4["a"]["Phi0"].astype(complex), coarse4["a"]["cprep"], "prolonged + filter"),
+           f"UCCSD pruned ({up['n_params']} par.)": (up["psi"].astype(complex), cn_pr, "pruned UCCSD + filter"),
+           "UCCSD full (198 par.)": (ucc_fine[U]["psi"].astype(complex), cn_full, "full UCCSD + filter")}
+for d_ in h8:
+    if d_["n_ops"] > 0 and d_["infidelity"] < 2e-2:
+        inputs8[f"ADAPT {d_['n_ops']} op."] = (d_["psi"].astype(complex), cn_of(8, ad8["ops"][:d_["n_ops"]]), "ADAPT (+ filter)")
+for T in (8, 12, 16, 24, 32, 48):
+    for ns in (64, 96, 128, 192, 256, 384, 512):
+        inputs8[f"ramp T={T} n_s={ns}"] = (hb.trotter_refine(FF, gR, cR, float(T), ns, order=2), CN_GIVENS + ns*st2, "U-ramp (grid)")
+for tag in ("c", "a"):
+    Phi0_act, CN_COARSE4 = coarse4[tag]["Phi0"], coarse4[tag]["cprep"]
+    for Lam in (8.0, 16.0, 32.0):
+        cB = [lambda s, L=Lam: 1 + L*np.cos(np.pi*s/2)**2, lambda s: 1.0, lambda s: 1.0]
+        for T in (16, 24, 32):
+            for ns in (128, 256, 512, 1024):
+                inputs8[f"Path B L={Lam:.0f} T={T} n_s={ns} ({tag})"] = (hb.trotter_refine(Phi0_act, gB, cB, float(T), ns, order=2), CN_COARSE4 + ns*st2, "Path B (grid)")
+    for T in (8, 12, 16):
+        for ns in (64, 128, 256, 512):
+            inputs8[f"Path A T={T} n_s={ns} ({tag})"] = (hb.trotter_refine(Phi0_act, gA, cA, float(T), ns, order=2), CN_COARSE4 + ns*(st2 + 2*caA), "Path A (grid)")
+print(f"(c) eight sites: {len(inputs8)} inputs, exact quantized-time ensemble (dt={DT}, sigma={SIG:.2f}, E_obj=E_eff)   [{time.time()-t0:.0f} s]")
+def evaluate8(inputs):
+    rows = {}
+    for name, (v0, cprep, route) in inputs.items():
+        e = hb.exact_digital_ensemble(tr8, v0, Psih, SIG, M_MAX)
+        ccyc = e["mean_steps"]*ct2
+        reach = e["acc"][:-1]
+        num = cprep + np.cumsum(reach*ccyc)
+        rows[name] = dict(p=1-e["inf"][0], cprep=cprep, inf=e["inf"], acc=e["acc"], cacc=np.concatenate([[float(cprep)], num/e["acc"][1:]]), route=route)
+    return rows, ccyc
+rows8, ccyc8 = evaluate8(inputs8)
+def minima(rows, targets, routes):
+    out = {}
+    for tgt in targets:
+        best = {}
+        for name, d in rows.items():
+            ok = np.where(d["inf"] <= tgt)[0]
+            if ok.size:
+                m = ok[np.argmin(d["cacc"][ok])]
+                if d["route"] not in best or d["cacc"][m] < best[d["route"]][0]: best[d["route"]] = (d["cacc"][m], name, int(m), d["inf"][m])
+        out[tgt] = best
+    print("    minimum CNOTs per accepted preparation (input, M) per route:")
+    for route in routes:
+        print(f"      {route:26s} " + " | ".join((f"{tgt:.0e}: {out[tgt][route][0]:.2e} [{out[tgt][route][1]}, M={out[tgt][route][2]}, {out[tgt][route][3]:.1e}]" if route in out[tgt] else f"{tgt:.0e}: -") for tgt in targets))
+    return out
+ROUTES8 = ["determinant + filter", "prolonged + filter", "full UCCSD + filter", "pruned UCCSD + filter", "ADAPT (+ filter)", "U-ramp (grid)", "Path B (grid)", "Path A (grid)"]
+print(f"    cycle: {ccyc8:.0f} CNOTs on average ({ccyc8/ct2:.1f} controlled steps)")
+print(f"    {'input':34s} {'p':>8s} {'C_prep':>7s} | 1-F_M, M=0..6 | P_6 | CNOTs per accepted, M=0..6")
+for name, d in rows8.items():
+    if d["route"] in ("U-ramp (grid)", "Path B (grid)", "Path A (grid)") and not any(d["inf"][m] <= 3e-4 for m in range(M_MAX+1)): continue
+    print(f"    {name:34s} {d['p']:8.5f} {d['cprep']:7d} | " + " ".join(f"{x:.1e}" for x in d["inf"]) + f" | {d['acc'][-1]:.3f} | " + " ".join(f"{c:.1e}" for c in d["cacc"]))
+mins8 = minima(rows8, (1e-3, 3e-4, 1e-4), ROUTES8)
+print(f"    [{time.time()-t0:.0f} s]")
+
+fig, ax = plt.subplots(figsize=(8, 5.4))
+for route, mk, col in (("determinant + filter", "o-", "C0"), ("prolonged + filter", "d-", "C2"), ("pruned UCCSD + filter", "s-", "C1"), ("full UCCSD + filter", "s--", "C1")):
+    for j_, (name, d) in enumerate((n, d) for n, d in rows8.items() if d["route"] == route):
+        ax.loglog(d["cacc"], np.maximum(d["inf"], 1e-7), mk, color=col, ms=4, label=(route + " ($M=0\\ldots6$)") if j_ == 0 else None)
+ad_ = [(n, d) for n, d in rows8.items() if d["route"] == "ADAPT (+ filter)"]
+ax.loglog([d["cprep"] for n, d in ad_], [d["inf"][0] for n, d in ad_], "x-", color="C3", ms=5, label="ADAPT prefixes, unfiltered")
+for route, mk, col, lab in (("U-ramp (grid)", "^", "k", "$U$-ramp: $(T,n_s,M)$ grid and frontier"), ("Path B (grid)", "s", "C6", "Path B: $(\\Lambda,T,n_s,M)$ grid and frontier"), ("Path A (grid)", "v", "C4", "Path A (shared flag): $(T,n_s,M)$ grid and frontier")):
+    pts = np.array([(d["cacc"][m], d["inf"][m]) for d in rows8.values() if d["route"] == route for m in range(M_MAX+1)])
+    ax.loglog(pts[:, 0], np.maximum(pts[:, 1], 1e-7), mk, color=col, ms=3, alpha=0.2)
+    order = np.argsort(pts[:, 0]); best = np.inf; fx, fy = [], []
+    for i_ in order:
+        if pts[i_, 1] < best: best = pts[i_, 1]; fx.append(pts[i_, 0]); fy.append(pts[i_, 1])
+    ax.loglog(fx, np.maximum(fy, 1e-7), mk + "-", color=col, ms=5, label=lab)
+for tgt in (1e-3, 3e-4, 1e-4): ax.axhline(tgt, color="gray", ls=":", lw=0.8)
+ax.set_xlabel("CNOTs per accepted preparation (input + filter)"); ax.set_ylabel("exact ensemble infidelity $1-\\mathcal{F}_M$"); ax.set_ylim(1e-6, 1)
+ax.set_title(f"chain $4\\to8$, $U=4t$: exact quantized-time ensemble ($\\delta t={DT}$, $\\sigma={SIG:.1f}/t$)"); ax.legend(fontsize=7, loc="lower left"); ax.grid(alpha=0.3, which="both")
+plt.tight_layout(); plt.show()
+""")
+code(PRE + r"""
+# ---- (d) sixteen sites: the actual coarse state (cheapest eight-site route below 1e-4), corrected Path A, shared-flag costs, joint search (40 schedules)
+t0 = time.time()
+U = 4.0
+coarse8 = {}
+for tag, thr in (("c", 3e-4), ("a", 1e-4)):
+    ok8 = [(d["cacc"][0], n) for n, d in rows8.items() if d["route"] == "U-ramp (grid)" and d["inf"][0] <= thr]
+    c8cost, c8name = min(ok8); v = P16 @ inputs8[c8name][0]
+    coarse8[tag] = dict(name=c8name, inf=rows8[c8name]["inf"][0], cost=c8cost, Phi0=np.asarray(v, complex)/np.linalg.norm(v), cprep=int(c8cost) + CN_PROL16)
+    print(f"(d) coarse state '{tag}' for 8->16: the cheapest unfiltered eight-site route below {thr:.0e} is '{c8name}' (1-F = {coarse8[tag]['inf']:.2e}, {c8cost:.0f} CNOTs); prolonged: p0 = {abs(np.vdot(GS16, coarse8[tag]['Phi0']))**2:.6f} (exact coarse eigenstate {abs(np.vdot(GS16, Phi016))**2:.6f})")
+st16 = hb.chain_step_cnots(Nf, bf, 2)["cnots"]; ct16 = hb.chain_step_cnots(Nf, bf, 2, controlled=True)["cnots"]
+ca16d = hb.conditioned_term_cnots(8, bc, n_controls=16); ca16 = ca16d["flag"] + ca16d["frame"]
+inputs16 = {"free-fermion determinant": (FF16.astype(complex), CN_GIVENS16, "determinant + filter"),
+            "prolonged (coarse c)": (coarse8["c"]["Phi0"], coarse8["c"]["cprep"], "prolonged + filter"),
+            "prolonged (coarse a)": (coarse8["a"]["Phi0"], coarse8["a"]["cprep"], "prolonged + filter"),
+            f"UCCSD pruned ({up16['n_params']} par.)": (np.asarray(up16["psi"], complex), cn_pr16, "pruned UCCSD + filter")}
+for d_ in h16:
+    if d_["n_ops"] > 0 and d_["infidelity"] <= 1.2e-2 and (d_["n_ops"] % 10 == 0 or d_ is reach16[1e-2] or d_ is h16[-1]):
+        inputs16[f"ADAPT {d_['n_ops']} op."] = (np.asarray(d_["psi"], complex), cn_of(Nf, ad16["ops"][:d_["n_ops"]]), "ADAPT (+ filter)")
+ramp_coefs = [lambda s: 1.0, lambda s: 1.0, s2f]
+for T in (32, 48, 64, 128):
+    for ns in (256, 512, 1024):
+        inputs16[f"ramp T={T} n_s={ns}"] = (hb.trotter_path_groups(FF16, groups16, ramp_coefs, float(T), ns), CN_GIVENS16 + ns*st16, "U-ramp (grid)")
+print(f"    ramps done   [{time.time()-t0:.0f} s]")
+for tag in ("c", "a"):
+    Phi0_16act, CN_COARSE16 = coarse8[tag]["Phi0"], coarse8[tag]["cprep"]
+    for Lam in (8.0, 16.0):
+        cB16 = [lambda s, L=Lam: 1 + L*np.cos(np.pi*s/2)**2, lambda s: 1.0, lambda s: 1.0]
+        for T in (16, 32):
+            for ns in (256, 512):
+                inputs16[f"Path B L={Lam:.0f} T={T} n_s={ns} ({tag})"] = (hb.trotter_path_groups(Phi0_16act, gB16, cB16, float(T), ns), CN_COARSE16 + ns*st16, "Path B (grid)")
+    for T, ns in ((8, 64), (8, 128), (16, 128), (16, 256), (32, 256), (32, 512)):
+        inputs16[f"Path A T={T} n_s={ns} ({tag})"] = (hb.trotter_path_groups(Phi0_16act, gA16, cA16, float(T), ns), CN_COARSE16 + ns*(st16 + 2*ca16), "Path A (grid)")
+print(f"    {len(inputs16)} inputs prepared   [{time.time()-t0:.0f} s]")
+NS16B = 40
+rng = np.random.default_rng(SEED); tsets16b = [np.abs(rng.normal(0.0, SIG16, M_MAX)) for _ in range(NS16B)]
+cyc16b = np.array([[max(1, int(round(t/DT16)))*ct16 for t in ts] for ts in tsets16b])
+rows16b = {}; rngb = np.random.default_rng(5)
+for name, (v0, cprep, route) in inputs16.items():
+    p = abs(np.vdot(GS16, v0))**2
+    F = np.zeros((NS16B, M_MAX)); Acc = np.zeros((NS16B, M_MAX))
+    for s_, ts in enumerate(tsets16b): F[s_], Acc[s_] = hb.rodeo_track_groups(v0, groups16, ts, E_eff16, GS16, DT16)
+    Fw = (F*Acc).sum(0)/Acc.sum(0); Am = Acc.mean(0)
+    boots = np.array([1 - ((F*Acc)[idx].sum(0)/Acc[idx].sum(0)) for idx in (rngb.integers(0, NS16B, NS16B) for _ in range(400))]); rse = boots.std(0)/np.maximum(1-Fw, 1e-30)
+    reach_ = np.concatenate([np.ones((NS16B, 1)), Acc[:, :-1]], axis=1)
+    rows16b[name] = dict(p=p, cprep=cprep, inf=np.concatenate([[1-p], 1-Fw]), rse=np.concatenate([[0], rse]), acc=np.concatenate([[1], Am]), cacc=np.concatenate([[float(cprep)], (cprep + np.cumsum(reach_*cyc16b, axis=1).mean(0))/Am]), route=route, F=F, Acc=Acc)
+    print(f"    {name:34s} p={p:.5f} prep={cprep:8d} | " + " ".join(f"{rows16b[name]['inf'][m]:.1e}({100*rows16b[name]['rse'][m]:2.0f}%)" for m in range(M_MAX+1)) + f" | acc(6) {Am[-1]:.3f} | cost " + " ".join(f"{c:.1e}" for c in rows16b[name]["cacc"]) + f"   [{time.time()-t0:.0f} s]")
+print(f"    cycle: {cyc16b.mean():.0f} CNOTs on average; {NS16B} shared time sets, bootstrap relative standard errors in brackets")
+ROUTES16 = ["determinant + filter", "prolonged + filter", "pruned UCCSD + filter", "ADAPT (+ filter)", "U-ramp (grid)", "Path B (grid)", "Path A (grid)"]
+mins16 = minima(rows16b, (1e-2, 3e-3, 1e-3, 3e-4), ROUTES16)
+# the decision uncertainty: bootstrap the minimum-cost operating point of each route at each target over the shared schedules
+print("    bootstrap of the operating-point selection over the shared schedules (400 resamples): fraction of resamples in which the listed (input, M) stays the cheapest of its route, and the 5-95% range of the route's minimum cost")
+rngb = np.random.default_rng(17)
+for tgt in (1e-2, 3e-3, 1e-3, 3e-4):
+    line = []
+    for route in ROUTES16:
+        if route not in mins16[tgt]: continue
+        c0, name0, m0, _ = mins16[tgt][route]; same = 0; costs = []
+        for _ in range(400):
+            idx = rngb.integers(0, NS16B, NS16B); bestc, bestk = np.inf, None
+            for name, d in rows16b.items():
+                if d["route"] != route: continue
+                F, Acc = d["F"][idx], d["Acc"][idx]; Fw = (F*Acc).sum(0)/Acc.sum(0); Am = Acc.mean(0)
+                inf = np.concatenate([[d["inf"][0]], 1-Fw]); reach_ = np.concatenate([np.ones((NS16B, 1)), Acc[:, :-1]], axis=1)
+                cacc = np.concatenate([[float(d["cprep"])], (d["cprep"] + np.cumsum(reach_*cyc16b[idx], axis=1).mean(0))/Am])
+                ok = np.where(inf <= tgt)[0]
+                if ok.size:
+                    m = ok[np.argmin(cacc[ok])]
+                    if cacc[m] < bestc: bestc, bestk = cacc[m], (name, int(m))
+            if bestk == (name0, m0): same += 1
+            if bestk is not None: costs.append(bestc)
+        line.append(f"{route}: {100*same/400:.0f}%, [{np.percentile(costs, 5):.1e}, {np.percentile(costs, 95):.1e}]" if costs else f"{route}: -")
+    print(f"      {tgt:.0e}: " + "; ".join(line))
+print(f"    [{time.time()-t0:.0f} s]")
+
+fig, ax = plt.subplots(figsize=(8, 5.4))
+for route, mk, col in (("determinant + filter", "o-", "C0"), ("prolonged + filter", "d-", "C2"), ("pruned UCCSD + filter", "s-", "C1")):
+    for j_, (name, d) in enumerate((n, d) for n, d in rows16b.items() if d["route"] == route):
+        ax.loglog(d["cacc"], np.maximum(d["inf"], 1e-7), mk, color=col, ms=4, label=(route + " ($M=0\\ldots6$)") if j_ == 0 else None)
+ad_ = [(n, d) for n, d in rows16b.items() if d["route"] == "ADAPT (+ filter)"]
+ax.loglog([d["cprep"] for n, d in ad_], [d["inf"][0] for n, d in ad_], "x-", color="C3", ms=5, label="ADAPT prefixes, unfiltered")
+for n, d in ad_[-1:]: ax.loglog(d["cacc"], d["inf"], "x:", color="C3", ms=4, alpha=0.7, label=f"{n} + filter")
+for route, mk, col, lab in (("U-ramp (grid)", "^", "k", "$U$-ramp: $(T,n_s,M)$ grid and frontier"), ("Path B (grid)", "s", "C6", "Path B: $(\\Lambda,T,n_s,M)$ grid and frontier"), ("Path A (grid)", "v", "C4", "Path A (shared flag): $(T,n_s,M)$ grid and frontier")):
+    pts = np.array([(d["cacc"][m], d["inf"][m]) for d in rows16b.values() if d["route"] == route for m in range(M_MAX+1)])
+    ax.loglog(pts[:, 0], np.maximum(pts[:, 1], 1e-7), mk, color=col, ms=3, alpha=0.2)
+    order = np.argsort(pts[:, 0]); best = np.inf; fx, fy = [], []
+    for i_ in order:
+        if pts[i_, 1] < best: best = pts[i_, 1]; fx.append(pts[i_, 0]); fy.append(pts[i_, 1])
+    ax.loglog(fx, np.maximum(fy, 1e-7), mk + "-", color=col, ms=5, label=lab)
+for tgt in (1e-2, 3e-3, 1e-3, 3e-4): ax.axhline(tgt, color="gray", ls=":", lw=0.8)
+ax.set_xlabel("CNOTs per accepted preparation (input + filter)"); ax.set_ylabel("ensemble infidelity $1-\\mathcal{F}_M$ (40 schedules)"); ax.set_ylim(1e-5, 1)
+ax.set_title(f"chain $8\\to16$, $U=4t$: actual coarse state, corrected Path A ($\\delta t={DT16}$, $\\sigma={SIG16:.0f}/t$)"); ax.legend(fontsize=7, loc="lower left"); ax.grid(alpha=0.3, which="both")
+plt.tight_layout(); plt.show()
+""")
+
+# ============================================================================ 14 summary
+md(r"""---
+## 14&nbsp; Summary
 
 * **Lattice refinement is structurally clean.**  The Galerkin coarse model of the bonding
   prolongation is a Hubbard model in closed form ($t/2$, $U/2$ in one dimension, self-similar at
@@ -1043,8 +1288,10 @@ md(r"""---
   Hamiltonian has $4(L_f-1)+3L_f$ Pauli strings of weight two.
 * **Which gap matters.**  Path A conserves $\mathbf S^2$ and the lattice point group; the gap that
   controls the transport is $\Delta_{\rm eff}$, the lowest excitation in the sector of the target,
-  not the sector gap.  This is why $T^*=16/t$ is flat from $U=0$ to $8t$ and survives the doubling
-  $8\to16$ with a sector gap of $0.05t$, and it is the width to use in the rodeo filter.
+  not the sector gap.  Over the cases tested, $T^*=16/t$ from $U=0$ to $8t$ at $4\to8$ and a first
+  tested $16/t$ at $8\to16$ with a sector gap of $0.05t$; the accessible gap itself shrinks with the
+  size ($0.59t\to0.14t$), so this is a favorable observation, not a scaling law.  $\Delta_{\rm eff}$
+  is the width to use in the rodeo filter.
 * **Its converse.**  On the $2\times2\to4\times4$ plaquette at $(2,2)$ the coarse ground state
   ($B_1$ singlet) has zero overlap with the fine ground state ($A_2$ triplet); refining the lowest
   coarse state in the target's sector works, the coarse solver must carry the target's quantum
@@ -1054,10 +1301,11 @@ md(r"""---
   all antibonding qubits.  Two rodeo cycles remove either residual.
 * **Bootstrap.**  From the filled dimer, a single basis state, two or three refinement steps of
   $T=16/t$ reach the eight- and sixteen-site ground states with $p>0.999$ before any filtering.
-* **Costs.**  At matched infidelity the Trotterized pipeline and the fine-chain UCCSD input are
-  compared with the same filter in Section 10; the verdict and the numbers are those printed there
-  and quoted in the paper.""")
+* **Costs.**  The matched comparison of Sections 10–12 is superseded by the frontiers of Section 13
+  (corrected Path-A constant, shared-flag coarse term, parity-support UCCSD weights, actual coarse
+  states, exact quantized-time ensemble at eight sites, joint search over the adiabatic controls with
+  $M=0$ allowed); the verdict and the numbers quoted in the paper are those printed there.""")
 
 if __name__ == "__main__":
-    out = ROOT / "notebooks/ResolutionRefHubbard.ipynb"
+    out = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "notebooks/ResolutionRefHubbard.ipynb"
     build(cells, str(out))

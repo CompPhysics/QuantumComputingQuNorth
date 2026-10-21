@@ -70,7 +70,7 @@ for T in (8, 16):
     ns, p, out = n_needed(FF, ramp_groups, ramp_coefs, float(T), ramp_ex[T])
     trot[("ramp", T)] = dict(ns=ns, p=p, psi=hb.trotter_path_groups(FF, ramp_groups, ramp_coefs, float(T), ns, order=2), cost=CN_GIVENS16 + ns * st2)
     print(f"    ramp T={T}: exact {ramp_ex[T]:.5f}; " + " ".join(f"{n}:{pp:.5f}" for n, pp in out) + f" -> n_s={ns}, {trot[('ramp', T)]['cost']} CNOTs   [{time.time()-t0:.0f} s]")
-tl, Ul, cst = hb.galerkin_params("chain", 1.0, U, 8)
+tl, Ul, cst = hb.galerkin_params("chain", 1.0, U, 2 + 2)        # N_particles, not N_coarse (bug fixed 2026-10-20; this script is superseded by notebook Secs. 12-13)
 Kc_e, Kc_o, Dc = [t_.toarray() for t_ in hb.hubbard_terms(8, bc, 2, 2, Ul, t=tl)]
 MB = 4.0 if pathA_ex[(4.0, 8)] >= pathA_ex[(2.0, 8)] else 2.0          # the better shift at T = 8
 mu = El + MB
