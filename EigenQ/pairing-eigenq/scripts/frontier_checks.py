@@ -19,6 +19,8 @@ EXT:FRONTIER, figure 24).
       and shifted refinement) are searched JOINTLY over the time T, the shift
       mu_buf, the second-order step count n_s and the cycle number M = 0..6, the
       unfiltered (M = 0) points included, at both sizes and both couplings.
+      ADAPT is admitted at every prefix at both sizes (the four-operator
+      prefix of the (4,4) run, 192 CNOTs, was omitted until 2026-10-21).
       Output: the minimum CNOTs per accepted preparation at the targets, per
       route (table tab:frontier of paper I), the early-termination size of
       Eq. (cost), and figure 24 (k=8, g=1 and g=2, every input incl. ADAPT).
@@ -141,8 +143,10 @@ D3, hops3 = sz.pair_terms(3, g, P); Pm = r3["Pm"]
 g34 = [Pm @ (D3 - r3["mu"] * np.eye(3)) @ Pm.T] + [Pm @ h @ Pm.T for h in hops3] + [D - r3["mu"] * np.eye(6)] + hops; c34 = [c2f] * 4 + [s2f] * 7
 inputs = {"prolonged determinant (k=2)": (sz.hf_state(4, P).astype(complex), 0, "determinant + filter"),
           "four-pair ansatz (192)": (a4["psi"].astype(complex), 192, "single-layer ansatz"),
-          "prolonged k=3 state (96)": (r3["Phi0"].astype(complex), 96, "prolonged coarse state + filter"),
-          "ADAPT, 5 operators (240)": (ad4["history"][5]["psi"].astype(complex), 240, "ADAPT")}
+          "prolonged k=3 state (96)": (r3["Phi0"].astype(complex), 96, "prolonged coarse state + filter")}
+for h_ in ad4["history"]:                                                 # every ADAPT prefix below 2e-3 (the four-operator prefix, 192 CNOTs, included; 2026-10-21)
+    if h_["n_ops"] > 0 and h_["infidelity"] < 2e-3:
+        inputs[f"ADAPT, {h_['n_ops']} operators ({h_['cnots']})"] = (h_["psi"].astype(complex), h_["cnots"], "ADAPT")
 for T, ns in ((8, 22), (8, 43), (8, 86)):
     psi = pl.trotter_path(r3["Phi0"].astype(complex), g34, c34, float(T), ns, order=2)
     inputs[f"refined 3->4, T={T}, n_s={ns} (+96)"] = (psi, 96 + 2 * ns * (STEP + sz.coarse_term_cnots(3, 4, P)), "refinement 3->4 (grid)")

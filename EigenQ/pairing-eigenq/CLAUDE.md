@@ -104,7 +104,10 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 3. `make notebook`  — execute the notebook in place (generous timeout).
 4. `make check`     — validate the executed notebook (no errors, figures, anchors).
 5. `make figures`   — extract notebook PNGs into `paper/figs/`.
-6. `make paper`     — compile `paper/eigenq_pairing.tex` to PDF (paper I).
+6. `make paper`     — compile `paper/eigenq_pairing.tex` to PDF (paper I), then the SM
+   against `paper/eigenq_pairing_xr.aux` (the main .aux without FirstPage/LastPage/
+   LastBibItem/\bibcite, so that xr raises no multiply-defined warnings; the SM
+   bibliography is self-contained).
 7. `make paper-ph`  — copy the V_ph figures and compile paper II; `make papers` builds both.
 8. `make all`       — the whole chain end to end (papers I and II).
 9. `make hubbard`   — paper III: build+execute the Hubbard notebook (per-cell
@@ -148,10 +151,27 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   `eigenq_pairing_v8_backup.tex`: converged averaged map + exact-channel joint
   operating-point search, `scripts/frontier_checks.py` via
   `scripts/extend_notebook_frontier.py`, fig 24 = paper I fig:largebudget,
-  Table tab:frontier; `make check` now expects 24 figures).  The averaged map of
-  the digital filter MUST be integrated piecewise between the step-count
-  boundaries |t| = n dt (`pl.half_gaussian_nodes` / `pl.AveragedFilterMap` /
-  `pl.averaged_map_floor`); never use a global Gauss-Hermite rule for it.
+  Table tab:frontier), EXT:REFINE (2026-10-21, after `paper/morefeedback.md`,
+  response in `paper/response_to_morefeedback.md`, previous tex
+  `eigenq_pairing_v9_backup.tex` / `eigenq_pairing_supp_v9_backup.tex`:
+  convergence of the operating-point search — fine (T, mu_buf) grids, integer
+  n_s by bracketing + bisection at every target and M, three search levels
+  L0/L1/L2 and the flatness count; `scripts/frontier_refine.py` via
+  `scripts/extend_notebook_refine.py`, fig 25 = paper I fig:largebudget (the
+  cost frontier), fig 24 moved to the SM (fig:frontiergrid), Table tab:frontier
+  = level L2, SM Table tab:converge; `make check` now expects 25 figures).  The
+  averaged map of the digital filter MUST be integrated piecewise between the
+  step-count boundaries |t| = n dt (`pl.half_gaussian_nodes` /
+  `pl.AveragedFilterMap` / `pl.averaged_map_floor`); never use a global
+  Gauss-Hermite rule for it.  `AveragedFilterMap.track` applies the map through
+  its cached d^2 x d^2 superoperator (`superoperator()`, 20x faster at d=70,
+  identical numbers; node loop for d > 128), and `pl.trotter_path` applies each
+  factor as two matrix-vector products (`_apply_factor`, 6x faster).  The cycle
+  times of the DIGITAL filter are t = |z|, z ~ N(0, sigma^2) (half-normal,
+  positive times) in the sampled schedules AND in the averaged map; the ideal
+  filter uses signed draws (equivalent there).  A signed-time digital channel
+  would differ (k=4 floors 1.1385e-4 vs 1.1399e-4 at dt=0.25, 0.129 vs 0.154
+  at dt=1) — say which convention, never mix them.
   `scripts/verify_assessment.py` recomputes every number claimed in the assessment.
 - Seniority-zero pair basis: `pairinglib.seniority` (`import pairinglib.seniority as sz`;
   `pair_basis`, `H_pair`, `pair_terms` = [D, h_pq] (the seniority-zero blocks of

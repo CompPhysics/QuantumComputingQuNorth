@@ -101,6 +101,13 @@ def _factor(eig, c):
     return (V * np.exp(-1j * lam * c)) @ V.conj().T
 
 
+def _apply_factor(eig, c, psi):
+    """exp(-i c T) psi from the eigendecomposition of T: two matrix-vector
+    products instead of the matrix product of `_factor` (same numbers)."""
+    lam, V = eig
+    return V @ (np.exp(-1j * lam * c) * (V.conj().T @ psi))
+
+
 def _step_U(terms, dt, order=2, eigs=None):
     """One product-formula step exp(-i sum_i T_i dt) from term factors."""
     if eigs is None:
@@ -200,12 +207,12 @@ def trotter_path(Phi0, groups, coefs, T, n_s, order=2):
         c = [f(s) for f in coefs]
         if order == 1:
             for e, ci in zip(eigs, c):
-                psi = _factor(e, ci * dt) @ psi
+                psi = _apply_factor(e, ci * dt, psi)
         else:
             for e, ci in zip(eigs, c):
-                psi = _factor(e, ci * dt / 2) @ psi
+                psi = _apply_factor(e, ci * dt / 2, psi)
             for e, ci in zip(reversed(eigs), reversed(c)):
-                psi = _factor(e, ci * dt / 2) @ psi
+                psi = _apply_factor(e, ci * dt / 2, psi)
     return psi / np.linalg.norm(psi)
 
 

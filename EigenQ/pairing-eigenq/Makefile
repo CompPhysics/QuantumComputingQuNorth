@@ -25,7 +25,7 @@ notebook:
 	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NB) 1800
 
 check:
-	$(PY) $(SKILLS)/notebook-builder/scripts/check_notebook.py $(NB) 24
+	$(PY) $(SKILLS)/notebook-builder/scripts/check_notebook.py $(NB) 25
 
 figures:
 	$(PY) $(SKILLS)/physics-paper/scripts/extract_figures.py $(NB) $(FIGS)
@@ -38,7 +38,10 @@ figures-ph: figures
 
 paper: figures
 	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEX)
-	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXSM)   # Supplemental Material (xr against the main .aux)
+	# the SM resolves main-text references with xr; the filtered copy of the main .aux drops the
+	# labels/citations that both documents define (FirstPage, LastPage, LastBibItem, \bibcite)
+	grep -v -e FirstPage -e LastPage -e LastBibItem -e bibcite paper/eigenq_pairing.aux > paper/eigenq_pairing_xr.aux
+	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXSM)   # Supplemental Material (xr against eigenq_pairing_xr.aux)
 
 paper-ph: figures-ph
 	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXPH)

@@ -2,14 +2,15 @@
 % Supplemental Material for "Resolution refinement followed by the rodeo
 % algorithm: a gate-level benchmark of eigenstate-preparation routes on the
 % pairing Hamiltonian".  Built by scripts/split_supplement.py; cross-references
-% to the main text resolve through xr against eigenq_pairing.aux (compile the
-% main text first).
+% to the main text resolve through xr against eigenq_pairing_xr.aux, a copy of
+% eigenq_pairing.aux without the labels and citations that both documents
+% define (made by `make paper`; compile the main text first).
 \usepackage{amsmath,amssymb}
 \usepackage{physics}
 \usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{xr}
-\externaldocument{eigenq_pairing}
+\externaldocument{eigenq_pairing_xr}
 \newcommand{\Hlow}{H_{\mathrm{low}}}
 \newcommand{\Hhigh}{H_{\mathrm{high}}}
 \newcommand{\Eobj}{E_{\mathrm{obj}}}
@@ -56,8 +57,10 @@ and Trotter-step conditions (Sec.~\ref{sm:bound}), the rodeo energy scan
 and its statistics (Sec.~\ref{sm:scan}), the operating points behind the
 fidelities quoted in the main text (Sec.~\ref{sm:ops}), the other
 model-space sizes, particle numbers and observables (Sec.~\ref{sm:sizes}),
-and the validation of the pair-basis implementation with the ingredients
-of the sixteen-qubit study (Sec.~\ref{sm:large}).  Equation, section,
+the validation of the pair-basis implementation with the ingredients
+of the sixteen-qubit study (Sec.~\ref{sm:large}), and the convergence of
+the operating-point search behind Table~\ref{tab:frontier} of the main
+text (Sec.~\ref{sm:converge}).  Equation, section,
 figure and table numbers without the prefix S refer to the main text.
 All numbers are produced by the notebook of the code repository.
 
@@ -469,8 +472,133 @@ are the infidelities of the $16$-parameter pair-double ansatz.}
 \label{fig:large}
 \end{figure*}
 
+\section{Convergence of the operating-point search}
+\label{sm:converge}
+The minimum costs of Table~\ref{tab:frontier} of the main text are the best
+costs found under a stated finite search, not certified optima, and this
+section records how they move as the search is refined.  Three levels are
+compared for the two adiabatic routes.  L0 is the coarse grid of the first
+joint search (notebook, Sec.~22): $T$ in steps of $2$, three shifts, eight
+step counts.  L1 is a fine grid of the evolution time, $T=3$ to $12$ in
+steps of $0.25$ for the ramp and $3$ to $16$ in steps of $0.5$ for the
+refinement at $k=4$, $3.5$ to $10$ in steps of $0.25$ and $3.5$ to $12$ in
+steps of $0.5$ at $k=8$ and $g=1$, $5$ to $16$ in steps of $0.5$ for both at
+$g=2$, with the shift $\mu_{\rm buf}$ on ten values from $0.6$ to $8$ at
+$k=4$, nine from $1$ to $16$ at $g=1$ and nine from $4$ to $32$ at $g=2$, and
+the second-order step count on a geometric list of ratio $1.15$ from $6$ to
+$160$ ($k=4$) or $16$ to $400$ ($k=8$); every point is evaluated with the
+exact averaged channel for $M=0,\ldots,6$.  L2 refines, for every control
+whose L1 cost lies within $40\%$ of the L1 minimum, the integer step count by
+bracketing and bisection at fixed $(T,\mu_{\rm buf},M)$.  Table~\ref{tab:converge}
+lists the three levels, the operating point of L2, the number of distinct
+controls $(T)$ or $(\mu_{\rm buf},T)$ whose refined cost lies within $10\%$ of
+the L2 minimum, and the ratio of the two routes.  Figure~\ref{fig:frontiergrid}
+shows the L0 grid itself, with the exact-channel tracks of the fixed inputs
+of Table~\ref{tab:largebudget}; the frontier curves of Fig.~\ref{fig:largebudget}
+of the main text are read from the L1 cloud.
+
+Three features of Table~\ref{tab:converge} carry the conclusions drawn
+in the main text.  First, the coarse grid was not converged: every
+adiabatic minimum falls on refinement, by $31$--$51\%$ at $k=4$,
+$25$--$40\%$ at $k=8$, $g=1$, and $8$--$21\%$ at $g=2$, and the
+operating points move to shorter times ($T=4.25$--$5.5$ instead of
+$4$--$8$ at $g=1$) and, for the refinement, to different shifts.  Spot
+checks at intermediate times that were not on the coarse grid --- the
+eight-qubit ramp at $T=4.5$, $n_s=11$ ($1.63\times10^{-3}$ for $6\,512$
+CNOTs) and at $T=4.75$, $n_s=16$ and $22$; the sixteen-qubit ramp at
+$T=5$, $n_s=40$ and $T=5.2$, $n_s=60$; the $g=2$ refinement at
+$\mu_{\rm buf}=16$, $T=10$, $n_s=160$ --- all lie on or near the fine-grid
+frontier.  Second, the fine grid is close to converged in the sense
+available to a finite search: the integer refinement L1$\to$L2 moves the
+minima by $0$--$12\%$, and the frontier is sharp in $T$ at $g=1$ (one to
+six controls within $10\%$ of the minimum) because the cheapest operating
+point sits at the shortest time at which the adiabatic error alone meets
+the target, after which the step count is fixed by the digitization
+error; at $g=2$ the frontier is flatter (two to thirteen controls within
+$10\%$), the ramp needs one and three filter cycles at the two tighter
+targets, and the refinement reaches all three unfiltered.  A finer grid
+in $T$ (steps of $0.05$ around the $g=1$ ramp minima at $10^{-3}$ and
+$3\times10^{-4}$) returned the same two minima, $7.07\times10^{4}$ and
+$9.79\times10^{4}$ CNOTs; we nevertheless do not interpret differences
+between the two routes below the $10\%$ level, which is the size of the
+L1$\to$L2 step.  Third, the ratio of the two routes changes sign with
+the coupling: $0.85$--$0.95$ at $k=4$, $1.22$--$1.42$ at $k=8$, $g=1$, and
+$0.86$--$1.01$ at $g=2$.  The $19\%$ overhead of the conditioned coarse
+term ($254$ of $1\,614$ CNOTs per step) is therefore not the whole
+separation at $g=1$ --- the shifted path also needs a somewhat longer time
+at the tighter targets --- and at $g=2$ it is more than compensated by the
+cycles the ramp needs.  Where the two routes use the same step count the
+ratio is that of their step costs; this is a property of the chosen
+operating points, not a dynamical equivalence of the two paths.
+
+\begin{table*}[t]
+\caption{\label{tab:converge}Convergence of the operating-point search:
+best CNOTs per accepted preparation found at the three search levels
+described in the text (L0: coarse grid of the first joint search; L1: fine
+$(T,\mu_{\rm buf})$ grid, geometric $n_s$ list; L2: L1 plus the integer
+refinement of $n_s$), the L2 operating point as $(T,n_s,M)$ or
+$(\mu_{\rm buf},T,n_s,M)$, the infidelity reached there, the number of
+distinct controls within $10\%$ of the L2 minimum, and the ratio
+refinement/ramp at L2.  Filter settings and encoding as in
+Table~\ref{tab:frontier}.}
+\footnotesize
+\begin{ruledtabular}
+\begin{tabular}{lc ccc l c c c}
+route & target & L0 & L1 & L2 & L2 point & $1-\mathcal F$ & within $10\%$ & ref./ramp\\
+\colrule
+\multicolumn{9}{l}{$k=4$, $N=4$, $g=1$}\\
+HF ramp & $2\times10^{-3}$ & $9.47\times10^{3}$ & $6.51\times10^{3}$ & $6.51\times10^{3}$ & (4.25, 11, 0) & $1.7\times10^{-3}$ & 6 & \\
+ & $5\times10^{-4}$ & $1.89\times10^{4}$ & $1.07\times10^{4}$ & $9.47\times10^{3}$ & (4.5, 16, 0) & $5.0\times10^{-4}$ & 3 & \\
+ & $2\times10^{-4}$ & $2.55\times10^{4}$ & $1.24\times10^{4}$ & $1.24\times10^{4}$ & (4.75, 21, 0) & $1.8\times10^{-4}$ & 2 & \\
+refinement $2\to4$ & $2\times10^{-3}$ & $9.92\times10^{3}$ & $6.82\times10^{3}$ & $6.20\times10^{3}$ & (2, 5, 10, 0) & $1.8\times10^{-3}$ & 3 & $0.95$\\
+ & $5\times10^{-4}$ & $1.36\times10^{4}$ & $8.06\times10^{3}$ & $8.06\times10^{3}$ & (2.5, 4.5, 13, 0) & $4.3\times10^{-4}$ & 2 & $0.85$\\
+ & $2\times10^{-4}$ & $1.98\times10^{4}$ & $1.12\times10^{4}$ & $1.12\times10^{4}$ & (2.5, 4.5, 18, 0) & $1.9\times10^{-4}$ & 1 & $0.90$\\
+\colrule
+\multicolumn{9}{l}{$k=8$, $N=8$, $g=1$}\\
+HF ramp & $10^{-3}$ & $1.09\times10^{5}$ & $7.07\times10^{4}$ & $7.07\times10^{4}$ & (4.75, 26, 0) & $9.8\times10^{-4}$ & 4 & \\
+ & $3\times10^{-4}$ & $1.63\times10^{5}$ & $1.12\times10^{5}$ & $9.79\times10^{4}$ & (5.25, 36, 0) & $2.9\times10^{-4}$ & 3 & \\
+ & $10^{-4}$ & $2.18\times10^{5}$ & $1.52\times10^{5}$ & $1.36\times10^{5}$ & (5.25, 50, 0) & $9.5\times10^{-5}$ & 2 & \\
+refinement $4\to8$ & $10^{-3}$ & $1.29\times10^{5}$ & $9.68\times10^{4}$ & $8.72\times10^{4}$ & (3, 5, 27, 0) & $8.9\times10^{-4}$ & 3 & $1.23$\\
+ & $3\times10^{-4}$ & $1.94\times10^{5}$ & $1.32\times10^{5}$ & $1.19\times10^{5}$ & (4, 5.5, 37, 0) & $2.8\times10^{-4}$ & 1 & $1.22$\\
+ & $10^{-4}$ & $2.58\times10^{5}$ & $2.10\times10^{5}$ & $1.94\times10^{5}$ & (4, 6.5, 60, 0) & $9.9\times10^{-5}$ & 3 & $1.42$\\
+\colrule
+\multicolumn{9}{l}{$k=8$, $N=8$, $g=2$}\\
+HF ramp & $10^{-3}$ & $2.18\times10^{5}$ & $2.04\times10^{5}$ & $2.01\times10^{5}$ & (8, 74, 0) & $9.8\times10^{-4}$ & 2 & \\
+ & $3\times10^{-4}$ & $4.00\times10^{5}$ & $3.66\times10^{5}$ & $3.58\times10^{5}$ & (8, 98, 1) & $3.0\times10^{-4}$ & 4 & \\
+ & $10^{-4}$ & $5.83\times10^{5}$ & $5.49\times10^{5}$ & $5.29\times10^{5}$ & (8, 94, 3) & $9.9\times10^{-5}$ & 10 & \\
+refinement $4\to8$ & $10^{-3}$ & $2.58\times10^{5}$ & $2.10\times10^{5}$ & $2.03\times10^{5}$ & (16, 7, 63, 0) & $9.8\times10^{-4}$ & 8 & $1.01$\\
+ & $3\times10^{-4}$ & $3.87\times10^{5}$ & $3.26\times10^{5}$ & $3.13\times10^{5}$ & (20, 7.5, 97, 0) & $2.9\times10^{-4}$ & 10 & $0.88$\\
+ & $10^{-4}$ & $5.70\times10^{5}$ & $4.69\times10^{5}$ & $4.55\times10^{5}$ & (24, 8.5, 141, 0) & $9.9\times10^{-5}$ & 13 & $0.86$\\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig24.png}
+\caption{The coarse (L0) control grid of the first joint search at $k=8$,
+$N=8$, with the exact averaged channel of the digital filter: ensemble
+infidelity of the accepted runs against CNOTs per accepted preparation,
+Eq.~\eqref{eq:cost}, at $g=1$ (left; $\delta t=0.1$, $\sigma=4$) and $g=2$
+(right; $\delta t=0.05$, $\sigma=1.5$).  Lines with markers: the fixed inputs of
+Table~\ref{tab:largebudget} as $M$ grows from $0$ to $6$, the ADAPT
+prefixes unfiltered (crosses) and the three prefixes at the target
+crossings through the filter (dotted); faint symbols: every point of the
+$(T,n_s,M)$ grid of the ramp and of the $(\mu_{\rm buf},T,n_s,M)$ grid of
+the $4\to8$ refinement, with their lower envelopes drawn (the L0 minima of
+Table~\ref{tab:converge}).  Dotted lines mark the targets $10^{-3}$,
+$3\times10^{-4}$ and $10^{-4}$.}
+\label{fig:frontiergrid}
+\end{figure*}
+
 
 \begin{thebibliography}{99}
+\bibitem{Kandala2017}
+A.~Kandala, A.~Mezzacapo, K.~Temme, M.~Takita, M.~Brink, J.~M.~Chow,
+J.~M.~Gambetta,
+\textit{Hardware-efficient variational quantum eigensolver for small molecules
+and quantum magnets},
+Nature \textbf{549}, 242 (2017).
 \bibitem{Bogner2026}
 S.~Bogner, H.~Hergert, M.~Hjorth-Jensen, R.~LaRose, D.~Lee, M.~Patkowski,
 \textit{Quantum state preparation with resolution refinement},

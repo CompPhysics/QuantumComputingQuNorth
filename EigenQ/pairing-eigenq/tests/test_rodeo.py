@@ -54,3 +54,22 @@ def test_averaged_map_boundary_split_quadrature_is_converged():
         K.Ks = [0.5 * (np.eye(6) + np.exp(1j * E0 * t) * Uf(t)) for t in K.ts]
         fl.append(K.dominant(GS)["floor"])
     assert abs(fl[0] - fl[1]) > 1e-4
+
+
+def test_averaged_map_superoperator_matches_node_loop():
+    """The cached d^2 x d^2 superoperator of the averaged map gives the same
+    exact-channel track (infidelity and acceptance) as the node loop, and the
+    half-normal (positive-time) convention is the one implemented."""
+    import numpy as np
+    import pairinglib as pl
+    import pairinglib.seniority as sz
+    H = sz.H_pair(4, 1.0, 2); w, V = np.linalg.eigh(H); E0, GS = w[0], V[:, 0]
+    D, hops = sz.pair_terms(4, 1.0, 2)
+    K = pl.AveragedFilterMap(sz.fixed_step_evolution([D] + hops, 0.25), E0, 4.0, 0.25)
+    assert K.ts.min() > 0                                   # t = |z|, z ~ N(0, sigma^2)
+    psi = sz.hf_state(4, 2).astype(complex)
+    a = K.track(psi, GS, 6, superop=False); b = K.track(psi, GS, 6, superop=True); c = K.track(psi, GS, 6)
+    assert np.allclose(a["inf"], b["inf"], rtol=1e-10, atol=1e-14) and np.allclose(a["acc"], b["acc"], rtol=1e-12)
+    assert np.allclose(a["inf"], c["inf"], rtol=1e-10, atol=1e-14)
+    S = K.superoperator(); rho = np.outer(psi, psi.conj())
+    assert np.allclose((S @ rho.reshape(-1)).reshape(6, 6), K.apply(rho), atol=1e-13)

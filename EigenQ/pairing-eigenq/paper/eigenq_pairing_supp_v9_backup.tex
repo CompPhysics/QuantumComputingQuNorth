@@ -1,0 +1,483 @@
+\documentclass[aps,prc,reprint,superscriptaddress,floatfix,nofootinbib]{revtex4-2}
+% Supplemental Material for "Resolution refinement followed by the rodeo
+% algorithm: a gate-level benchmark of eigenstate-preparation routes on the
+% pairing Hamiltonian".  Built by scripts/split_supplement.py; cross-references
+% to the main text resolve through xr against eigenq_pairing.aux (compile the
+% main text first).
+\usepackage{amsmath,amssymb}
+\usepackage{physics}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xr}
+\externaldocument{eigenq_pairing}
+\newcommand{\Hlow}{H_{\mathrm{low}}}
+\newcommand{\Hhigh}{H_{\mathrm{high}}}
+\newcommand{\Eobj}{E_{\mathrm{obj}}}
+\renewcommand{\thesection}{S\arabic{section}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\theequation}{S\arabic{equation}}
+
+\begin{document}
+\title{Supplemental Material for ``Resolution refinement followed by the
+rodeo algorithm: a gate-level benchmark of eigenstate-preparation routes on
+the pairing Hamiltonian''}
+\author{Scott Bogner}
+\affiliation{Facility for Rare Isotope Beams and Department of Physics and Astronomy, Michigan State University, East Lansing, MI 48824, USA}
+\author{Cecilie Glittum}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{Heiko Hergert}
+\affiliation{Facility for Rare Isotope Beams and Department of Physics and Astronomy, Michigan State University, East Lansing, MI 48824, USA}
+\author{Morten Hjorth-Jensen}
+\email{mhjensen@uio.no}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{Gunnar Lange}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{Ryan LaRose}
+\affiliation{Department of Computational Mathematics, Science and Engineering and Facility for Rare Isotope Beams, Michigan State University, East Lansing, MI 48824, USA}
+\author{Dean Lee}
+\affiliation{Facility for Rare Isotope Beams and Department of Physics and Astronomy, Michigan State University, East Lansing, MI 48824, USA}
+\author{Francesco Pietro Massel}
+\affiliation{Department of Science and Industry Systems, University of South-Eastern Norway, N-3616 Kongsberg, Norway}
+\affiliation{Department of Physics, University of Oslo, N-0316 Oslo, Norway}
+\author{Jean Paul Sadia}
+\affiliation{Department of Computational Mathematics, Science, and Engineering, Michigan State University, East Lansing, MI 48823, USA}
+\affiliation{Center for Quantum Computing, Science, and Engineering, Michigan State University, East Lansing, MI 48823, USA}
+\date{\today}
+\maketitle
+
+
+This Supplemental Material collects the verification material behind the
+main text: the comparison of coarse solvers at larger basis size
+(Sec.~\ref{sm:solvers}), the refinement energies and the $k=3\to4$ chain
+(Sec.~\ref{sm:refine}), the shift-scan fits and the response norm along the
+path (Sec.~\ref{sm:shift}), the evaluation of the sufficient adiabatic-time
+and Trotter-step conditions (Sec.~\ref{sm:bound}), the rodeo energy scan
+and its statistics (Sec.~\ref{sm:scan}), the operating points behind the
+fidelities quoted in the main text (Sec.~\ref{sm:ops}), the other
+model-space sizes, particle numbers and observables (Sec.~\ref{sm:sizes}),
+and the validation of the pair-basis implementation with the ingredients
+of the sixteen-qubit study (Sec.~\ref{sm:large}).  Equation, section,
+figure and table numbers without the prefix S refer to the main text.
+All numbers are produced by the notebook of the code repository.
+
+\section{Coarse solvers at larger basis size}
+\label{sm:solvers}
+Figure~\ref{fig:methods} compares all coarse solvers of Sec.~\ref{sec:res-uccsd}
+of the main text --- exact diagonalization, coupled-cluster doubles,
+statevector and gate-level UCCSD, and a hardware-efficient ansatz --- as a
+function of the number of levels $k$ at $N=4$, $g=1$, and
+Fig.~\ref{fig:scaling} follows the gate-level UCCSD solver to $k=8$ (sixteen
+qubits).  The hardware-efficient ansatz is exact at $k=2$, reaches FCI at
+$k=3$ only after a multi-start optimization with a particle-number penalty,
+and fails at $k=4$; the UCCSD solver stays variational and tight throughout,
+at a CNOT count that grows steeply ($1\,312$ at $k=4$).
+
+\paragraph{Hardware-efficient ansatz.}
+The HEA~\cite{Kandala2017} used for contrast consists of $L$ layers of
+$R_y$ rotations on all $2k$ qubits interleaved with a CNOT entangler
+(nearest-neighbor pairs plus a wrap-around bond), i.e.\ $2k(L{+}1)$ variational
+angles and only $O(2kL)$ CNOTs: $12$ angles at $k=2$ ($L=2$) and $30$ at $k=3$
+($L=4$).  Its depth is far smaller than UCCSD, but the circuit carries no
+particle-number or seniority structure; a number-penalty term and multi-start
+optimization are needed at $k=3$, and at $k=4$ the optimizer fails to reach the
+ground state (Fig.~\ref{fig:methods}).  Depth is not the only currency:
+trainability of the symmetry-blind landscape becomes the bottleneck first.
+
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig4.png}
+\caption{Ground-state energy at $N=4$, $g=1$ obtained with all solvers (left) and
+their deviation from FCI (right), versus the number of levels $k$.  The structured
+UCCSD circuits track FCI from above; CCD over-binds; the hardware-efficient ansatz
+matches FCI for $k\le3$ but loses accuracy at $k=4$.}
+\label{fig:methods}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig3.png}
+\caption{Scalability of the Trotterized UCCSD--VQE: ground-state energy (left) and
+deviation from FCI (right) from $k=2$ to $k=8$ ($N=4$, $g=1$).  The same solver
+remains variational and tight as the basis --- and hence the qubit count --- grows.}
+\label{fig:scaling}
+\end{figure*}
+
+\section{Refinement energies and the $k=3\to4$ chain}
+\label{sm:refine}
+Figure~\ref{fig:fourparticle} shows the overlap and the physical energy
+$\expval{\Hhigh}{\Phi(T)}$ of the refined state versus the adiabatic time
+$T$ for the $k=2\to3$ and $2\to4$ chains at $N=4$, $g=1$
+(Sec.~\ref{sec:res-refine} of the main text), and Fig.~\ref{fig:chains}
+compares the $2\to4$ chain with the $3\to4$ chain that starts from the
+gate-level UCCSD state at $k=3$ (Sec.~\ref{sec:res-k34}).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig6.png}
+\caption{Four-particle refinement up to $k=4$: overlap (left) and physical energy
+$\expval{\Hhigh}{\Phi(T)}$ (right) versus $T$ for $k_{\rm high}=3,4$.  The energy
+approaches the FCI value (dotted) from above while the overlap approaches unity
+(the time scale is empirical; the scan of Sec.~\ref{sec:res-gscan} of the main text identifies no exponent).}
+\label{fig:fourparticle}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig10.png}
+\caption{Refinement chains to $k=4$ at $N=4$, $g=1$, starting from the gate-free
+$k=2$ determinant (circles) and from the $272$-CNOT gate-level UCCSD state at
+$k=3$ (squares).  Left: overlap with the exact ground state versus adiabatic
+time $T$; right: the same on a logarithmic scale.  The $3\to4$ chain starts at
+overlap $0.964$ (versus $0.868$) and reaches $0.99$ in half the adiabatic
+time ($T^{*}=8$ on a finer grid than the one shown).}
+\label{fig:chains}
+\end{figure*}
+
+\section{Shift scan: fits and response norm}
+\label{sm:shift}
+Figure~\ref{fig:assess} shows the two affine fits to the four shift-scan
+points of Fig.~\ref{fig:gapscan} of the main text, in $1/\Delta E_{\min}$
+and in $1/\Delta E_{\min}^2$, with their sums of squared residuals ($28$
+and $0.2$), and the first-order response norm $\chi_u(s)$ along the
+$k=2\to4$ path for the four shifts; at $s=0$ it equals $g^2/b^2$ with
+$b=\mu-E_{\rm low}$, the $k=4$, $N=4$ case of the identity
+$\chi_u(0)=\norm{Q\Hhigh P\psi_{\rm low}}^2/b^2$, Eq.~\eqref{eq:chi0} of
+the main text, which gives $P(k-P)g^2/(4b^2)$ for the filled pairing seed.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig19.png}
+\caption{Left: the four shift-scan points of Fig.~\ref{fig:gapscan} with
+the two affine fits, in $1/\Delta E_{\min}$ (dashed) and in
+$1/\Delta E_{\min}^2$ (solid), and their sums of squared residuals.  Right:
+the first-order response norm
+$\chi_u(s)=\sum_{n>0}\abs{\mel{n}{\partial_uH}{0}}^2/(E_n-E_0)^2$ of the
+$k=2\to4$ path, $u=\sin^2(\pi s/2)$, for the four shifts; at $s=0$ it equals
+$g^2/b^2$ with $b=\mu-E_{\rm low}$ and it is largest there, so the quantity
+that the inverse-gap argument assumes bounded changes by a factor $25$ across
+the scan ($\chi_u$ is the response along the affine path of
+Ref.~\cite{Bogner2026}; the response to the scheduled parameter,
+$\chi_s=[\frac{\pi}{2}\sin\pi s]^2\chi_u$, vanishes at both ends and its
+maximum varies by a factor $3.4$).}
+\label{fig:assess}
+\end{figure*}
+
+\section{Sufficient conditions versus practice}
+\label{sm:bound}
+The conditions quoted in Sec.~\ref{sec:refine} of the main text can be evaluated exactly for
+the path of Eq.~\eqref{eq:path}.  Writing $A=P(\Hlow-\mu)P^\dagger$ and
+$B=\Hhigh-\mu$, the schedule gives
+$\dot H=\tfrac{\pi}{2}\sin(\pi s)\,(B-A)$ and
+$\ddot H=\tfrac{\pi^2}{2}\cos(\pi s)\,(B-A)$, so the integrand of
+Eq.~\eqref{eq:Tbound} is fixed by the single number $\norm{B-A}$ and by the
+instantaneous gap $\Delta(s)$, both taken in the $N=4$ sector in which the
+evolution takes place.  Figure~\ref{fig:bound} shows the two along the
+$k=2\to4$ path: the gap rises from the shift-controlled $0.600$ at $s=0$ to
+the physical gap of $\Hhigh$ at $s=1$, and the integrand peaks near
+$s\simeq0.25$, where $\sin(\pi s)$ is already sizable while the gap is still
+close to its minimum; the term $7\norm{\dot H}^2/\Delta^3$ supplies $94\%$ of
+the integral.  Table~\ref{tab:bound} collects the numbers.  Here
+$\norm{B-A}=7.62$ and $\int_0^1[\cdots]\,ds=511$, so
+Eq.~\eqref{eq:Tbound} demands $T\ge5.1\times10^{3}$ for an infidelity of
+$10^{-2}$ (and $1.6\times10^{4}$ for $10^{-3}$), whereas the computed overlap
+reaches $0.99$ at $T^{*}=16$: the sufficient condition overshoots the
+practical time by a factor $3\times10^{2}$.  The step-count condition is
+looser still.  With $\Lambda_1=\max_s\norm{\dot H}=12.0$ and, for the term
+partition of the gate compilation of Sec.~\ref{sec:trotterized} of the main text (the
+conditioned coarse term, the diagonal term and the six pair-hopping terms),
+$\Lambda_2=\max_s\sum_{i<j}\norm{[H_i(s),H_j(s)]}=13.0$, the first-order
+bound at $\eta=\sqrt{\epsilon}/2$ requires $3.4\times10^{4}$ steps along the
+$T^{*}=16$ path --- and $3.4\times10^{9}$ along the path of length $T_{\rm b}$
+--- while $160$ first-order or $40$ second-order steps already reproduce the
+exact-slice overlap at $T^{*}$ to within the adiabatic error of the path
+itself.  The two step counts answer different questions and the ratio
+between them must be read with that in mind: the bound certifies an
+operator-norm error of the digitized unitary, whereas reproducing one
+scalar overlap does not certify that the two output vectors, let alone the
+two unitaries, are close.
+
+These ratios --- $3\times10^{2}$ for the time and $2\times10^{2}$ for the
+step count --- are the fermionic counterpart of what
+Ref.~\cite{Sadia2026} reports for nucleation of a twelve-site Ising chain
+($6\times10^{1}$ and $10^{7}$, respectively), and they carry the same
+message: the conditions certify convergence but do not predict cost.  Part
+of the reason is visible in the integrand.  The bound pays for the full
+operator norm $\norm{B-A}=7.62$ --- the same value in the full $N=4$ sector
+and in the six-dimensional seniority-zero block that the dynamics
+actually explores, so it is not an artifact of inaccessible sectors --- and
+for the global gap, whereas the adiabatic error is governed by the
+individual matrix elements of $dH/ds$ between the tracked state and the
+states it couples to, relative to their individual gaps.  Those elements are
+small but not zero for the highest accessible states: at $s=0.25$ the
+derivative couplings from the ground state to the five seniority-zero
+excited states are $0.60$, $0.37$, $0.00$, $0.11$ and $0.08$.  A global
+norm therefore overestimates the cost by ignoring the state-specific
+structure of the couplings; the magnitude of the overshoot alone does not
+single out one cause, nor does it verify the inverse-gap mechanism of
+Ref.~\cite{Bogner2026}.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig_bound_pairing.png}
+\caption{The ingredients of the adiabatic-time bound, Eq.~\eqref{eq:Tbound},
+along the $k=2\to4$ refinement path at $N=4$, $g=1$, $\mu=E_{\rm low}+0.6$.
+Left: instantaneous gap $\Delta(s)$ in the $N=4$ sector,
+from the shift-controlled $0.600$ at $s=0$ (dotted line) to the physical gap
+$1.823$ of $\Hhigh$ at $s=1$.  Right: the integrand
+$\norm{\ddot H}/\Delta^2+7\norm{\dot H}^2/\Delta^3$ (logarithmic scale),
+which peaks near $s\simeq0.25$ and integrates to $I=511$
+(Table~\ref{tab:bound}).}
+\label{fig:bound}
+\end{figure*}
+
+\begin{table*}[t]
+\caption{\label{tab:bound}Sufficient conditions of Ref.~\cite{Sadia2026}
+evaluated for the $k=2\to4$ refinement path ($N=4$, $g=1$,
+$\mu=E_{\rm low}+0.6$; spectral norms in the $N=4$ sector) against the
+empirical cost.  $\Delta_{\min}$: minimum instantaneous gap; $I$: the
+integral in Eq.~\eqref{eq:Tbound}; $T_{\rm b}$: the time bound for infidelity
+$\epsilon=10^{-2}$, $T_{\rm b}=I/\sqrt{\epsilon}$; $T^{*}$: time for overlap
+$0.99$ (grid of Fig.~\ref{fig:gapscan}); $\Lambda_1=\max_s\norm{\dot H}$ and
+$\Lambda_2=\max_s\sum_{i<j}\norm{[H_i,H_j]}$ over the Trotter groups of the
+gate compilation; $n_{\rm b}(T^{*})$: first-order Trotter steps required by
+the bound along the $T^{*}$ path at $\eta=\sqrt{\epsilon}/2$; $n_1$, $n_2$:
+first- and second-order steps (from the sequence $5,10,20,\ldots$) that
+reproduce the exact-slice overlap at $T^{*}$ to within the adiabatic error
+$1-p(T^{*})$ of the path.}
+\begin{ruledtabular}
+\begin{tabular}{ccccccccccc}
+$\Delta_{\min}$ & $\norm{B-A}$ & $I$ & $T_{\rm b}$ & $T^{*}$ & $T_{\rm b}/T^{*}$ & $\Lambda_1$ & $\Lambda_2$ & $n_{\rm b}(T^{*})$ & $n_1$ & $n_2$\\
+\colrule
+$0.600$ & $7.62$ & $511$ & $5.1\times10^{3}$ & $16$ & $3.2\times10^{2}$ & $12.0$ & $13.0$ & $3.4\times10^{4}$ & $160$ & $40$\\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
+
+
+\section{The rodeo energy scan}
+\label{sm:scan}
+Figure~\ref{fig:scan} shows the energy scans of Sec.~\ref{sec:res-rodeo} of
+the main text ($M=4$ cycles, $12$ time sets per energy).  The coarse scan
+($\sigma=2$, $60$ energies on $[-0.5,4]$) resolves the ground-state peak
+from the excited band; the fine scan ($\sigma=8$, $161$ energies with
+spacing $0.0075$ on a window of width $1.2$ centered on the highest point
+of the coarse scan, $E=0.644$, i.e.\ chosen without knowledge of $E_0$)
+locates the peak at $E=0.6362$ against the exact $E_0=0.635548$ by
+three-point parabolic interpolation at the grid maximum.  On a device every
+acceptance is a shot estimate: adding binomial noise for $10^{3}$ and
+$10^{4}$ shots per energy and locating the peak by a quadratic fit through
+the points above $80\%$ of the maximum gives $0.637\pm0.001$ and
+$0.6373\pm0.0004$, so with this scan the systematic error of the peak
+estimator ($\sim2\times10^{-3}$, from the non-parabolic shape of the peak
+over the fitted window) exceeds the shot noise, and the agreement to
+$10^{-3}$ is a property of the scan design rather than a demonstrated
+four-decimal precision.  Starting from the refined state, essentially all
+spectral weight sits in the single ground-state peak; starting from the
+prolonged determinant, the small residual weight on excited states is
+visible as secondary structure above the $2^{-M}$ background.  The fine
+scan alone evaluates $161$ energies with $12$ time sets each, about
+$2\times10^{3}$ four-cycle runs, each repeated over enough shots to estimate
+an acceptance probability.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig7.png}
+\caption{Rodeo energy scan ($M=4$).  Left: coarse scan ($\sigma=2$); the dotted
+vertical lines mark exact eigenvalues and the dashed line the $2^{-M}$ background.
+Right: fine scan ($\sigma=8$) on a window centered on the coarse-scan maximum;
+the peak is located at $E=0.6362$ (exact $E_0=0.6355$).}
+\label{fig:scan}
+\end{figure*}
+
+\section{Operating points}
+\label{sm:ops}
+Table~\ref{tab:ops} records the operating points behind the different
+fidelities quoted in the main text, which belong to different stages of
+idealization: the ideal filter of Sec.~\ref{sec:res-rodeo} and the digital
+pipeline of Secs.~\ref{sec:trotterized}--\ref{sec:depth} differ in
+refinement time, slice treatment, filter width and evolution, and the
+residual errors of the former are not achieved by the counted circuits of
+the latter.
+
+\begin{table*}[t]
+\caption{\label{tab:ops}Operating points behind the fidelities quoted in
+this paper ($k=4$, $N=4$, $g=1$).}
+\footnotesize
+\begin{ruledtabular}
+\begin{tabular}{p{0.3\textwidth}p{0.4\textwidth}p{0.26\textwidth}}
+result & assumptions and operating point & status\\
+\colrule
+coarse state (Sec.~\ref{sec:uccsd}) & factorized UCCSD, numerically optimized & valid circuit family; $\epsilon_{\rm low}$ to be supplied or bounded\\
+prolongation (Sec.~\ref{sec:res-refine}) & nested bare Hamiltonians, empty appended levels & gate-free embedding; expectation-value identity exact\\
+adiabatic guarantee, Eq.~\eqref{eq:Tbound} & exact coarse eigenstate, isolated branch, ideal continuous evolution & conditional bound, not the complete digital budget\\
+refinement (Sec.~\ref{sec:res-refine}) & $T=25$ or $30$, exact midpoint slices ($160$) & ideal; slice error $\sim10^{-6}$\\
+filter (Sec.~\ref{sec:res-rodeo}) & $T=25$ refined input, $\sigma=3$, exact controlled evolution, $40$ schedules & ideal; sampling error up to $80\%$ at $M=10$\\
+circuit comparison (Secs.~\ref{sec:trotterized}--\ref{sec:depth}) & product formulas, $T=16$ or $30$, $\sigma=4$, step ceiling $\delta t=0.25$ & digital; floor $1.1\times10^{-4}$ (converged averaged map), acceptance decaying $0.2\%$ per cycle; sampled $40$-schedule values in Table~\ref{tab:depth}, exact-channel minima in Table~\ref{tab:frontier}\\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
+
+\section{Other model-space sizes, particle numbers, and observables}
+\label{sm:sizes}
+To see whether the ranking of Table~\ref{tab:depth} of the main text is an accident of the
+smallest nontrivial case, Table~\ref{tab:sizes} repeats the comparison, with
+exact-slice refinement and exact controlled evolution ($\sigma=3$, $40$ time
+sets), for $N=4$ and $N=6$ particles on $k=4$ and $k=6$ levels (eight and
+twelve qubits), always starting from the filled determinant of the smallest
+coarse space ($k_{\rm low}=N/2$).  The pattern is the same throughout: the
+prolonged overlap falls to $0.78$--$0.80$ at $k=6$, refinement for $T=30$
+restores it to $0.997$--$0.999$, and the UCCSD input, whose infidelity grows
+from $1.8\times10^{-4}$ to $1.0\times10^{-3}$ over the table, still enters the
+filter with a higher overlap than the refined state and leaves it with a lower
+infidelity at every cycle number.  (At $N=6$, $k=4$ the ansatz is exact: three
+pairs on four levels are the particle--hole conjugate of one pair, for which
+UCCSD is complete.)  The price of the UCCSD input is its circuit ---
+$6\,976$ CNOTs and $92$ parameters at $k=6$, $N=4$; $9\,024$ CNOTs and $117$
+parameters at $k=6$, $N=6$ --- and the training of those parameters, which the
+refinement avoids at the cost of $2n_s(N_{\rm CNOT}^{\rm step}+N_{\rm CNOT}^{A})$
+CNOTs with $N_{\rm CNOT}^{\rm step}=732$ at $k=6$.  This is a controlled
+small-system demonstration, not a scaling study; a regime in which refinement
+wins over the single-layer variational input requires a space for which that
+input is poor, and Sec.~\ref{sec:large} of the main text shows that four
+pairs on eight levels is already such a space (the adaptively grown ansatz
+remains far cheaper there).
+
+\begin{table*}[t]
+\caption{\label{tab:sizes}The pipeline and the UCCSD comparator at other
+sizes ($g=1$): coarse space the filled determinant at $k_{\rm low}=N/2$,
+exact-slice refinement for $T=30$, exact controlled evolution with $\sigma=3$,
+$40$ time sets.  ${\rm ov}_0$ and $p$ are the overlaps of the prolonged and
+refined states with the exact ground state, the UCCSD columns give the
+infidelity and energy error of the sector-level UCCSD state together with its
+parameter and CNOT counts, and the last four columns the acceptance-weighted
+infidelity after $M$ rodeo cycles from the refined and from the UCCSD input.
+The register has $2k$ qubits ($8$ and $12$) and the uncontrolled first-order
+Trotter step of Eq.~\eqref{eq:trottercost} costs $296$ CNOTs at $k=4$ and
+$732$ at $k=6$.}
+\footnotesize
+\begin{ruledtabular}
+\begin{tabular}{ccc cc cccc cc cc}
+$(k,N)$ & dim & gap & ${\rm ov}_0$ & $p\,(T{=}30)$ & $1-\mathcal F_{\rm UCCSD}$ & $\Delta E_{\rm UCCSD}$ & params & CNOTs & \multicolumn{2}{c}{refined$+$rodeo} & \multicolumn{2}{c}{UCCSD$+$rodeo}\\
+ & & & & & & & & & $M{=}2$ & $M{=}6$ & $M{=}2$ & $M{=}6$\\
+\colrule
+$(4,4)$ & 70  & $1.823$ & $0.868$ & $0.9988$ & $1.8\times10^{-4}$ & $1.4\times10^{-3}$ & 26  & $1\,312$ & $3.4\times10^{-4}$ & $2.3\times10^{-5}$ & $4.1\times10^{-5}$ & $1.4\times10^{-6}$\\
+$(6,4)$ & 495 & $2.017$ & $0.798$ & $0.9976$ & $7.6\times10^{-4}$ & $6.1\times10^{-3}$ & 92  & $6\,976$ & $6.3\times10^{-4}$ & $4.1\times10^{-5}$ & $1.7\times10^{-4}$ & $7.6\times10^{-6}$\\
+$(4,6)$ & 28  & $1.779$ & $0.894$ & $0.9991$ & $<10^{-15}$ & $<10^{-15}$ & 15  & $688$    & $2.5\times10^{-4}$ & $1.7\times10^{-5}$ & $0$ & $0$\\
+$(6,6)$ & 924 & $2.052$ & $0.780$ & $0.9972$ & $1.0\times10^{-3}$ & $8.3\times10^{-3}$ & 117 & $9\,024$ & $7.2\times10^{-4}$ & $4.8\times10^{-5}$ & $2.4\times10^{-4}$ & $1.0\times10^{-5}$\\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
+
+\paragraph{Observables.}
+A state-preparation method for nuclear structure is judged by the observables
+of the state it delivers, not only by its overlap.  Table~\ref{tab:obs} lists
+the level occupation numbers $n_p=\sum_\sigma\expval{n_{p\sigma}}$ and the
+correlation energy $E-E_{\rm ref}$ of the states of Table~\ref{tab:depth} of the main text at
+$k=4$, $N=4$, $g=1$ (for the filtered states, the acceptance-weighted average
+over the $40$ time sets).  The exact ground state depletes the two occupied
+levels by $0.07$ and $0.20$ particles.  The UCCSD state reproduces the
+occupations to $3\times10^{-3}$ and the correlation energy to $1.4\times10^{-3}$;
+the refined state at $T=30$, whose infidelity is $2.3\times10^{-3}$, deviates by
+up to $0.02$ in the occupations and by $10^{-2}$ in the correlation energy,
+and two rodeo cycles reduce both deviations by a factor $2$--$3$, six cycles by
+a factor $4$--$5$.  Occupation numbers converge more slowly than the energy,
+as expected for a quantity that is linear rather than quadratic in the error
+of the state.
+
+\begin{table}[t]
+\caption{\label{tab:obs}Level occupation numbers $n_p$ and energy of the
+prepared states at $k=4$, $N=4$, $g=1$ ($E_{\rm ref}=1$); the filtered states
+use the Trotterized filter of Table~\ref{tab:depth} ($\delta t=0.25$) and are
+acceptance-weighted averages over $40$ time sets; $a\,10^{-b}$ stands for
+$a\times10^{-b}$.}
+\footnotesize
+\begin{ruledtabular}
+\begin{tabular}{lcccccc}
+state & $n_0$ & $n_1$ & $n_2$ & $n_3$ & $E-E_{\rm ref}$ & $1-\mathcal F$\\
+\colrule
+exact & $1.929$ & $1.803$ & $0.197$ & $0.071$ & $-0.3645$ & $0$\\
+reference det. & $2$ & $2$ & $0$ & $0$ & $0$ & $1.3\,10^{-1}$\\
+UCCSD & $1.930$ & $1.806$ & $0.194$ & $0.070$ & $-0.3630$ & $1.8\,10^{-4}$\\
+refined ($T{=}30$) & $1.908$ & $1.795$ & $0.205$ & $0.092$ & $-0.3549$ & $2.3\,10^{-3}$\\
+refined$+$rodeo $M{=}2$ & $1.920$ & $1.798$ & $0.202$ & $0.080$ & $-0.3621$ & $5.3\,10^{-4}$\\
+refined$+$rodeo $M{=}6$ & $1.923$ & $1.801$ & $0.199$ & $0.077$ & $-0.3637$ & $1.5\,10^{-4}$\\
+UCCSD$+$rodeo $M{=}2$ & $1.924$ & $1.801$ & $0.199$ & $0.076$ & $-0.3637$ & $1.3\,10^{-4}$\\
+\end{tabular}
+\end{ruledtabular}
+\end{table}
+
+
+\section{The pair basis and the sixteen-qubit ingredients}
+\label{sm:large}
+Every stage of the pipeline conserves seniority --- the Hamiltonian, the
+embedding, the path, the exactly exponentiated pair-hopping blocks and the
+filter --- so for an $N$-paired target the whole computation can be carried
+out in the pair basis (one bit per level, $\binom{k}{N/2}$ states).  The
+pair-basis implementation used for Sec.~\ref{sec:large} of the main text
+was validated against the full-sector code at $k=4$, $N=4$: the Hamiltonian
+and every Trotter term coincide with the seniority-zero blocks of their
+full-sector counterparts to machine precision, and every anchor of the main
+text is reproduced --- the ground-state energy $0.6355484736$, the prolonged
+overlap $p_0=0.8676375677$, the refined overlap $p(25)=0.9975712826$, the
+Trotterized $p=0.9922$ at $T^*=16$ with $43$ second-order steps, the
+four-pair ansatz $E=0.6369869810$ with $1-F=1.776\times10^{-4}$, and the
+exact-ensemble infidelities $1.216\times10^{-3}$, $6.08\times10^{-4}$,
+$3.80\times10^{-5}$ and $2.38\times10^{-6}$ after $1$, $2$, $6$ and $10$
+cycles.  The gate counts of the sixteen-qubit study are those of the
+$2k$-qubit compilation of Sec.~\ref{sec:circuits} of the main text.
+
+Table~\ref{tab:large} lists the ingredients of the sixteen-qubit study for
+$g=0.5$ to $2$, and Fig.~\ref{fig:large} the exact-slice transport along
+the refinement chains $k_{\rm low}\to8$ and along the HF ramp, with its
+coupling dependence.
+
+\begin{table*}[t]
+\caption{\label{tab:large}Four pairs on eight levels ($N=8$, $k=8$):
+HF and exact energies, seniority-zero gap, HF overlap $p_{\rm HF}$, the
+$16$-parameter pair-double ansatz ($768$ CNOTs) and the $8$-parameter
+coarse ansatz at $k=6$ ($384$ CNOTs) with the overlap of its prolongation,
+the response norm $\chi_u(0)=P(k-P)g^2/(4b^2)$ at $b=0.6$, and the
+exact-slice $1-p$ at $T=8$ of the HF ramp, of the $4\to8$ chain
+($\mu_{\rm buf}=2$) and of the $6\to8$ chain from the exact coarse state
+($\mu_{\rm buf}=2$).  The shift scan of the $4\to8$ chain is
+Table~\ref{tab:shift} of the main text.}
+\scriptsize
+\begin{ruledtabular}
+\begin{tabular}{c cc c c cc c c c ccc}
+$g$ & $E_{\rm HF}$ & $E_0$ & gap & $p_{\rm HF}$ & $1-F_{16}$ & $1-F_{8}^{k=6}$ & $p_0(6{\to}8)$ & $\chi_u(0)$ & \multicolumn{3}{c}{$1-p(T{=}8)$: ramp / $4{\to}8$ / $6{\to}8$}\\
+\colrule
+0.5 & 11 & 10.790 & 2.06 & 0.940 & $2.2\times10^{-5}$ & $7.3\times10^{-6}$ & 0.989 & 2.8 & \multicolumn{3}{c}{$7.6\times10^{-6}$ / $1.4\times10^{-4}$ / $1.1\times10^{-4}$}\\
+1   & 10 & 8.889  & 2.59 & 0.690 & $3.1\times10^{-3}$ & $6.9\times10^{-4}$ & 0.928 & 11.1 & \multicolumn{3}{c}{$1.1\times10^{-4}$ / $4.6\times10^{-4}$ / $6.1\times10^{-4}$}\\
+1.5 & 9  & 6.055  & 3.97 & 0.413 & $2.1\times10^{-2}$ & $5.3\times10^{-3}$ & 0.817 & 25.0 & \multicolumn{3}{c}{$1.1\times10^{-4}$ / $9.5\times10^{-3}$ / $1.9\times10^{-3}$}\\
+2   & 8  & 2.487  & 5.95 & 0.253 & $4.2\times10^{-2}$ & $1.3\times10^{-2}$ & 0.709 & 44.4 & \multicolumn{3}{c}{$4.2\times10^{-4}$ / $7.5\times10^{-2}$ / $4.7\times10^{-3}$}\\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/fig21.png}
+\caption{Four pairs on eight levels ($N=8$, $k=8$, sixteen qubits), exact
+slices.  Left, $g=1$: $1-p(T)$ for the refinement chains $k_{\rm low}\to8$
+with $k_{\rm low}=4$--$7$ at $\mu_{\rm buf}=0.6$ (dashed) and $2$ (solid),
+the $4\to8$ chain at $\mu_{\rm buf}=4$, and the HF adiabatic ramp from the
+same determinant.  Right: coupling dependence of the ramp and of the $4\to8$
+chain at $\mu_{\rm buf}=2$ for $g=0.5$, $1$, $1.5$ and $2$; the dotted lines
+are the infidelities of the $16$-parameter pair-double ansatz.}
+\label{fig:large}
+\end{figure*}
+
+
+\begin{thebibliography}{99}
+\bibitem{Bogner2026}
+S.~Bogner, H.~Hergert, M.~Hjorth-Jensen, R.~LaRose, D.~Lee, M.~Patkowski,
+\textit{Quantum state preparation with resolution refinement},
+Phys.\ Lett.\ B \textbf{875}, 140363 (2026); arXiv:2511.14732.
+\bibitem{Sadia2026}
+J.~P.~Sadia, M.~Hjorth-Jensen, D.~Lee, R.~LaRose,
+\textit{Digital quantum state preparation by nucleation},
+arXiv:2609.37527 (2026).
+\end{thebibliography}
+\end{document}
