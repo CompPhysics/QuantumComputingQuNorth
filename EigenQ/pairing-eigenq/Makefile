@@ -54,14 +54,17 @@ notebook-hubbard:
 	$(PY) $(SKILLS)/notebook-builder/scripts/execute_notebook.py $(NBH) 7200
 
 check-hubbard:
-	$(PY) scripts/check_notebook_hubbard.py $(NBH) 14
+	$(PY) scripts/check_notebook_hubbard.py $(NBH) 15
 
 figures-hubbard:
 	$(PY) $(SKILLS)/physics-paper/scripts/extract_figures.py $(NBH) $(FIGSH)
 
 paper-hubbard: figures-hubbard
 	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXH)
-	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXHSM)   # Supplemental Material (xr against the main .aux)
+	# the SM resolves main-text references with xr against a copy of the main .aux without the \bibcite entries
+	# (hyperref + xr otherwise fail on citations the SM defines itself)
+	grep -v -e bibcite paper3/eigenq_hubbard.aux > paper3/eigenq_hubbard_xr.aux
+	bash $(SKILLS)/physics-paper/scripts/build_paper.sh $(TEXHSM)   # Supplemental Material (xr against eigenq_hubbard_xr.aux)
 
 hubbard: notebook-hubbard check-hubbard paper-hubbard
 

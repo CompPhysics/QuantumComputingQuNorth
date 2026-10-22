@@ -436,7 +436,14 @@ def c4v_irrep(psi, L, Nup, Ndn, tol=1e-6):
 
 # ------------------------------------------------------------------ Trotterized pipeline
 def _eigterms(terms):
-    return [np.linalg.eigh(T.toarray() if issparse(T) else T) for T in terms]
+    """Eigendecompositions of the (Hermitian) groups, the eigenvector matrix
+    stored as complex so that `_factor_apply` needs no dtype conversion
+    (a 5x speed-up of `trotter_refine` at 784 states; same numbers)."""
+    out = []
+    for T in terms:
+        lam, V = np.linalg.eigh(T.toarray() if issparse(T) else T)
+        out.append((lam, np.ascontiguousarray(V, dtype=complex)))
+    return out
 
 
 def _factor_apply(eig, c, psi):
@@ -901,7 +908,7 @@ def quantized_step_distribution(sigma, dt, xmax=8.0):
     return ns, w / w.sum()
 
 
-def exact_digital_ensemble(tr, psi0, target, sigma, M, E_obj=None):
+def exact_digital_ensemble(tr, psi0, target, sigma, M, E_obj=None, cache=None):
     """EXACT ensemble of accepted runs of the fixed-step digital filter
     (`trotter_evolution` output `tr`, cycle times quantized to n dt): because
     every cycle is a function of the same step unitary U = W e^{i phi} W^+, the
@@ -912,14 +919,21 @@ def exact_digital_ensemble(tr, psi0, target, sigma, M, E_obj=None):
     (coherences kept: the exact and the digital eigenbases differ) and the
     acceptance Tr rho for M = 0..M, and the mean number of steps per cycle.
     Replaces the sampled 40-schedule averages wherever the step can be
-    diagonalized (revision of 2026-10-20)."""
+    diagonalized (revision of 2026-10-20).  `cache` (a dict) keeps Q, g and
+    the mean step count across calls with the same tr/target/sigma/E_obj."""
     W, ph, dt = tr["W"], tr["phases"], tr["dt"]
     if E_obj is None:
         E_obj = tr["E_eff"]
-    ns, wn = quantized_step_distribution(sigma, dt)
-    f = 0.5 * (1 + np.exp(1j * np.outer(ns, ph + E_obj * dt)))
-    Q = (f.T * wn) @ f.conj()
-    c = W.conj().T @ np.asarray(psi0, complex); g = W.conj().T @ np.asarray(target, complex)
+    if cache is not None and "Q" in cache:
+        Q, g, ns, wn = cache["Q"], cache["g"], cache["ns"], cache["wn"]
+    else:
+        ns, wn = quantized_step_distribution(sigma, dt)
+        f = 0.5 * (1 + np.exp(1j * np.outer(ns, ph + E_obj * dt)))
+        Q = (f.T * wn) @ f.conj()
+        g = W.conj().T @ np.asarray(target, complex)
+        if cache is not None:
+            cache.update(Q=Q, g=g, ns=ns, wn=wn)
+    c = W.conj().T @ np.asarray(psi0, complex)
     rho = np.outer(c, c.conj())
     inf = [1 - float((g.conj() @ rho @ g).real / np.trace(rho).real)]; acc = [1.0]
     for _ in range(M):

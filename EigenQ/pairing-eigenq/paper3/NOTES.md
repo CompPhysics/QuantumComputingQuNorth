@@ -1,5 +1,26 @@
 # Paper 3 — refinement + rodeo on the Hubbard model
 
+## Status 2026-10-22: sixth draft — final pre-submission pass (the paper-I checklist of `paper/morefeedback.md`)
+
+Response: `response_to_final_pass.md`.  Backups of the fifth draft: `eigenq_hubbard_v5_backup.tex`,
+`eigenq_hubbard_supp_v5_backup.tex`.  Main change: the operating-point search behind Tables 2–3
+was not converged (coarse T grids).  New notebook Section 14 (EXT:HREFINE,
+`scripts/hubbard_refine_checks.py`, self-contained; inserted by
+`scripts/extend_notebook_hubbard_refine.py`, emitted by the builder; fig 15 = the cost frontiers,
+now the main-text figure; figs 13–14 moved to SM Sec. S9 with Table S7): fine T grids, geometric
+n_s (ratio 1.15) then integer by bisection, M=0..6 with the exact ensemble at eight sites, M=0 at
+sixteen (complete: one cycle 1.76e5 > every unfiltered minimum).  Minima (CNOTs per accepted
+preparation): eight sites 1e-3/3e-4/1e-4 — ramp 1.0e4/1.6e4/2.4e4, Path A 3.0e4/5.3e4/8.5e4
+(×2.95–3.53), ADAPT 1.7e4/2.3e4/7.9e4, pruned UCCSD 5.1e4/9.0e4/–, Path B 9.8e4/1.4e5/2.1e5;
+sixteen sites 1e-2/3e-3/1e-3/3e-4 — ramp 2.9e4/4.4e4/7.5e4/1.2e5, Path A 4.6e4/7.2e4/1.2e5/2.2e5
+(×1.60–1.86; coarse states 16 416 / 24 192 CNOTs), ADAPT 4.8e4/3.9e5/7.9e5/1.1e6, pruned
+6.2e4/4.1e5/5.9e5/9.8e5, Path B 1.1e5/2.7e5/5.3e5/9.2e5.  The "tie at 1e-3 at thirty-two
+qubits" was a T-spacing artifact.  Also: positive quantized-time protocol stated, 1/p scoped
+(Lin–Tong), availability section, SM built against `eigenq_hubbard_xr.aux` (hyperref+xr failed
+on the imported \bibcite entries), `make check-hubbard` → 15 figures.  Library:
+`hb.exact_digital_ensemble(cache=)`, complex eigenvectors in `hb._eigterms`.
+
+
 ## Status 2026-10-20: fifth draft — revision after `hubbard_pre_submission_critical_assessment.md`
 
 Response: `response_to_pre_submission_assessment.md` (verdict per point + the rebuilt

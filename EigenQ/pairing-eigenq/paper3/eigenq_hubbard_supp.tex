@@ -2,7 +2,11 @@
 % Supplemental Material for "Lattice refinement followed by the rodeo
 % algorithm: a gate-level benchmark of eigenstate-preparation routes on the
 % Hubbard chain" (paper III).  Cross-references to the main text resolve
-% through xr against eigenq_hubbard.aux (compile the main text first).
+% through xr-hyper against eigenq_hubbard_xr.aux, the main .aux without its
+% \bibcite entries (made by `make paper-hubbard`), or against eigenq_hubbard.aux
+% itself when that copy is absent (a plain pdflatex run; then one harmless
+% multiply-defined warning for the shared citation appears).  Compile the main
+% text first.
 % Every number traces to notebooks/ResolutionRefHubbard.ipynb.
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -11,9 +15,10 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{xcolor}
+\usepackage{xr-hyper}
 \usepackage{hyperref}
-\usepackage{xr}
-\externaldocument{eigenq_hubbard}
+% main-text references: the filtered .aux made by `make paper-hubbard` when it exists (clean build), else the main .aux itself
+\IfFileExists{eigenq_hubbard_xr.aux}{\externaldocument{eigenq_hubbard_xr}}{\externaldocument{eigenq_hubbard}}
 \newcommand{\todo}[1]{\textcolor{red}{[#1]}}
 \newcommand{\Hlow}{H_{\mathrm{low}}}
 \newcommand{\Hhigh}{H_{\mathrm{high}}}
@@ -58,8 +63,10 @@ steps (Sec.~\ref{sm:dimer}), the plaquette spectra (Sec.~\ref{sm:2d}), the
 variational tables (Sec.~\ref{sm:uccsd}), the Trotterized refinement at
 eight sites (Sec.~\ref{sm:trotter}), the exact-ensemble filter
 (Sec.~\ref{sm:filter}), the ingredients and validation of the
-thirty-two-qubit study (Sec.~\ref{sm:large}), and the operating-point tables
-(Sec.~\ref{sm:ops}).  Equation, section, table and figure numbers without
+thirty-two-qubit study (Sec.~\ref{sm:large}), the operating-point tables
+(Sec.~\ref{sm:ops}), and the convergence of the operating-point search
+behind Tables~\ref{tab:budget} and \ref{tab:large} of the main text
+(Sec.~\ref{sm:converge}).  Equation, section, table and figure numbers without
 the prefix S refer to the main text; all numbers are outputs of the
 notebook \texttt{notebooks/ResolutionRefHubbard.ipynb}.
 
@@ -476,11 +483,13 @@ all with a sector gap of $0.05t$.
 \label{sm:ops}
 % ===========================================================================
 Table~\ref{tab:ops} lists, for a selection of the inputs that enter the
-eight-site search of Table~\ref{tab:budget}, the exact quantized-time
-ensemble infidelity and the CNOTs per accepted preparation after $M=0$,
-$2$, $4$ and $6$ cycles (the search itself ranges over $281$ inputs, among
-them $42$ ramps, $72$ Path-B and $24$ Path-A states from both charged
-coarse states and every ADAPT prefix below $2\times10^{-2}$); the
+first eight-site search behind Table~\ref{tab:budget}, the exact
+quantized-time ensemble infidelity and the CNOTs per accepted preparation
+after $M=0$, $2$, $4$ and $6$ cycles (that search ranged over $281$ inputs,
+among them $42$ ramps, $72$ Path-B and $24$ Path-A states from both charged
+coarse states and every ADAPT prefix below $2\times10^{-2}$; the refined
+search that gives the table's minima is described in
+Sec.~\ref{sm:converge}); the
 sixteen-site data behind Table~\ref{tab:large}, with the bootstrap ranges
 of the minima, are given in Table~\ref{tab:largefull}.
 
@@ -494,7 +503,7 @@ of the minima, are given in Table~\ref{tab:largefull}.
   \label{tab:ops}
   \centering\scriptsize
   \setlength{\tabcolsep}{3pt}
-  \begin{tabular}{lcc|cccc|cccc}
+  \resizebox{\textwidth}{!}{\begin{tabular}{lcc|cccc|cccc}
   \toprule
   input & $p$ & prep & \multicolumn{4}{c|}{$1-\mathcal F_M$, $M=0,2,4,6$} & \multicolumn{4}{c}{CNOTs per accepted preparation, $M=0,2,4,6$}\\
   \midrule
@@ -515,7 +524,7 @@ of the minima, are given in Table~\ref{tab:largefull}.
   Path A, $T=12$, $n_s=128$ (c) & 0.9997 & 66\,600 & $2.7{\times}10^{-4}$ & $1.1{\times}10^{-4}$ & $7.2{\times}10^{-5}$ & $6.1{\times}10^{-5}$ & $6.7{\times}10^{4}$ & $1.1{\times}10^{5}$ & $1.4{\times}10^{5}$ & $1.8{\times}10^{5}$\\
   Path A, $T=16$, $n_s=128$ (c) & 0.9997 & 66\,600 & $2.9{\times}10^{-4}$ & $1.2{\times}10^{-4}$ & $7.3{\times}10^{-5}$ & $6.2{\times}10^{-5}$ & $6.7{\times}10^{4}$ & $1.1{\times}10^{5}$ & $1.4{\times}10^{5}$ & $1.8{\times}10^{5}$\\
   \bottomrule
-  \end{tabular}
+  \end{tabular}}
 \end{table*}
 
 \begin{table*}[t]
@@ -570,6 +579,140 @@ of the minima, are given in Table~\ref{tab:largefull}.
   \bottomrule
   \end{tabular}}
 \end{table*}
+
+% ===========================================================================
+\section{Convergence of the operating-point search}
+\label{sm:converge}
+% ===========================================================================
+The minimum costs of Tables~\ref{tab:budget} and \ref{tab:large} of the
+main text are the best costs found under a stated finite search, and this
+section records how they move as the search is refined (notebook,
+Sec.~14).  Three levels are compared.  L0 is the grid of the first joint
+search (notebook, Sec.~13): at eight sites the ramp over
+$T\in\{8,12,16,24,32,48\}/t$ and $n_s\in\{64,96,\ldots,512\}$, Path~A over
+$T\in\{8,12,16\}/t$ and $n_s\in\{64,\ldots,512\}$, Path~B over
+$T\in\{16,24,32\}/t$ and $n_s\in\{128,\ldots,1\,024\}$; at sixteen sites
+the ramp over $T\in\{32,48,64,128\}/t$ and $n_s\in\{256,512,1\,024\}$ and
+Path~A over six $(T,n_s)$ pairs from $(8,64)$ to $(32,512)$.  L1 is a fine
+grid of the evolution time --- at eight sites $T=6$--$48/t$ (ramp) and
+$6$--$24/t$ (Path~A) in steps of $1/t$ and $12$--$32/t$ (Path~B) in steps
+of $2/t$; at sixteen sites $16$--$80/t$ in steps of $4/t$ (ramp) and
+$4$--$40/t$ in steps of $2/t$ (Path~A) --- with the second-order step
+count on a geometric list of ratio $1.15$ ($32$--$768$, $64$--$1\,024$ for
+Path~B, $64$--$768$ and $24$--$512$ at sixteen sites) and, for Path~A and
+B, both charged coarse states and $\Lambda\in\{8,16,32\}t$; at eight sites
+every point is evaluated with the exact quantized-time ensemble for
+$M=0,\ldots,6$, at sixteen sites unfiltered ($M=0$), which is complete for
+the ramp and Path~A because the expected cost of any filtered point is
+at least its input plus one average cycle, $1.76\times10^5$ CNOTs, above
+their unfiltered minima at every target of Table~\ref{tab:large}.  L2
+refines, for every control whose L1 cost lies within $40\%$ of the L1
+minimum, the integer step count by bracketing and bisection at fixed
+$(T,M)$ and control.  The coarse state of the $8\to16$ hierarchy is
+re-selected at L1 as the cheapest refined eight-site unfiltered ramp
+below $3\times10^{-4}$ (c: $T=13/t$, $n_s=113$, $1-F=3.0\times10^{-4}$,
+$16\,416$ CNOTs with the prolongation, against $27\,792$ in the first
+search) and below $10^{-4}$ (a: $T=19/t$, $n_s=167$, $9.9\times10^{-5}$,
+$24\,192$ against $37\,008$).  Table~\ref{tab:converge} lists the three
+levels, the L2 operating point, the number of distinct controls ($T$, or
+$(\Lambda,T)$ with the coarse state) whose refined cost lies within $10\%$
+of the L2 minimum, and the ratio Path~A/ramp.  Figures~\ref{fig:grid8} and
+\ref{fig:grid16} show the L0 grids themselves with the exact-ensemble or
+sampled tracks of the fixed inputs; the frontier curves of
+Fig.~\ref{fig:frontiers} of the main text are read from the L1 clouds.
+
+Three features of Table~\ref{tab:converge} carry the conclusions drawn
+in the main text.  First, the first grids were not converged: at eight
+sites every adiabatic minimum falls on refinement, by $28$--$44\%$ for the
+ramp, $20$--$22\%$ for Path~A and $15$--$23\%$ for Path~B, and at sixteen
+sites by $25$--$63\%$ for the ramp and $18$--$52\%$ for Path~A, the largest
+changes at the loose targets, where the first grid's shortest time and
+smallest step count were already too long and too many.  Second, the fine
+grids are close to converged in the sense available to a finite search:
+the integer refinement L1$\to$L2 moves the minima by $0$--$11\%$, and the
+unfiltered frontiers are sharp in $T$ (one to six controls within $10\%$
+of the minimum) because the cheapest operating point sits at the shortest
+time at which the adiabatic error alone meets the target, after which the
+step count is fixed by the digitization error; the filtered Path-B
+frontier at eight sites is flatter ($5$--$14$ controls within $10\%$), as
+cycles and steps trade against each other there.  We do not interpret
+differences between routes below the $10\%$ level.  Third, the ratio of
+the projector path to the ramp is $2.95$--$3.53$ at eight sites and
+$1.60$--$1.86$ at sixteen, uniformly in the ramp's favor: the first grid's
+near-tie at thirty-two qubits ($1.5$ against $1.6\times10^5$ CNOTs at
+$10^{-3}$) was an artifact of its $T$ spacing --- the ramp's minimum
+moved from $(48/t,512)$ to $(44/t,244)$ and halved --- and the
+fifteen-percent margin at $10^{-2}$ likewise ($(32/t,256)$ to $(28/t,94)$).
+The cheaper coarse states selected by the refined eight-site search
+($16\,416$ and $24\,192$ CNOTs instead of $27\,792$ and $37\,008$) lower the
+Path-A costs by $1$--$2\times10^4$ CNOTs and are included in the L1 and L2
+values; the Path-B and prolonged-state rows of Table~\ref{tab:large},
+which keep the first search's coarse states, would gain the same amount
+and remain far from the frontier.
+
+\begin{table*}[t]
+  \caption{Convergence of the operating-point search: best CNOTs per
+  accepted preparation found at the three search levels described in the
+  text (L0: grid of the first joint search; L1: fine $T$ grid, geometric
+  $n_s$ list; L2: L1 plus the integer refinement of $n_s$), the L2
+  operating point as $(T,n_s,M)$ or $(\Lambda,T,n_s,M)$ with the charged
+  coarse state, the infidelity reached there, the number of distinct
+  controls within $10\%$ of the L2 minimum, and the ratio Path~A/ramp at
+  L2.  Filter settings and costs as in Tables~\ref{tab:budget} and
+  \ref{tab:large}.}
+  \label{tab:converge}
+  \centering\small
+  \setlength{\tabcolsep}{4pt}
+  \resizebox{\textwidth}{!}{\begin{tabular}{lc ccc l c c c}
+  \toprule
+  route & target & L0 & L1 & L2 & L2 point & $1-\mathcal F$ & within $10\%$ & A/ramp\\
+  \midrule
+  \multicolumn{9}{l}{chain $4\to8$, sixteen qubits (exact quantized-time ensemble)}\\
+  $U$-ramp & $10^{-3}$ & $1.40\times10^{4}$ & $1.13\times10^{4}$ & $1.00\times10^{4}$ & (13, 69, 0) & $9.6\times10^{-4}$ & 3 & \\
+   & $3\times10^{-4}$ & $2.80\times10^{4}$ & $1.74\times10^{4}$ & $1.57\times10^{4}$ & (14, 108, 0) & $3.0\times10^{-4}$ & 2 & \\
+   & $10^{-4}$ & $3.70\times10^{4}$ & $2.65\times10^{4}$ & $2.42\times10^{4}$ & (19, 167, 0) & $9.9\times10^{-5}$ & 1 & \\
+  Path A & $10^{-3}$ & $3.70\times10^{4}$ & $3.10\times10^{4}$ & $2.97\times10^{4}$ & (9, 47, 0; c) & $9.8\times10^{-4}$ & 1 & $2.95$\\
+   & $3\times10^{-4}$ & $6.70\times10^{4}$ & $5.57\times10^{4}$ & $5.34\times10^{4}$ & (13, 99, 0; c) & $3.0\times10^{-4}$ & 4 & $3.41$\\
+   & $10^{-4}$ & $1.10\times10^{5}$ & $8.89\times10^{4}$ & $8.53\times10^{4}$ & (18, 151, 0; a) & $9.9\times10^{-5}$ & 2 & $3.53$\\
+  Path B & $10^{-3}$ & $1.20\times10^{5}$ & $1.01\times10^{5}$ & $9.85\times10^{4}$ & (8, 18, 216, 3; c) & $1.0\times10^{-3}$ & 10 & \\
+   & $3\times10^{-4}$ & $1.60\times10^{5}$ & $1.36\times10^{5}$ & $1.36\times10^{5}$ & (8, 14, 202, 5; c) & $3.0\times10^{-4}$ & 14 & \\
+   & $10^{-4}$ & $2.70\times10^{5}$ & $2.16\times10^{5}$ & $2.09\times10^{5}$ & (16, 28, 577, 6; c) & $1.0\times10^{-4}$ & 5 & \\
+  \midrule
+  \multicolumn{9}{l}{chain $8\to16$, thirty-two qubits (unfiltered, $M=0$)}\\
+  $U$-ramp & $10^{-2}$ & $7.8\times10^{4}$ & $3.06\times10^{4}$ & $2.91\times10^{4}$ & (28, 94, 0) & $9.9\times10^{-3}$ & 2 & \\
+   & $3\times10^{-3}$ & $7.8\times10^{4}$ & $4.67\times10^{4}$ & $4.43\times10^{4}$ & (40, 144, 0) & $3.0\times10^{-3}$ & 1 & \\
+   & $10^{-3}$ & $1.6\times10^{5}$ & $8.20\times10^{4}$ & $7.47\times10^{4}$ & (44, 244, 0) & $1.0\times10^{-3}$ & 2 & \\
+   & $3\times10^{-4}$ & $1.6\times10^{5}$ & $1.25\times10^{5}$ & $1.19\times10^{5}$ & (60, 391, 0) & $3.0\times10^{-4}$ & 2 & \\
+  Path A & $10^{-2}$ & $9.0\times10^{4}$ & $4.84\times10^{4}$ & $4.64\times10^{4}$ & (8, 31, 0; c) & $9.9\times10^{-3}$ & 3 & $1.60$\\
+   & $3\times10^{-3}$ & $1.5\times10^{5}$ & $7.35\times10^{4}$ & $7.16\times10^{4}$ & (12, 57, 0; c) & $3.0\times10^{-3}$ & 2 & $1.62$\\
+   & $10^{-3}$ & $1.5\times10^{5}$ & $1.26\times10^{5}$ & $1.23\times10^{5}$ & (18, 102, 0; a) & $9.8\times10^{-4}$ & 6 & $1.65$\\
+   & $3\times10^{-4}$ & $2.8\times10^{5}$ & $2.31\times10^{5}$ & $2.22\times10^{5}$ & (26, 204, 0; a) & $3.0\times10^{-4}$ & 5 & $1.86$\\
+  \bottomrule
+  \end{tabular}}
+\end{table*}
+
+\begin{figure}[t]
+  \includegraphics[width=\columnwidth]{figs/fig13.png}
+  \caption{The L0 grid at eight sites with the exact quantized-time
+  ensemble (chain $4\to8$, $U=4t$): lines with markers are the fixed inputs
+  as $M$ grows from $0$ to $6$ and the unfiltered ADAPT prefixes; faint
+  symbols are every point of the $(T,n_s,M)$ grid of the ramp, the
+  $(\Lambda,T,n_s,M)$ grid of Path~B and the $(T,n_s,M)$ grid of Path~A
+  (both coarse states), with their lower envelopes drawn (the L0 minima of
+  Table~\ref{tab:converge}); dotted lines mark the targets of
+  Table~\ref{tab:budget}.}
+  \label{fig:grid8}
+\end{figure}
+
+\begin{figure}[t]
+  \includegraphics[width=\columnwidth]{figs/fig14.png}
+  \caption{The L0 grid at sixteen sites (chain $8\to16$, $U=4t$, forty
+  shared time sets): the fixed inputs as $M$ grows from $0$ to $6$, the
+  unfiltered ADAPT prefixes and the $200$-operator state through the
+  filter, and every point of the ramp, Path-B and Path-A grids with their
+  lower envelopes; dotted lines mark the targets of Table~\ref{tab:large}.}
+  \label{fig:grid16}
+\end{figure}
 
 \begin{thebibliography}{9}
 \bibitem{Jansen2007} S.~Jansen, M.-B.~Ruskai, and R.~Seiler, J.~Math.\ Phys.\

@@ -83,18 +83,20 @@ floor set by the step.  The benchmark is then run on equal terms: the same
 Trotterized filter is applied to the prolonged and refined states, to an
 adiabatic ramp from the free-fermion determinant and to single-layer,
 pruned and adaptively grown (ADAPT-VQE) unitary coupled-cluster states;
-every route is searched jointly over evolution time, step count and filter
-cycles, and compared by the minimum number of CNOTs per accepted
-preparation at a target infidelity.  At sixteen and at thirty-two qubits an
-\emph{unfiltered} ramp from the determinant is the cheapest route from
-$3\times10^{-3}$ down; the projector path, compiled with its coarse term
-conditioned on one shared flag qubit, is the cheapest route from the coarse
-eigenstate, within a factor $2.4$--$3.1$ of the ramp at sixteen qubits and
-tied with it at $10^{-3}$ at thirty-two; the adaptive ansatz is cheapest
-only where it needs no filter cycle.  At thirty-two qubits the coarse
-eigenstate starts ahead of the determinant and transports in a third of the
-time, but the cheaper step of the ramp cancels the advantage, and a filter
-cycle buys less than the same gates spent on evolution.
+every route is searched over evolution time, step count and filter
+cycles on grids whose convergence is reported, and compared by the best
+number of CNOTs per accepted preparation found at a target infidelity.  At
+sixteen and at thirty-two qubits an \emph{unfiltered} ramp from the
+determinant is the cheapest route at every target from $10^{-2}$ to
+$10^{-4}$; the projector path, compiled with its coarse term conditioned on
+one shared flag qubit, is the cheapest route from the coarse eigenstate,
+at $3$--$3.5$ times the ramp's cost at sixteen qubits and $1.6$--$1.9$
+times at thirty-two; the adaptive ansatz is competitive only where it
+needs no filter cycle and is then still $1.5$--$1.7$ times the ramp.  At
+thirty-two qubits the coarse eigenstate starts ahead of the determinant
+and transports in less than half the time, but the cheaper step of the
+ramp outweighs the advantage, and a filter cycle buys less than the same
+gates spent on evolution.
 \end{abstract}
 
 % ===========================================================================
@@ -108,8 +110,11 @@ preparation pays for a classical optimization loop and is capped by its
 ansatz~\cite{Peruzzo2014,McClean2018}, adiabatic preparation pays for the
 inverse gap along its path~\cite{Albash2018}, and projective filters ---
 phase estimation, polynomial filters, the rodeo
-algorithm~\cite{Choi2021,Qian2024} --- pay $1/p$ for an input of overlap $p$
-with the target.  \emph{Resolution refinement}~\cite{Bogner2026} was
+algorithm~\cite{Choi2021,Qian2024} --- pay, when run by repetition and
+post-selection as the rodeo algorithm is here, $1/p$ repetitions per
+accepted state for an input of overlap $p$ with the target (coherent
+amplitude amplification can reduce this to $1/\sqrt p$ under additional
+assumptions on the access model~\cite{LinTong2020}).  \emph{Resolution refinement}~\cite{Bogner2026} was
 proposed to supply the filter with a good input without an optimizer: an
 eigenstate of a coarse (low-resolution) Hamiltonian is lifted by a
 prolongation operator into a finer model space and transported
@@ -179,30 +184,30 @@ fixed-step digital filter --- cost per cycle $\propto1/\Deff$, accuracy floor
 set by the step --- which decides, at every size, whether an input that is
 cheaper but worse can be rescued by cycles.
 
-The outcome of (b) is stated plainly.  At sixteen qubits ($U=4t$) an
-unfiltered adiabatic ramp from the free-fermion determinant is the
-cheapest route to every target accuracy: $1.4\times10^4$,
-$2.8\times10^4$ and $3.7\times10^4$ CNOTs for infidelities $10^{-3}$,
-$3\times10^{-4}$ and $10^{-4}$, against $0.8$--$2$ times that for the
-adaptive ansatz, $2.4$--$3.1$ times for the projector path with its coarse
-term conditioned on a shared flag qubit, $3.3$--$3.6$ times for the pruned
-98-parameter ansatz and $6$--$9$ times for the two-local refinement path.
+The outcome of (b) is stated plainly, with the resolution of the search
+behind it (about $10\%$; Sec.~S9 of the \SM{}).  At sixteen qubits
+($U=4t$) an unfiltered adiabatic ramp from the free-fermion determinant is
+the cheapest route to every target accuracy: $1.0\times10^4$,
+$1.6\times10^4$ and $2.4\times10^4$ CNOTs for infidelities $10^{-3}$,
+$3\times10^{-4}$ and $10^{-4}$, against $1.5$--$3.3$ times that for the
+adaptive ansatz, $3$--$3.5$ times for the projector path with its coarse
+term conditioned on a shared flag qubit, $5$--$6$ times for the pruned
+98-parameter ansatz and $9$--$10$ times for the two-local refinement path.
 The reason is specific to the size: the determinant has the same overlap
 with the target and the same $\Deff$ as the prolonged coarse eigenstate.
 At thirty-two qubits the prolonged coarse ground state starts at
 $p_0=0.87$ against $0.72$ for the determinant, the projector path
-transports to $10^{-3}$ in a third of the ramp's time, the single-layer
-ansatz has deteriorated by a factor $2.2$ and an adaptively grown ansatz
-of two hundred operators barely reaches $10^{-2}$.  The projector path
-then ties with the ramp at $10^{-3}$ ($1.5$ against $1.6\times10^5$
-CNOTs) and costs $1.2$--$1.9$ times the ramp at the other targets, the
-variational inputs are the cheapest at $10^{-2}$ but need filter cycles
-below it and then cost four to seven times the ramp, and the two-local
-path $1.4$--$6$ times.  At both sizes the adiabatic routes reach the
-targets without a filter cycle, whose cost, $2\times10^4$ and
-$1.8\times10^5$ CNOTs, buys more as extra evolution; what decides the
-comparison is the cost of the transport, and the ramp's step is the
-cheapest there is.
+transports to $10^{-3}$ in less than half the ramp's time, the
+single-layer ansatz has deteriorated by a factor $2.2$ and an adaptively
+grown ansatz of two hundred operators barely reaches $10^{-2}$.  The
+projector path then costs $1.6$ times the ramp from $10^{-2}$ to
+$10^{-3}$ and $1.9$ times at $3\times10^{-4}$, the variational inputs are
+within a factor two of the ramp at $10^{-2}$ but need filter cycles below
+it and then cost eight to eleven times the ramp, and the two-local path
+$4$--$8$ times.  At both sizes the adiabatic routes reach the targets
+without a filter cycle, whose cost, $2\times10^4$ and $1.8\times10^5$
+CNOTs, buys more as extra evolution; what decides the comparison is the
+cost of the transport, and the ramp's step is the cheapest there is.
 
 The paper follows the structure of paper I.  Section~\ref{sec:model} fixes
 the model, the sector encoding, the ED reference and the symmetry
@@ -384,8 +389,14 @@ protocol for them is part of the open work.
 \label{sec:rodeo}
 The filter is unchanged from paper I: $M$ cycles of the controlled
 evolution $e^{-i\Hhigh t_k}$ on one reused ancilla with the phase
-$e^{i\Eobj t_k}$, Gaussian cycle times of RMS width $\sigma$, and
-post-selection on the ancilla.  For an input $\ket\psi=\sum_kc_k\ket{E_k}$
+$e^{i\Eobj t_k}$, random cycle times $t_k$ of RMS width $\sigma$ and
+post-selection on the ancilla.  The times are positive, $t_k=\abs{z_k}$
+with $z_k\sim\mathcal N(0,\sigma^2)$ (a half-normal distribution); with
+exact evolution the sign is immaterial, since only $\cos^2[(E_k-E)t/2]$
+enters, and with the fixed-step product formula of
+Sec.~\ref{sec:budget} the time is further quantized to
+$n_k=\max(1,\mathrm{round}(t_k/\delta t))$ steps, so that every digital
+result of this paper refers to that positive, quantized protocol.  For an input $\ket\psi=\sum_kc_k\ket{E_k}$
 and $\Eobj=E_0$ the fidelity of the ensemble of accepted runs obeys exactly
 \begin{align}
   1-\mathcal F_M&=\frac{\sum_{k\neq0}|c_k|^2q_k^M}{p+\sum_{k\neq0}|c_k|^2q_k^M},\nonumber\\
@@ -762,92 +773,104 @@ structure makes the ensemble of accepted runs \emph{exactly} computable
 at this size: in the eigenbasis of the step unitary the accepted density
 matrix after $M$ cycles is $\rho^{(M)}_{ij}=c_ic_j^{*}Q_{ij}^{M}$ with
 $Q_{ij}=\mathbb E_n[f_i(n)f_j(n)^{*}]$, $f_j(n)=\tfrac12[1+e^{in(\phi_j+\Eobj\delta t)}]$
-and $n$ the rounded Gaussian step count, so no schedule sampling enters the
+and $n=\max(1,\mathrm{round}(\abs{z}/\delta t))$ the quantized step count
+of the half-normal cycle time (Sec.~\ref{sec:rodeo}), so no schedule sampling enters the
 eight-site numbers (the exact ensemble also corrects a sampled value of an
 earlier version that had wrongly passed a target: the $T=8/t$ ramp with
 $64$ steps reaches $1.05\times10^{-4}$ after six cycles, not
 $8.9\times10^{-5}$).
 
 The inputs are not a fixed list but a search.  The ramp is scanned over
-$T=8$--$48/t$ and $n_s=64$--$512$, Path~B over $\Lambda=8t$, $16t$, $32t$,
-$T=16$--$32/t$ and $n_s=128$--$1\,024$, Path~A (shared-flag coarse term)
-over $T=8$--$16/t$ and $n_s=64$--$512$, each with $M=0,\ldots,6$ cycles,
-and the adaptive ansatz at every prefix; the coarse state of the hierarchy
-is not an oracle but the state actually prepared by a four-site ramp from
-the free-fermion determinant, in two versions --- $8\,216$ CNOTs for
-$1-F=6.7\times10^{-5}$ and $16\,408$ for $1.4\times10^{-5}$ --- that are
-prolonged ($p_0=0.7954$ and $0.7967$ against $0.7974$ for the exact coarse
-eigenstate) and transported, so that the search can trade coarse accuracy
-against filter cycles.  Table~\ref{tab:budget} gives the minimum cost per
-route at the three targets and Fig.~\ref{fig:budget} the lower envelopes.
+$T=6$--$48/t$ in steps of $1/t$ and $n_s=32$--$768$, Path~B over
+$\Lambda=8t$, $16t$, $32t$, $T=12$--$32/t$ and $n_s=64$--$1\,024$, Path~A
+(shared-flag coarse term) over $T=6$--$24/t$ and $n_s=32$--$768$, the
+step count on a geometric list of ratio $1.15$ and then located to the
+integer by bisection, each with $M=0,\ldots,6$ cycles, and the adaptive
+ansatz at every prefix; the coarse state of the hierarchy is not an oracle
+but the state actually prepared by a four-site ramp from the free-fermion
+determinant, in two versions --- $8\,216$ CNOTs for $1-F=6.7\times10^{-5}$
+and $16\,408$ for $1.4\times10^{-5}$ --- that are prolonged ($p_0=0.7954$
+and $0.7967$ against $0.7974$ for the exact coarse eigenstate) and
+transported, so that the search can trade coarse accuracy against filter
+cycles.  The search is finite and its minima are ``the best cost found'':
+a first search on a coarser grid ($T$ in steps of $4$--$16/t$, step
+counts $64$--$512$ in factors of $1.3$--$2$) had overestimated every
+adiabatic minimum by $15$--$44\%$, and Sec.~S9 of the \SM{} records the
+three levels of the search and how many controls lie within $10\%$ of each
+minimum: at the fine grid the integer refinement of $n_s$ moves the minima
+by at most $12\%$, and the frontier is sharp in $T$ for the unfiltered
+routes (one to four evolution times within $10\%$) because the cheapest
+operating point sits at the shortest time at which the adiabatic error
+alone meets the target.  Table~\ref{tab:budget} gives the minimum cost per
+route at the three targets and Fig.~\ref{fig:frontiers}(left) the cost
+frontiers; the grids themselves are shown in Fig.~S5 of the \SM{}.
 
 \begin{table*}[t]
-  \caption{Minimum CNOTs per accepted preparation reaching a target
-  ensemble infidelity for the chain $4\to8$ at $U=4t$ (sixteen system
-  qubits), per route, from the exact quantized-time ensemble of the
-  Trotterized filter (second order, $\delta t=0.1/t$, $\sigma=8.5/t$,
-  $\Eobj$ the Trotter-effective ground energy; a cycle costs
-  $2.0\times10^4$ CNOTs on average).  The adiabatic routes are minimized
-  over $(T,n_s,M)$ --- for Path~B also over $\Lambda$, for Path~A and B
-  also over the two charged coarse states --- the fixed inputs over $M$,
-  and ADAPT over its prefixes; the operating point is given in parentheses
-  as $(T,n_s,M)$, $(\Lambda,T,n_s,M)$, (operators, $M$) or ($M$); a dash:
-  not reached within six cycles.  Path~A is costed with the shared-flag
-  coarse term ($156$ CNOTs per application) and includes the four-site
-  coarse preparation; the variational inputs exclude their training.}
+  \caption{Best CNOTs per accepted preparation found under the stated
+  search for each route and target ensemble infidelity, chain $4\to8$ at
+  $U=4t$ (sixteen system qubits), from the exact quantized-time ensemble
+  of the Trotterized filter (second order, $\delta t=0.1/t$,
+  $\sigma=8.5/t$, $\Eobj$ the Trotter-effective ground energy; a cycle
+  costs $2.0\times10^4$ CNOTs on average).  The adiabatic routes are
+  searched over the time $T$ (ramp $6$--$48/t$ and Path~A $6$--$24/t$ in
+  steps of $1/t$, Path~B $12$--$32/t$ in steps of $2/t$), the step count
+  $n_s$ (geometric list of ratio $1.15$ from $32$ to $768$, $64$ to $1\,024$
+  for Path~B, then the integer located by bisection), the cycle number
+  $M=0,\ldots,6$ and, for Path~A and B, the two charged coarse states and
+  $\Lambda\in\{8,16,32\}t$; the fixed inputs over $M$ and ADAPT over its
+  prefixes.  The values are minima of this finite search, not certified
+  optima; Table~S7 of the \SM{} records how they moved from the coarser
+  grid of the first search (by $15$--$44\%$) and how many controls lie
+  within $10\%$ of them.  The operating point is given in parentheses as
+  $(T,n_s,M)$, $(\Lambda,T,n_s,M)$, (operators, $M$) or ($M$), with the
+  coarse state c ($8\,232$ CNOTs, $1-F=6.7\times10^{-5}$) or a ($16\,424$,
+  $1.4\times10^{-5}$) charged where it is used; a dash: not reached within
+  six cycles.  Path~A is costed with the shared-flag coarse term ($156$
+  CNOTs per application); the variational inputs exclude their training.}
   \label{tab:budget}
   \centering\small
-  \begin{tabular}{lccc}
+  \setlength{\tabcolsep}{4pt}
+  \resizebox{\textwidth}{!}{\begin{tabular}{lccc}
   \toprule
   route & $10^{-3}$ & $3\times10^{-4}$ & $10^{-4}$\\
   \midrule
-  $U$-ramp from the determinant & $1.4\times10^{4}$ (12, 96, 0) & $2.8\times10^{4}$ (16, 192, 0) & $3.7\times10^{4}$ (24, 256, 0)\\
+  $U$-ramp from the determinant & $1.0\times10^{4}$ (13, 69, 0) & $1.6\times10^{4}$ (14, 108, 0) & $2.4\times10^{4}$ (19, 167, 0)\\
   ADAPT-VQE & $1.7\times10^{4}$ (149, 0) & $2.3\times10^{4}$ (194, 0) & $7.9\times10^{4}$ (177, 3)\\
-  Path A (shared flag) & $3.7\times10^{4}$ (12, 64, 0) & $6.7\times10^{4}$ (12, 128, 0) & $1.1\times10^{5}$ (16, 128, 2)\\
+  Path A (shared flag) & $3.0\times10^{4}$ (9, 47, 0; c) & $5.3\times10^{4}$ (13, 99, 0; c) & $8.5\times10^{4}$ (18, 151, 0; a)\\
   UCCSD pruned (98) + filter & $5.1\times10^{4}$ (2) & $9.0\times10^{4}$ (4) & ---\\
   UCCSD full (198) + filter & $6.3\times10^{4}$ (2) & $1.0\times10^{5}$ (4) & ---\\
-  Path B & $1.2\times10^{5}$ (16, 24, 512, 2) & $1.6\times10^{5}$ (16, 24, 512, 4) & $2.7\times10^{5}$ (16, 32, 1024, 6)\\
+  Path B & $9.8\times10^{4}$ (8, 18, 216, 3; c) & $1.4\times10^{5}$ (8, 14, 202, 5; c) & $2.1\times10^{5}$ (16, 28, 577, 6; c)\\
   prolonged coarse state + filter & --- & --- & ---\\
   determinant + filter & --- & --- & ---\\
   \bottomrule
-  \end{tabular}
+  \end{tabular}}
 \end{table*}
 
-\begin{figure}[t]
-  \includegraphics[width=\columnwidth]{figs/fig13.png}
-  \caption{Cost versus accuracy for the chain $4\to8$ at $U=4t$ with the
-  exact quantized-time ensemble: lines with markers are the fixed inputs as
-  $M$ grows from $0$ to $6$ and the unfiltered ADAPT prefixes; faint
-  symbols are every point of the $(T,n_s,M)$ grid of the ramp, the
-  $(\Lambda,T,n_s,M)$ grid of Path~B and the $(T,n_s,M)$ grid of Path~A
-  (both coarse states), with their lower envelopes drawn; dotted lines mark
-  the targets of Table~\ref{tab:budget}.}
-  \label{fig:budget}
-\end{figure}
+
 
 The verdict at eight sites is read from Table~\ref{tab:budget}.  The
 cheapest route at every target is an \emph{unfiltered} adiabatic ramp from
-the free-fermion determinant: $1.4\times10^4$, $2.8\times10^4$ and
-$3.7\times10^4$ CNOTs for $10^{-3}$, $3\times10^{-4}$ and $10^{-4}$ ---
-a filter cycle costs $2\times10^4$ CNOTs, as much as doubling the step
-count of a $T=16/t$ ramp, and the finer or longer unfiltered evolution
-buys more.  The adaptive ansatz is the closest competitor and the only
-one that beats the ramp anywhere: $1.7\times10^4$ CNOTs at $10^{-3}$ and
-$2.3\times10^4$ at $3\times10^{-4}$ ($149$ and $194$ operators, no cycle),
-$0.8$ times the ramp at the second target, but it needs cycles below
-$3\times10^{-4}$ and costs twice the ramp at $10^{-4}$.  Path~A, with the
-shared-flag coarse term and its four-site coarse preparation, delivers an
-excellent unfiltered input ($2.7\times10^{-4}$ at $T=12/t$ with $128$
-steps, $8.9\times10^{-4}$ with $64$) and costs $2.4$--$3.1$ times the
+the free-fermion determinant: $1.0\times10^4$, $1.6\times10^4$ and
+$2.4\times10^4$ CNOTs for $10^{-3}$, $3\times10^{-4}$ and $10^{-4}$ at
+$T=13$--$19/t$ --- a filter cycle costs $2\times10^4$ CNOTs, more than the
+whole unfiltered preparation at the two looser targets, and the finer or
+longer unfiltered evolution buys more.  The adaptive ansatz is the closest
+competitor: $1.7\times10^4$ CNOTs at $10^{-3}$ and $2.3\times10^4$ at
+$3\times10^{-4}$ ($149$ and $194$ operators, no cycle), $1.7$ and $1.5$
+times the ramp, and it needs cycles below $3\times10^{-4}$ and costs
+$3.3$ times the ramp at $10^{-4}$.  Path~A, with the shared-flag coarse
+term and its four-site coarse preparation, delivers an excellent
+unfiltered input ($3.0\times10^{-4}$ at $T=13/t$ with $99$ steps,
+$9.8\times10^{-4}$ at $9/t$ with $47$) and costs $3.0$--$3.5$ times the
 ramp at the three targets, instead of the factor sixteen that a ladder
 per rotation would have charged; it is the cheapest of the routes that
 start from the coarse eigenstate by a wide margin.  The pruned UCCSD state
-costs $3.3$--$3.6$ times the ramp and does not reach $10^{-4}$ within six
-cycles; the full template a further $25\%$.  Path~B costs $6$--$9$ times
-the ramp: at any $\Lambda$ its ceiling of $(t/\Lambda)^2$ forces cycles,
-and the Trotter step it needs grows with $\Lambda$.  The prolonged state
-and the bare determinant reach $4\times10^{-3}$ after six cycles and none
-of the targets.  The determinant and the prolonged coarse eigenstate start
+costs $5$--$6$ times the ramp and does not reach $10^{-4}$ within six
+cycles; the full template a further $25\%$.  Path~B costs $9$--$10$ times the
+ramp: at any $\Lambda$ its ceiling of $(t/\Lambda)^2$ forces cycles, and
+the Trotter step it needs grows with $\Lambda$.  The prolonged state and
+the bare determinant reach $4\times10^{-3}$ after six cycles and none of
+the targets.  The determinant and the prolonged coarse eigenstate start
 from the same place --- the same overlap ($0.78$ against $0.80$) and the
 same $\Deff$, since both lie in the symmetry sector of the target --- so
 the ramp pays only fine-chain steps for the same transport that Path~A
@@ -859,11 +882,10 @@ optimization and its measurements for the variational states, the
 calibration of $(T,\mu_{\rm buf},n_s)$ or $(T,\Lambda,n_s)$ for the
 adiabatic inputs, the energy scan that locates $\Eobj$ --- are not
 included and are amortized over the preparations that use them.  The
-grids are disclosed and comparably dense for the three adiabatic routes,
-but a grid is not a global optimum; every minimum of
-Table~\ref{tab:budget} is attained away from the upper edges of its grid
-(longer times, more steps or more cycles would not lower it), which is
-the sense in which the rankings are stable.
+ratios are those of a finite search in one compilation (the shared flag
+for the coarse term, the parity-support weights for the excitations) and
+carry its resolution, about $10\%$; the rankings that survive it are the
+factors of three and more, not the percentages.
 
 % ===========================================================================
 \section{Eight to sixteen sites at the circuit level}
@@ -948,42 +970,60 @@ $1/\Deff$ per cycle at fixed $\delta t$, and an input that is cheap but
 needs several cycles pays this price in full at every size.
 
 \paragraph{Matched comparison.}
-The search of Sec.~\ref{sec:budget} is repeated with forty shared time
+The search of Sec.~\ref{sec:budget} is repeated at thirty-two qubits in
+two stages.  The filtered routes are searched with forty shared time
 sets (the $14\,400$-dimensional step cannot be diagonalized, so the
 ensemble is sampled; bootstrap relative standard errors are below $15\%$
 for every operating point used, and the selection of the cost-minimizing
 operating point of each route is itself bootstrapped over the schedules):
-the ramp over $T=32$--$128/t$ and $n_s=256$--$1\,024$, Path~B over
-$\Lambda=8t$, $16t$, $T=16$, $32/t$ and $n_s=256$, $512$, Path~A over
-$T=8$--$32/t$ and $n_s=64$--$512$, with the coarse eigenstate of the
-hierarchy prepared by the cheapest eight-site unfiltered ramp of
-Table~\ref{tab:budget} below $3\times10^{-4}$ ($T=16/t$, $192$ steps,
-$1.8\times10^{-4}$, $27\,760$ CNOTs) or below $10^{-4}$ ($T=24/t$, $256$
-steps, $5.6\times10^{-5}$, $36\,976$ CNOTs), prolonged ($p_0=0.8689$ and
-$0.8688$ against $0.8692$ for the exact coarse eigenstate) and
-transported, and charged to every input that starts from it; the
+Path~B over $\Lambda=8t$, $16t$, $T=16$, $32/t$ and $n_s=256$, $512$, the
 determinant, the prolonged states, the pruned UCCSD state and the ADAPT
-prefixes complete the set.  Table~\ref{tab:large} gives the minima and
-Fig.~\ref{fig:largebudget} the envelopes.
+prefixes over $M=0,\ldots,6$, and in this stage also the ramp and Path~A
+on a coarse grid.  The two unfiltered adiabatic routes are then searched
+on fine grids --- the ramp over $T=16$--$80/t$ in steps of $4/t$, Path~A
+over $T=4$--$40/t$ in steps of $2/t$, the step count on a geometric list
+and then located to the integer --- without the filter, which is a
+complete search for them: a cycle costs $1.8\times10^5$ CNOTs on average,
+so any filtered point costs at least that much on top of its input, more
+than the unfiltered minima at every target.  The coarse eigenstate of the
+hierarchy is prepared by the cheapest eight-site unfiltered ramp of
+Table~\ref{tab:budget} below $3\times10^{-4}$ ($T=13/t$, $113$ steps,
+$3.0\times10^{-4}$, $16\,384$ CNOTs) or below $10^{-4}$ ($T=19/t$, $167$
+steps, $9.9\times10^{-5}$, $24\,160$ CNOTs), prolonged ($p_0=0.8684$ and
+$0.8685$ against $0.8692$ for the exact coarse eigenstate) and
+transported, and charged to every input that starts from it.
+Table~\ref{tab:large} gives the minima and Fig.~\ref{fig:frontiers}(right)
+the frontiers; the grid of the first search is shown in Fig.~S6 of the
+\SM{}.
 
 \begin{table*}[t]
-  \caption{Minimum CNOTs per accepted preparation reaching a target
-  ensemble infidelity for the chain $8\to16$ at $U=4t$ (thirty-two system
-  qubits), per route: the same Trotterized filter (second order,
-  $\delta t=0.1/t$, $\sigma=36/t$, $\Eobj$ the Trotter-effective ground
-  energy, forty shared time sets; a cycle costs $1.8\times10^5$ CNOTs on
-  average), the adiabatic routes minimized over $(T,n_s,M)$ --- for Path~B
-  also over $\Lambda$, for Path~A and B also over the two charged coarse
-  states --- the fixed inputs over $M$ and ADAPT over its prefixes; the
-  operating point in parentheses as in Table~\ref{tab:budget}.  Path~A is
-  costed with the shared-flag coarse term ($332$ CNOTs per application);
-  every input that starts from the coarse eigenstate includes its
-  eight-site preparation.  In $400$ bootstrap resamples of the schedules
-  the listed operating point remains the cheapest of its route in every
-  resample for the unfiltered adiabatic points and in $61$--$100\%$ of
-  them for the filtered inputs ($72$--$100\%$ for the variational inputs);
-  the $5$--$95\%$ ranges of the resampled minimum costs are given in the
-  \SM.}
+  \caption{Best CNOTs per accepted preparation found under the stated
+  search for each route and target ensemble infidelity, chain $8\to16$ at
+  $U=4t$ (thirty-two system qubits), with the same Trotterized filter
+  (second order, $\delta t=0.1/t$, $\sigma=36/t$, $\Eobj$ the
+  Trotter-effective ground energy; a cycle costs $1.8\times10^5$ CNOTs on
+  average).  The ramp and Path~A are searched unfiltered over $T=16$--$80/t$
+  in steps of $4/t$ and $T=4$--$40/t$ in steps of $2/t$, the step count on
+  a geometric list of ratio $1.15$ ($64$--$768$ and $24$--$512$) and then
+  located to the integer by bisection, Path~A over the two charged coarse
+  states; the restriction to $M=0$ is complete for these two routes, since
+  any filtered point costs at least its input plus one average cycle,
+  $1.8\times10^5$ CNOTs, above their unfiltered minima at every target.
+  The other routes keep the minima of the forty-schedule search over their
+  grids (Path~B over $\Lambda=8t$, $16t$, $T=16$, $32/t$, $n_s=256$, $512$
+  and both coarse states; the fixed inputs over $M$; ADAPT over its
+  prefixes), whose bootstrap ranges are given in the \SM{}.  The values
+  are minima of a finite search; Table~S7 of the \SM{} records how the
+  ramp and Path-A minima moved from the grid of the first search (by
+  $18$--$63\%$) and how many controls lie within $10\%$ of them.  The
+  operating point is given in parentheses as in Table~\ref{tab:budget};
+  Path~A is costed with the shared-flag coarse term ($332$ CNOTs per
+  application) and every input that starts from the coarse eigenstate
+  includes its eight-site preparation (c: $T=13/t$, $113$ steps,
+  $3.0\times10^{-4}$, $16\,416$ CNOTs with the prolongation; a: $T=19/t$,
+  $167$ steps, $9.9\times10^{-5}$, $24\,192$ CNOTs; Path~B and the prolonged
+  states still carry the $27\,792$ and $37\,008$ CNOTs of the first
+  search's coarse states).}
   \label{tab:large}
   \centering\small
   \setlength{\tabcolsep}{4pt}
@@ -991,8 +1031,8 @@ Fig.~\ref{fig:largebudget} the envelopes.
   \toprule
   route & $10^{-2}$ & $3\times10^{-3}$ & $10^{-3}$ & $3\times10^{-4}$\\
   \midrule
-  $U$-ramp from the determinant & $7.8\times10^{4}$ (32, 256, 0) & $7.8\times10^{4}$ (48, 256, 0) & $1.6\times10^{5}$ (48, 512, 0) & $1.6\times10^{5}$ (64, 512, 0)\\
-  Path A (shared flag) & $9.0\times10^{4}$ (8, 64, 0) & $1.5\times10^{5}$ (16, 128, 0) & $1.5\times10^{5}$ (16, 128, 0) & $2.8\times10^{5}$ (32, 256, 0)\\
+  $U$-ramp from the determinant & $2.9\times10^{4}$ (28, 94, 0) & $4.4\times10^{4}$ (40, 144, 0) & $7.5\times10^{4}$ (44, 244, 0) & $1.2\times10^{5}$ (60, 391, 0)\\
+  Path A (shared flag) & $4.6\times10^{4}$ (8, 31, 0; c) & $7.2\times10^{4}$ (12, 57, 0; c) & $1.2\times10^{5}$ (18, 102, 0; a) & $2.2\times10^{5}$ (26, 204, 0; a)\\
   ADAPT-VQE & $4.8\times10^{4}$ (187, 0) & $3.9\times10^{5}$ (187, 2) & $7.9\times10^{5}$ (187, 4) & $1.1\times10^{6}$ (187, 6)\\
   UCCSD pruned (255) + filter & $6.2\times10^{4}$ (0) & $4.1\times10^{5}$ (2) & $5.9\times10^{5}$ (3) & $9.8\times10^{5}$ (5)\\
   Path B & $1.1\times10^{5}$ (8, 16, 256, 0) & $2.7\times10^{5}$ (8, 16, 256, 1) & $5.3\times10^{5}$ (16, 32, 512, 2) & $9.2\times10^{5}$ (16, 32, 512, 4)\\
@@ -1002,46 +1042,59 @@ Fig.~\ref{fig:largebudget} the envelopes.
   \end{tabular}}
 \end{table*}
 
-\begin{figure}[t]
-  \includegraphics[width=\columnwidth]{figs/fig14.png}
-  \caption{Cost versus accuracy for the chain $8\to16$ at $U=4t$ (forty
-  shared time sets): the fixed inputs as $M$ grows from $0$ to $6$, the
-  unfiltered ADAPT prefixes and the $200$-operator state through the
-  filter, and every point of the ramp, Path-B and Path-A grids with their
-  lower envelopes; dotted lines mark the targets of Table~\ref{tab:large}.}
-  \label{fig:largebudget}
-\end{figure}
+\begin{figure*}[t]
+  \includegraphics[width=\textwidth]{figs/fig15.png}
+  \caption{Cost frontiers: the best CNOTs per accepted preparation found
+  against the target ensemble infidelity, for the chain $4\to8$ at $U=4t$
+  (left; exact quantized-time ensemble, every route unfiltered (dashed)
+  and with up to six cycles (solid), read from the fine grids of Sec.~S9
+  of the \SM{}) and for the chain $8\to16$ (right; the ramp and Path~A
+  unfiltered on the fine grids, the other routes at the minima of the
+  forty-schedule search of Table~\ref{tab:large}).  Open circles mark the
+  integer-refined minima of Tables~\ref{tab:budget} and \ref{tab:large}
+  at the targets, filled squares the minima of the coarser grids of the
+  first search (Table~S7 of the \SM{}); dotted horizontal lines mark the
+  targets.}
+  \label{fig:frontiers}
+\end{figure*}
 
 The picture at thirty-two qubits differs from eight sites in two respects
-and agrees in a third.  First, the variational routes have fallen behind:
-the adaptive ansatz is still the cheapest input at $10^{-2}$
-($4.8\times10^4$ CNOTs, $0.6$ times the ramp), but it needs two, four and
-six filter cycles at the tighter targets and then costs $5$, $5$ and $7$
-times the ramp; the pruned UCCSD state behaves the same way ($5$, $4$ and
-$6$ times).  Second, the unfiltered adiabatic routes dominate from
-$3\times10^{-3}$ down, and a filter cycle, at $1.8\times10^5$ CNOTs, is
-worth more than any of them: the ramp reaches $3\times10^{-3}$ at $T=48/t$
-with $256$ steps ($7.8\times10^4$ CNOTs), $10^{-3}$ and $3\times10^{-4}$ at
-$T=48/t$ and $64/t$ with $512$ steps ($1.6\times10^5$), and Path~A reaches
-$10^{-3}$ at $T=16/t$ with $128$ steps ($1.5\times10^5$, of which
-$2.8\times10^4$ is the eight-site coarse preparation and $8.5\times10^4$
-the coarse term) and $3\times10^{-4}$ at $T=32/t$ with $256$ steps
-($2.8\times10^5$), without a cycle in either case.  Third, as at eight
-sites, the projector path and the ramp are the two cheapest routes at the
-tight targets and the ramp is ahead or tied: at $10^{-3}$ the two coincide
-($1.5$ against $1.6\times10^5$ CNOTs, a tie within the grids), at
-$3\times10^{-3}$ and $3\times10^{-4}$ the ramp is cheaper by a factor
-$1.9$ and $1.8$, and at $10^{-2}$ by $15\%$.  The coarse eigenstate does
-start ahead of the determinant here ($p_0=0.87$ against $0.72$) and Path~A
-does transport faster ($T=16/t$ against $48/t$ for $10^{-3}$), but the
-ramp's step costs $304$ CNOTs where Path~A's costs $304+2\times332$, and
-the three-fold longer ramp with the cheaper step ends up at the same
-price.  Path~B, costed from the same charged coarse state, is $1.4$--$5.9$
-times the ramp: its ceiling forces cycles at every target below $10^{-2}$.
-The prolonged state and the determinant, filtered without any transport,
-reach only $2.3\times10^{-3}$ and $7.4\times10^{-3}$ after six cycles at
-over $10^6$ CNOTs.  The ramp at $T=16/t$, the cheapest input at eight
-sites, is no longer on the frontier at any target.
+and agrees in a third.  First, the variational routes have fallen behind
+at every target: the adaptive ansatz, the cheapest input at $10^{-2}$ in
+the first search, costs $4.8\times10^4$ CNOTs there against
+$2.9\times10^4$ for the refined ramp, needs two, four and six filter
+cycles at the tighter targets and then costs $9$, $11$ and $9$ times the
+ramp; the pruned UCCSD state behaves the same way ($2$, $9$, $8$ and $8$
+times).  Second, the unfiltered adiabatic routes dominate everywhere, and a
+filter cycle, at $1.8\times10^5$ CNOTs, is worth more than any of them:
+the ramp reaches the four targets at $T=28$, $40$, $44$ and $60/t$ with
+$94$, $144$, $244$ and $391$ steps ($2.9\times10^4$, $4.4\times10^4$,
+$7.5\times10^4$ and $1.2\times10^5$ CNOTs) and Path~A at $T=8$, $12$, $18$
+and $26/t$ with $31$, $57$, $102$ and $204$ steps ($4.6\times10^4$,
+$7.2\times10^4$, $1.2\times10^5$ and $2.2\times10^5$, of which
+$1.6$--$2.4\times10^4$ is the eight-site coarse preparation and
+$2.1\times10^4$--$1.4\times10^5$ the coarse term), without a cycle in
+either case.  Third, as at eight sites, the projector path and the ramp
+are the two cheapest routes and the ramp is ahead, now by a factor $1.6$
+at the three looser targets and $1.9$ at $3\times10^{-4}$, against
+$3.0$--$3.5$ at sixteen qubits.  The coarse eigenstate does start ahead of
+the determinant here ($p_0=0.87$ against $0.72$) and Path~A does transport
+faster ($T=18/t$ against $44/t$ for $10^{-3}$, with $102$ against $244$
+steps), but the ramp's step costs $304$ CNOTs where Path~A's costs
+$304+2\times332$, and the two-and-a-half times longer ramp with the
+cheaper step ends up ahead by the coarse preparation and part of the
+coarse term.  Path~B, costed from the first search's coarse state, is
+$4$--$8$ times the ramp: its ceiling forces cycles at every target below
+$10^{-2}$.  The prolonged state and the determinant, filtered without any
+transport, reach only $2.3\times10^{-3}$ and $7.4\times10^{-3}$ after six
+cycles at over $10^6$ CNOTs.  The ramp at $T=16/t$, the cheapest input at
+eight sites, is no longer on the frontier at any target.  As at eight
+sites, the ratios carry the resolution of the search and the
+compilation: the first, coarser grid had put the ramp and Path~A within
+$3$--$15\%$ of each other at $10^{-2}$ and $10^{-3}$ and the refinement
+separated them by $60$--$65\%$, so a tie read off a grid of this kind is
+not evidence of equal cost, and differences below about $10\%$ are not
+resolved by the present search either.
 
 % ===========================================================================
 \section{Discussion}
@@ -1049,28 +1102,32 @@ sites, is no longer on the frontier at any target.
 % ===========================================================================
 \paragraph{What the benchmark shows.}
 At sixteen and at thirty-two qubits the cheapest route to every target
-from $3\times10^{-3}$ down is an unfiltered adiabatic ramp from the
+from $10^{-2}$ to $10^{-4}$ is an unfiltered adiabatic ramp from the
 free-fermion determinant, and the projector path of resolution refinement,
 compiled with its coarse term conditioned on one shared flag qubit, is the
-cheapest of the routes that start from the coarse eigenstate: $2.4$--$3.1$
-times the ramp at sixteen qubits, tied with it at $10^{-3}$ and within a
-factor $1.9$ elsewhere at thirty-two.  The reason the gap closes is the one
-the refinement proposal predicted --- the coarse eigenstate starts ahead
-of the determinant at thirty-two qubits and the projector path transports
-in a third of the time --- but the reason it does not reverse is the cost
-of the step: the ramp pays $304$ CNOTs per step where Path~A pays $304$
-plus two applications of the coarse term at $332$, so a three times longer
-ramp with the cheaper step ends at the same price.  The variational routes
-are the cheapest inputs only where they need no filter cycle ($10^{-3}$
+cheapest of the routes that start from the coarse eigenstate: $3$--$3.5$
+times the ramp at sixteen qubits and $1.6$--$1.9$ times at thirty-two.
+The reason the gap narrows is the one the refinement proposal predicted
+--- the coarse eigenstate starts ahead of the determinant at thirty-two
+qubits and the projector path transports in less than half the time ---
+but the reason it does not close is the cost of the step: the ramp pays
+$304$ CNOTs per step where Path~A pays $304$ plus two applications of the
+coarse term at $332$, so a longer ramp with the cheaper step ends ahead by
+the coarse preparation and part of the coarse term.  The variational
+routes are competitive only where they need no filter cycle ($10^{-3}$
 and $3\times10^{-4}$ at sixteen qubits for the adaptive ansatz, $10^{-2}$
-at thirty-two for ADAPT and the pruned template); below that they pay for
-cycles, and a cycle, whose cost grows as $1/\Deff$, is worth more as
-extra evolution of an adiabatic input than as a correction to a
-variational one at every target tested.  The comparison was run on equal
-terms --- the same filter, the same cost model, a joint search over time,
-steps and cycles for every route with the actually prepared coarse state
-charged and propagated --- and three of its conclusions are specific to
-what was tested: the costs are amortized logical CNOTs per accepted
+at thirty-two for ADAPT and the pruned template) and are then still
+$1.5$--$2$ times the ramp; below that they pay for cycles, and a cycle,
+whose cost grows as $1/\Deff$, is worth more as extra evolution of an
+adiabatic input than as a correction to a variational one at every target
+tested.  The comparison was run on equal terms --- the same filter, the
+same cost model, a search over time, steps and cycles for every route
+with the actually prepared coarse state charged and propagated, and the
+convergence of that search reported (a first, coarser grid had put the
+ramp and the projector path within $3$--$15\%$ of each other at two
+thirty-two-qubit targets; the refined grids separate them by
+$60$--$65\%$, and we do not resolve differences below about $10\%$) ---
+and three of its conclusions are specific to what was tested: the costs are amortized logical CNOTs per accepted
 preparation on an ideal device, without the rejected attempts, the setup
 costs or any noise; the variational comparators are the UCCSD template,
 its pruning and the ADAPT-VQE grown from the UCCSD pool, and the
@@ -1144,7 +1201,9 @@ $\delta t$, a convergence test in $T$ and $n_s$ on the measured energy) and
 a comparison at matched shot budget including the training measurements of
 the variational routes are the missing pieces for a hardware run, for which
 the $4\to8$ chain and the $(1,1)$ plaquette (thirty-two qubits,
-$256$-dimensional sector) are within reach of current devices.
+$256$-dimensional sector) are within reach of current devices in qubit
+number, though not, at $10^{4}$--$10^{5}$ two-qubit gates, in circuit size
+without error correction.
 
 \section*{Acknowledgments}
 The work of C.G. and G.L. acknowledges funding from the European Union's
@@ -1165,8 +1224,11 @@ ensemble rodeo formula and its Trotterized version, the symmetry
 diagnostics, the sector-level UCCSD and ADAPT-VQE, the Kronecker-structured
 product formulas of the sixteen-site study and the gate counting), which is
 covered by the test suite of the repository~\cite{Code}; the figures are
-extracted from the executed notebook, and the \SM{} and the notebook
-together document every number quoted.  The ED reference code (Hubbard and
+extracted from the executed notebook, the notebook with its executed
+outputs is the numerical data set of the paper, and the \SM{} and the
+notebook together document every number quoted.  Package, notebooks,
+tests and \LaTeX{} sources are available in the public repository and in
+the archived release that correspond to the submitted version~\cite{Code}.  The ED reference code (Hubbard and
 $t$--$J$ models; chain, square and checkerboard lattices) is the notebook
 \texttt{Hubbard.ipynb}~\cite{HubbardNotebook}, whose conventions the module
 follows.
@@ -1183,6 +1245,7 @@ and H.~Neven, Nat.\ Commun.\ \textbf{9}, 4812 (2018).
 \bibitem{Choi2021} K.~Choi, D.~Lee, J.~Bonitati, Z.~Qian, and J.~Watkins,
 Phys.\ Rev.\ Lett.\ \textbf{127}, 040505 (2021).
 \bibitem{Qian2024} Z.~Qian \emph{et al.}, Eur.\ Phys.\ J.\ A \textbf{60}, 151 (2024).
+\bibitem{LinTong2020} L.~Lin and Y.~Tong, Quantum \textbf{4}, 372 (2020).
 \bibitem{Bogner2026} S.~Bogner, H.~Hergert, M.~Hjorth-Jensen, R.~LaRose,
 D.~Lee, and M.~Patkowski, ``Quantum state preparation with resolution
 refinement,'' Phys.\ Lett.\ B \textbf{875}, 140363 (2026); arXiv:2511.14732.
@@ -1209,8 +1272,9 @@ eigenstate preparation,'' Phys.\ Rev.\ A \textbf{113}, 052442 (2026);
 arXiv:2510.19039.
 \bibitem{Sadia2026} J.~P.~Sadia, M.~Hjorth-Jensen, D.~Lee, and R.~LaRose,
 ``Digital quantum state preparation by nucleation,'' arXiv:2609.37527 (2026).
-\bibitem{Code} Repository \texttt{pairing-eigenq}, [URL to be inserted];
-archived version: Zenodo, [DOI to be inserted].
+\bibitem{Code} Repository \texttt{pairing-eigenq}, [repository URL and the
+tag of the release used for this version to be inserted before submission];
+archived release: Zenodo, [DOI to be inserted once the archive exists].
 \bibitem{Grimsley2019} H.~R.~Grimsley, S.~E.~Economou, E.~Barnes, and
 N.~J.~Mayhall, Nat.\ Commun.\ \textbf{10}, 3007 (2019).
 \bibitem{SM} See Supplemental Material at [URL will be inserted by

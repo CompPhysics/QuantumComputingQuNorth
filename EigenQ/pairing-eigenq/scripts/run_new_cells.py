@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Execute the EXT:TROTTER cells of ResolutionRefPairing.ipynb in-process and
 attach their real outputs (stdout + PNG figures) to the notebook via nbformat.
-Usage: run_new_cells.py [--mark "<!-- EXT:PH -->"] [first_idx last_idx]
+Usage: run_new_cells.py [--mark "<!-- EXT:PH -->"] [--nb notebooks/X.ipynb] [first_idx last_idx]
 (indices into the new-cell list; earlier new cells are always re-executed
 silently to rebuild kernel state; --mark selects which tagged section to run,
 default EXT:TROTTER).
@@ -18,6 +18,8 @@ NB = ROOT / "notebooks/ResolutionRefPairing.ipynb"
 MARK = "<!-- EXT:TROTTER -->"
 if "--mark" in sys.argv:
     j = sys.argv.index("--mark"); MARK = sys.argv[j + 1]; del sys.argv[j:j + 2]
+if "--nb" in sys.argv:                                   # another notebook (e.g. the Hubbard one, tagged section EXT:HREFINE)
+    j = sys.argv.index("--nb"); NB = pathlib.Path(sys.argv[j + 1]).resolve(); del sys.argv[j:j + 2]
 
 nb = nbf.read(NB, as_version=4)
 new_code = [i for i, c in enumerate(nb.cells)

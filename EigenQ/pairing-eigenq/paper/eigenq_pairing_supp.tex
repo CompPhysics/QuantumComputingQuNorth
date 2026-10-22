@@ -8,9 +8,10 @@
 \usepackage{amsmath,amssymb}
 \usepackage{physics}
 \usepackage{graphicx}
+\usepackage{xr-hyper}
 \usepackage{hyperref}
-\usepackage{xr}
-\externaldocument{eigenq_pairing_xr}
+% main-text references: the filtered .aux made by `make paper` when it exists (clean build), else the main .aux itself
+\IfFileExists{eigenq_pairing_xr.aux}{\externaldocument{eigenq_pairing_xr}}{\externaldocument{eigenq_pairing}}
 \newcommand{\Hlow}{H_{\mathrm{low}}}
 \newcommand{\Hhigh}{H_{\mathrm{high}}}
 \newcommand{\Eobj}{E_{\mathrm{obj}}}

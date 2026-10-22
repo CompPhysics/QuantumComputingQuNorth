@@ -11,8 +11,8 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 - There are TWO papers, split on 2026-10-12 (the pre-split manuscript is
   `paper/eigenq_pairing_v3_backup.tex`):
   * Paper I, `paper/eigenq_pairing.tex` (main text) + `paper/eigenq_pairing_supp.tex`
-    (Supplemental Material, cross-referenced with `xr` against the main .aux;
-    `make paper` builds both) — the pure (seniority-conserving) pairing model.
+    (Supplemental Material, cross-referenced with `xr-hyper` against the main
+    .aux, or its filtered copy when `make paper` made one; `make paper` builds both) — the pure (seniority-conserving) pairing model.
     Restructured 2026-10-16 (pre-split tex: `eigenq_pairing_v7_backup.tex`;
     `scripts/split_supplement.py` is the one-off restructuring script, kept for
     the record) around (a) the reference implementation, (b) the matched-accuracy
@@ -38,7 +38,8 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   the f=0 row of paper II's tables is paper I's result.
 - Paper III, `paper3/eigenq_hubbard.tex` (main text, `quantumarticle` class for
   Quantum, two-column, `booktabs` tables) + `paper3/eigenq_hubbard_supp.tex`
-  (Supplemental Material, Secs. S1-S8, `xr` against the main .aux): LATTICE
+  (Supplemental Material, Secs. S1-S9, `xr-hyper` against the main .aux, or its
+  filtered copy when `make paper-hubbard` made one): LATTICE
   refinement of the Hubbard model (chain 2->4->8->16, square 2x2->4x4), written
   along the lines of paper I (reference implementation / matched benchmark at
   8 AND 16 sites / transferable results; ADAPT-VQE comparator; cites paper I,
@@ -52,9 +53,9 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   it in-process with a dill checkpoint (`--checkpoint-after 15` = after
   Section 12) so that Section 13 can be fixed and resumed without the earlier
   hours; the builder takes an optional output path.  Figures are
-  `paper3/figs/fig1-14.png` (`make figures-hubbard`; main text uses 1, 2, 3, 5,
-  11, 13, 14; the SM uses 4, 6, 7, 9; figs 8, 10, 12 are superseded by 13-14);
-  `make check-hubbard` (14 figures) asserts the anchors (chain 4->8 U=4: E_low
+  `paper3/figs/fig1-15.png` (`make figures-hubbard`; main text uses 1, 2, 3, 5,
+  11, 15; the SM uses 4, 6, 7, 9, 13, 14; figs 8, 10, 12 are superseded by 13-15);
+  `make check-hubbard` (15 figures) asserts the anchors (chain 4->8 U=4: E_low
   -4.976573, E_high -5.634427; 16 sites: -7.209813; 4x4 (2,2): -10.4197).  The
   ED reference and its conventions are `paper3/Hubbard.ipynb` (unchanged);
   `paper3/prototype/` is the superseded sector-exact prototype; `paper3/NOTES.md`
@@ -111,9 +112,11 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
 7. `make paper-ph`  — copy the V_ph figures and compile paper II; `make papers` builds both.
 8. `make all`       — the whole chain end to end (papers I and II).
 9. `make hubbard`   — paper III: build+execute the Hubbard notebook (per-cell
-   timeout 7200 s), check it (12 figures), extract figures, compile the main text
-   and the SM (`quantumarticle` class, in texlive-publishers; the individual
-   targets are notebook-hubbard / check-hubbard / figures-hubbard / paper-hubbard).
+   timeout 7200 s), check it (15 figures), extract figures, compile the main text
+   and the SM (`quantumarticle` class, in texlive-publishers; the SM is built
+   against `paper3/eigenq_hubbard_xr.aux` = the main .aux without \bibcite, or
+   hyperref+xr fail; the individual targets are notebook-hubbard /
+   check-hubbard / figures-hubbard / paper-hubbard).
 
 ## Conventions
 - Python: import `pairinglib as pl`. Keep new physics in the package + a test.
@@ -317,13 +320,33 @@ demonstrated on the constant-pairing Hamiltonian (the EIGEN-Q pipeline).
   3.9e5 (2)/7.9e5 (4)/1.1e6 (6); pruned 6.2e4/4.1e5/5.9e5/9.8e5; Path B
   1.06e5/2.7e5/5.3e5/9.2e5; prolonged 8.1e5/1.1e6/-/-; determinant 1.2e6/-.
   Bootstrap of the selection (400 resamples): ramp/Path A 100 % stable.
-  Eight sites (exact ensemble, cycle 1.95e4) at 1e-3/3e-4/1e-4: ramp 1.4e4
-  (12,96,0)/2.8e4 (16,192,0)/3.7e4 (24,256,0); ADAPT 1.7e4 (149)/2.3e4 (194)/
-  7.9e4 (177, M=3); Path A 3.7e4/6.7e4/1.1e5; pruned 5.1e4/9.0e4/-; Path B
-  1.2e5/1.6e5/2.7e5.  VERDICT: unfiltered ramp cheapest from 3e-3 down at both
-  sizes; Path A (shared flag) x2.4-3.1 at 8 sites, tied at 1e-3 at 16 sites and
-  x1.15-1.9 elsewhere; ADAPT cheapest only where it needs no cycle; Path B
-  x6-9 / x1.4-5.9; no adiabatic route needs a filter cycle at these targets.
+  Eight sites (exact ensemble, cycle 1.95e4) at 1e-3/3e-4/1e-4 on the Section-13
+  grid: ramp 1.4e4/2.8e4/3.7e4; ADAPT 1.7e4 (149)/2.3e4 (194)/7.9e4 (177, M=3);
+  Path A 3.7e4/6.7e4/1.1e5; pruned 5.1e4/9.0e4/-; Path B 1.2e5/1.6e5/2.7e5.
+  REFINED SEARCH 2026-10-22 (notebook Section 14 EXT:HREFINE,
+  `scripts/hubbard_refine_checks.py` self-contained, inserted into the executed
+  notebook by `scripts/extend_notebook_hubbard_refine.py` and emitted by the
+  builder; fig 15 = paper III fig:frontiers, figs 13-14 moved to the SM
+  (fig:grid8/fig:grid16), SM Sec. S9 + Table S7 tab:converge; `make
+  check-hubbard` expects 15 figures; response `paper3/response_to_final_pass.md`,
+  previous tex `eigenq_hubbard_v5_backup.tex` / `_supp_v5_backup.tex`): fine T
+  grids (8 sites: ramp 6-48 step 1, Path A 6-24 step 1, Path B 12-32 step 2;
+  16 sites: ramp 16-80 step 4, Path A 4-40 step 2), n_s geometric ratio 1.15
+  then integer by bisection, M=0..6 exact ensemble at 8 sites, M=0 only at 16
+  sites (complete: a cycle 1.76e5 > every unfiltered minimum); 8-site paths
+  through `hb.hubbard_groups`/`ProjGroup` (identical to dense, 70x faster).
+  Minima (L2): 8 sites ramp 1.0e4 (13,69)/1.6e4 (14,108)/2.4e4 (19,167), Path A
+  2.97e4 (9,47;c)/5.3e4 (13,99;c)/8.5e4 (18,151;a), Path B 9.8e4/1.4e5/2.1e5
+  (filtered, M=3/5/6); 16 sites at 1e-2/3e-3/1e-3/3e-4: ramp 2.9e4 (28,94)/
+  4.4e4 (40,144)/7.5e4 (44,244)/1.2e5 (60,391), Path A 4.6e4 (8,31;c)/7.2e4
+  (12,57;c)/1.2e5 (18,102;a)/2.2e5 (26,204;a) with the refined coarse states
+  (c: 8-site ramp T=13 n_s=113 16 416 CNOTs incl. prolongation; a: T=19 n_s=167
+  24 192).  Ratios Path A/ramp 2.95-3.53 (8 sites), 1.60-1.86 (16 sites); L0->L2
+  -15..-63 %; L1->L2 <= 11 %.  VERDICT (final): unfiltered ramp cheapest at
+  EVERY target at both sizes; Path A x3-3.5 / x1.6-1.9 (the old "tie at 1e-3 at
+  16 sites" was a T-spacing artifact); ADAPT 1.5-3.3x at 8 sites, 1.65x at 1e-2
+  and 8-11x below at 16 sites; Path B 9-10x / 4-8x; margins quoted with the
+  ~10 % resolution of the search.
 
 ## Definition of done
 A change is done only when `make test` and `make check` pass and (if a paper

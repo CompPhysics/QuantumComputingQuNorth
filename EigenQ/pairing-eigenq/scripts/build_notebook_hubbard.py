@@ -6,9 +6,9 @@ the article prose.  Run from the repo root:
 
   python3 scripts/build_notebook_hubbard.py
   python3 .claude/skills/notebook-builder/scripts/execute_notebook.py notebooks/ResolutionRefHubbard.ipynb 3600
-  python3 scripts/check_notebook_hubbard.py notebooks/ResolutionRefHubbard.ipynb 8
+  python3 scripts/check_notebook_hubbard.py notebooks/ResolutionRefHubbard.ipynb 15
 """
-import sys, pathlib
+import sys, pathlib, re
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / ".claude/skills/notebook-builder/scripts"))
 from build_notebook import build
@@ -1278,9 +1278,43 @@ ax.set_title(f"chain $8\\to16$, $U=4t$: actual coarse state, corrected Path A ($
 plt.tight_layout(); plt.show()
 """)
 
-# ============================================================================ 14 summary
+# ============================================================================ 14 convergence of the operating-point search (2026-10-21)
+MARK_HREFINE = "<!-- EXT:HREFINE -->"
+MD_HREFINE = MARK_HREFINE + r"""
+---
+## 14&nbsp; Convergence of the operating-point search
+
+The joint search of Section 13 used coarse control grids (ramp $T\in\{8,\ldots,48\}/t$ in steps of
+$4$--$16$ with $n_s\in\{64,\ldots,512\}$ at eight sites; $T\in\{32,48,64,128\}/t$ and
+$n_s\in\{256,512,1024\}$ at sixteen).  The final pre-submission pass of 21 October 2026 (the same
+checklist as `paper/morefeedback.md` for paper I) asks how far those minima are from converged.
+Here the ramp and Path A (shared-flag coarse term, actual propagated coarse state) are searched on
+fine grids of $T$ (steps of $1$--$2/t$ at eight sites, $2$--$4/t$ at sixteen), Path B on a finer
+$T$ grid as well, with the step count on a geometric list (ratio $1.15$) and then located to the
+integer by bracketing and bisection at every target; at eight sites every cycle number
+$M=0,\ldots,6$ is evaluated with the exact quantized-time ensemble (`hb.exact_digital_ensemble`,
+now with a cached $Q$), at sixteen sites the refinement is restricted to $M=0$, which is complete
+for the ramp and Path A because one average filter cycle alone ($1.8\times10^5$ CNOTs) costs more
+than their unfiltered minima at every target (checked in the output).  The coarse state of the
+$8\to16$ hierarchy is re-selected as the cheapest *refined* eight-site unfiltered ramp below
+$3\times10^{-4}$ ('c') and below $10^{-4}$ ('a').  Three search levels are reported per route and
+target --- L0 (the Section-13 grid), L1 (fine grid, geometric $n_s$), L2 (L1 + integer $n_s$) ---
+with the number of distinct controls within $10\%$ of the minimum and the Path-A/ramp ratio.
+Figure 15 draws the cost frontiers; these are the numbers of Tables 2 and 3 and of Table S7 of
+paper III.  The cell is self-contained (it rebuilds its inputs from `pairinglib.hubbard`), so it
+can be re-executed on its own with `scripts/run_new_cells.py --nb notebooks/ResolutionRefHubbard.ipynb --mark "<!-- EXT:HREFINE -->"`."""
+def _cell_from_script(name):
+    src = (ROOT / "scripts" / name).read_text()
+    src = re.sub(r'^#!.*\n', '', src)
+    src = re.sub(r'^"""[\s\S]*?"""\n', '', src)
+    src = re.sub(r'^(import numpy as np|import matplotlib\.pyplot as plt|import pairinglib\.hubbard as hb|sys\.path\.insert.*)\n', '', src, flags=re.M)
+    return "# " + MARK_HREFINE + "\n" + PRE + src
+md(MD_HREFINE)
+code(_cell_from_script("hubbard_refine_checks.py"))
+
+# ============================================================================ 15 summary
 md(r"""---
-## 14&nbsp; Summary
+## 15&nbsp; Summary
 
 * **Lattice refinement is structurally clean.**  The Galerkin coarse model of the bonding
   prolongation is a Hubbard model in closed form ($t/2$, $U/2$ in one dimension, self-similar at
@@ -1304,7 +1338,9 @@ md(r"""---
 * **Costs.**  The matched comparison of Sections 10–12 is superseded by the frontiers of Section 13
   (corrected Path-A constant, shared-flag coarse term, parity-support UCCSD weights, actual coarse
   states, exact quantized-time ensemble at eight sites, joint search over the adiabatic controls with
-  $M=0$ allowed); the verdict and the numbers quoted in the paper are those printed there.""")
+  $M=0$ allowed) and by the refined search of Section 14 (fine $T$ grids, integer step counts, three
+  search levels and the flatness of the frontier); the verdict and the numbers quoted in the paper
+  are those printed in Section 14.""")
 
 if __name__ == "__main__":
     out = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "notebooks/ResolutionRefHubbard.ipynb"
